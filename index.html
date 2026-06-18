@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Trigonometrische Funktionen</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="js/mathjax-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <script src="https://www.geogebra.org/apps/deployggb.js"></script>
+</head>
+<body>
+  <div class="language-switcher" role="group" aria-label="Sprachauswahl">
+    <button id="langDeButton" class="language-option is-active" type="button" aria-pressed="true" aria-label="Deutsch" title="Deutsch">DE</button>
+    <button id="langEnButton" class="language-option" type="button" aria-pressed="false" aria-label="English" title="English">EN</button>
+  </div>
+
+  <h1 id="mainHeading">Trigonometrische Funktionen</h1>
+
+  <div id="introScreen" class="screen intro-screen">
+    <div class="panel">
+      <div class="control-group">
+        <label id="introFunctionTitle" for="introFunctionSelect">Wähle eine Grundfunktion</label>
+        <select id="introFunctionSelect">
+          <option value="sin" selected>Sinus</option>
+          <option value="cos">Kosinus</option>
+          <option value="tan">Tangens</option>
+        </select>
+      </div>
+
+      <div class="intro-summary">
+        <div class="intro-summary-item">
+          <span id="introFormulaLabel" class="intro-summary-label">Modell</span>
+          <span id="introFormula" class="mathjax-inline">\(g(x)=a\cdot f(b(x-c))+d\)</span>
+        </div>
+        <div class="intro-summary-item">
+          <span id="introGraphLabel" class="intro-summary-label">Darstellung</span>
+          <span id="introGraphText">Graph, Einheitskreis und Kennwerte</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="intro-actions">
+      <button id="startButton" class="start-button" type="button">Start</button>
+    </div>
+  </div>
+
+  <div id="appScreen" class="screen app-screen hidden">
+    <div class="app-top-row">
+      <div class="app-top-group">
+        <label id="appFunctionTypeLabel" class="app-top-label" for="functionSelect">Grundfunktion:</label>
+        <select id="functionSelect" class="app-top-select">
+          <option value="sin" selected>Sinus</option>
+          <option value="cos">Kosinus</option>
+          <option value="tan">Tangens</option>
+        </select>
+      </div>
+
+      <div class="app-top-group app-top-probe">
+        <label id="probeLabel" class="app-top-label" for="xRange">Abtastwert:</label>
+        <input id="xRange" type="range" min="-6.283185" max="6.283185" step="0.017453" value="0.785398" />
+        <input id="xNumber" class="app-top-number" type="number" min="-6.283185" max="6.283185" step="0.017453" value="0.785398" />
+      </div>
+    </div>
+
+    <div class="formula">
+      <div class="formula-row">
+        <div id="formulaTitle" class="formula-title">Funktionsgleichung:</div>
+        <div class="formula-expression">
+          <div id="formulaMain" class="formula-main mathjax-display" aria-label="Funktionsgleichung"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="panel">
+        <div class="control-group">
+          <div id="paramTitle" class="param-title">Parameter</div>
+
+          <div class="param-list">
+            <div class="param-item">
+              <div class="param-label">
+                <span id="aDescription" class="param-desc">Streckung und Spiegelung in y-Richtung mit <span class="param-name">a</span></span>
+              </div>
+              <div class="param-row">
+                <input id="aRange" type="range" min="-3" max="3" step="0.1" value="1" />
+                <div class="param-value">
+                  <span class="param-value-label"><span class="param-name">a</span><span class="param-sep">=</span></span>
+                  <input id="aNumber" type="number" min="-3" max="3" step="0.1" value="1" />
+                </div>
+              </div>
+            </div>
+
+            <div class="param-item">
+              <div class="param-label">
+                <span id="bDescription" class="param-desc">Frequenzfaktor <span class="param-name">b</span> mit <span class="param-name">b</span> != 0</span>
+              </div>
+              <div class="param-row">
+                <input id="bRange" type="range" min="-4" max="4" step="0.1" value="1" />
+                <div class="param-value">
+                  <span class="param-value-label"><span class="param-name">b</span><span class="param-sep">=</span></span>
+                  <input id="bNumber" type="number" min="-4" max="4" step="0.1" value="1" />
+                </div>
+              </div>
+            </div>
+
+            <div class="param-item">
+              <div class="param-label">
+                <span id="cDescription" class="param-desc">Verschiebung in x-Richtung um <span class="param-name">c</span></span>
+              </div>
+              <div class="param-row">
+                <input id="cRange" type="range" min="-6.283185" max="6.283185" step="0.017453" value="0" />
+                <div class="param-value">
+                  <span class="param-value-label"><span class="param-name">c</span><span class="param-sep">=</span></span>
+                  <input id="cNumber" type="number" min="-6.283185" max="6.283185" step="0.017453" value="0" />
+                </div>
+              </div>
+            </div>
+
+            <div class="param-item">
+              <div class="param-label">
+                <span id="dDescription" class="param-desc">Verschiebung in y-Richtung um <span class="param-name">d</span></span>
+              </div>
+              <div class="param-row">
+                <input id="dRange" type="range" min="-3" max="3" step="0.1" value="0" />
+                <div class="param-value">
+                  <span class="param-value-label"><span class="param-name">d</span><span class="param-sep">=</span></span>
+                  <input id="dNumber" type="number" min="-3" max="3" step="0.1" value="0" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="buttons">
+          <button id="resetButton" type="button">Zurücksetzen</button>
+        </div>
+
+        <div id="status" class="status"></div>
+      </div>
+
+      <div id="ggb-element"></div>
+    </div>
+
+    <div class="analysis-grid">
+      <div class="panel">
+        <div id="unitCircleTitle" class="panel-title">Einheitskreis</div>
+        <canvas id="unitCircleCanvas" class="unit-circle-canvas" width="720" height="420" aria-label="Einheitskreis"></canvas>
+      </div>
+
+      <div class="panel">
+        <div id="factsTitle" class="panel-title">Kennwerte</div>
+        <div id="factsGrid" class="facts-grid"></div>
+        <div id="probeValues" class="probe-values"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
