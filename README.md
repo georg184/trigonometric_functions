@@ -38,4 +38,4 @@ gh browse
 
 ## GitHub Pages
 
-The project is designed to be published from the `main` branch and the repository root. After each `git push`, the public site can be updated by GitHub Pages.
+The project is published with the GitHub Actions workflow in `.github/workflows/deploy-pages.yml`. After each `git push`, the workflow uploads the static files and deploys them to GitHub Pages.
