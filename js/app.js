@@ -2,6 +2,7 @@ let ggbApplet = null;
 let appletBuildStarted = false;
 let currentLanguage = 'de';
 let currentView = 'intro';
+let currentContext = 'triangle';
 let lastValidB = 1;
 
 const LANGUAGE_STORAGE_KEY = 'trigonometric-functions-language';
@@ -60,6 +61,11 @@ const FUNCTIONS = {
   }
 };
 
+const CONTEXTS = {
+  triangle: 'triangle',
+  unitCircle: 'unitCircle'
+};
+
 const controls = {
   mainHeading: document.getElementById('mainHeading'),
   introScreen: document.getElementById('introScreen'),
@@ -67,6 +73,15 @@ const controls = {
   startButton: document.getElementById('startButton'),
   langDeButton: document.getElementById('langDeButton'),
   langEnButton: document.getElementById('langEnButton'),
+  introContextTitle: document.getElementById('introContextTitle'),
+  introTriangleContext: document.getElementById('introTriangleContext'),
+  introCircleContext: document.getElementById('introCircleContext'),
+  introTriangleChoice: document.getElementById('introTriangleChoice'),
+  introCircleChoice: document.getElementById('introCircleChoice'),
+  introTriangleTitle: document.getElementById('introTriangleTitle'),
+  introTriangleDescription: document.getElementById('introTriangleDescription'),
+  introCircleTitle: document.getElementById('introCircleTitle'),
+  introCircleDescription: document.getElementById('introCircleDescription'),
   introFunctionTitle: document.getElementById('introFunctionTitle'),
   introFunctionSelect: document.getElementById('introFunctionSelect'),
   introFormulaLabel: document.getElementById('introFormulaLabel'),
@@ -95,7 +110,7 @@ const controls = {
   xNumber: document.getElementById('xNumber'),
   resetButton: document.getElementById('resetButton'),
   status: document.getElementById('status'),
-  unitCircleTitle: document.getElementById('unitCircleTitle'),
+  visualTitle: document.getElementById('visualTitle'),
   unitCircleCanvas: document.getElementById('unitCircleCanvas'),
   factsTitle: document.getElementById('factsTitle'),
   factsGrid: document.getElementById('factsGrid'),
@@ -107,10 +122,22 @@ const TEXT = {
     pageTitle: 'Trigonometrische Funktionen',
     heading: 'Trigonometrische Funktionen',
     intro: {
+      chooseContext: 'Wähle den Zugang',
+      contexts: {
+        triangle: {
+          title: 'am rechtwinkligen Dreieck',
+          description: 'Seitenverhältnisse im rechtwinkligen Dreieck',
+          representationText: 'Graph, rechtwinkliges Dreieck und Kennwerte'
+        },
+        unitCircle: {
+          title: 'am Einheitskreis',
+          description: 'Koordinaten und Winkel am Einheitskreis',
+          representationText: 'Graph, Einheitskreis und Kennwerte'
+        }
+      },
       chooseFunction: 'Wähle eine Grundfunktion',
       model: 'Modell',
       representation: 'Darstellung',
-      representationText: 'Graph, Einheitskreis und Kennwerte',
       start: 'Start'
     },
     app: {
@@ -125,6 +152,7 @@ const TEXT = {
         d: 'Verschiebung in y-Richtung um <span class="param-name">d</span>'
       },
       reset: 'Zurücksetzen',
+      rightTriangle: 'Rechtwinkliges Dreieck',
       unitCircle: 'Einheitskreis',
       facts: 'Kennwerte'
     },
@@ -151,23 +179,40 @@ const TEXT = {
     },
     aria: {
       formula: 'Funktionsgleichung',
+      rightTriangle: 'Rechtwinkliges Dreieck',
       unitCircle: 'Einheitskreis'
     },
     canvas: {
       sin: 'sin',
       cos: 'cos',
       tan: 'tan',
-      theta: 'theta'
+      theta: 'theta',
+      alpha: 'alpha',
+      opposite: 'Gegenkathete',
+      adjacent: 'Ankathete',
+      hypotenuse: 'Hypotenuse'
     }
   },
   en: {
     pageTitle: 'Trigonometric Functions',
     heading: 'Trigonometric Functions',
     intro: {
+      chooseContext: 'Choose the approach',
+      contexts: {
+        triangle: {
+          title: 'on a right triangle',
+          description: 'Side ratios in a right triangle',
+          representationText: 'Graph, right triangle, and key values'
+        },
+        unitCircle: {
+          title: 'on the unit circle',
+          description: 'Coordinates and angles on the unit circle',
+          representationText: 'Graph, unit circle, and key values'
+        }
+      },
       chooseFunction: 'Choose a base function',
       model: 'Model',
       representation: 'Representation',
-      representationText: 'Graph, unit circle, and key values',
       start: 'Start'
     },
     app: {
@@ -182,6 +227,7 @@ const TEXT = {
         d: 'Vertical shift by <span class="param-name">d</span>'
       },
       reset: 'Reset',
+      rightTriangle: 'Right triangle',
       unitCircle: 'Unit circle',
       facts: 'Key values'
     },
@@ -208,13 +254,18 @@ const TEXT = {
     },
     aria: {
       formula: 'Function equation',
+      rightTriangle: 'Right triangle',
       unitCircle: 'Unit circle'
     },
     canvas: {
       sin: 'sin',
       cos: 'cos',
       tan: 'tan',
-      theta: 'theta'
+      theta: 'theta',
+      alpha: 'alpha',
+      opposite: 'opposite',
+      adjacent: 'adjacent',
+      hypotenuse: 'hypotenuse'
     }
   }
 };
@@ -225,6 +276,45 @@ function getTextBundle() {
 
 function getCurrentFunction() {
   return FUNCTIONS[controls.functionSelect.value] || FUNCTIONS.sin;
+}
+
+function getSelectedIntroContext() {
+  return controls.introCircleContext.checked ? CONTEXTS.unitCircle : CONTEXTS.triangle;
+}
+
+function getContextTitle() {
+  const texts = getTextBundle();
+  return currentContext === CONTEXTS.unitCircle ? texts.app.unitCircle : texts.app.rightTriangle;
+}
+
+function getContextAriaLabel() {
+  const texts = getTextBundle();
+  return currentContext === CONTEXTS.unitCircle ? texts.aria.unitCircle : texts.aria.rightTriangle;
+}
+
+function updateContextCards() {
+  const isTriangle = currentContext === CONTEXTS.triangle;
+  controls.introTriangleContext.checked = isTriangle;
+  controls.introCircleContext.checked = !isTriangle;
+  controls.introTriangleChoice.classList.toggle('is-active', isTriangle);
+  controls.introCircleChoice.classList.toggle('is-active', !isTriangle);
+}
+
+function updateContextText() {
+  const texts = getTextBundle();
+  controls.introGraphText.textContent = texts.intro.contexts[currentContext].representationText;
+  controls.visualTitle.textContent = getContextTitle();
+  controls.unitCircleCanvas.setAttribute('aria-label', getContextAriaLabel());
+}
+
+function setIntroContext(context) {
+  currentContext = context === CONTEXTS.unitCircle ? CONTEXTS.unitCircle : CONTEXTS.triangle;
+  updateContextCards();
+  updateContextText();
+  if (currentView === 'app') {
+    configureProbeRangeForContext();
+    updateAllDisplays();
+  }
 }
 
 function readStoredLanguage() {
@@ -276,10 +366,14 @@ function applyLanguage() {
   document.title = texts.pageTitle;
 
   controls.mainHeading.textContent = texts.heading;
+  controls.introContextTitle.textContent = texts.intro.chooseContext;
+  controls.introTriangleTitle.textContent = texts.intro.contexts.triangle.title;
+  controls.introTriangleDescription.textContent = texts.intro.contexts.triangle.description;
+  controls.introCircleTitle.textContent = texts.intro.contexts.unitCircle.title;
+  controls.introCircleDescription.textContent = texts.intro.contexts.unitCircle.description;
   controls.introFunctionTitle.textContent = texts.intro.chooseFunction;
   controls.introFormulaLabel.textContent = texts.intro.model;
   controls.introGraphLabel.textContent = texts.intro.representation;
-  controls.introGraphText.textContent = texts.intro.representationText;
   controls.startButton.textContent = texts.intro.start;
 
   controls.appFunctionTypeLabel.textContent = texts.app.functionType;
@@ -291,13 +385,13 @@ function applyLanguage() {
   controls.cDescription.innerHTML = texts.app.parameterDescriptions.c;
   controls.dDescription.innerHTML = texts.app.parameterDescriptions.d;
   controls.resetButton.textContent = texts.app.reset;
-  controls.unitCircleTitle.textContent = texts.app.unitCircle;
   controls.factsTitle.textContent = texts.app.facts;
   controls.formulaMain.setAttribute('aria-label', texts.aria.formula);
-  controls.unitCircleCanvas.setAttribute('aria-label', texts.aria.unitCircle);
 
   refreshFunctionOptions(controls.introFunctionSelect);
   refreshFunctionOptions(controls.functionSelect);
+  updateContextCards();
+  updateContextText();
   updateLanguageButtons();
   updateAllDisplays();
 }
@@ -336,6 +430,26 @@ function syncPair(rangeEl, numberEl, value) {
   const rounded = roundForInput(value);
   rangeEl.value = String(rounded);
   numberEl.value = String(rounded);
+}
+
+function configureProbeRangeForContext() {
+  if (currentContext === CONTEXTS.triangle) {
+    controls.xRange.min = '0';
+    controls.xRange.max = String(Math.PI / 2);
+    controls.xNumber.min = '0';
+    controls.xNumber.max = String(Math.PI / 2);
+
+    const currentX = getNumberValue(controls.xNumber, DEFAULT_PARAMETERS.x);
+    if (currentX < 0 || currentX > Math.PI / 2) {
+      syncPair(controls.xRange, controls.xNumber, DEFAULT_PARAMETERS.x);
+    }
+    return;
+  }
+
+  controls.xRange.min = String(-TWO_PI);
+  controls.xRange.max = String(TWO_PI);
+  controls.xNumber.min = String(-TWO_PI);
+  controls.xNumber.max = String(TWO_PI);
 }
 
 function getNumberValue(numberEl, fallback = 0) {
@@ -755,12 +869,130 @@ function drawUnitCircle() {
   ctx.fillText(`theta=${formatNumber(theta)}`, width * 0.68, height * 0.76);
 }
 
+function normalizeTriangleAngle(theta) {
+  if (!Number.isFinite(theta)) {
+    return DEFAULT_PARAMETERS.x;
+  }
+
+  const wrapped = ((theta % Math.PI) + Math.PI) % Math.PI;
+  const reference = wrapped > Math.PI / 2 ? Math.PI - wrapped : wrapped;
+  const minAngle = Math.PI / 36;
+  const maxAngle = Math.PI / 2 - minAngle;
+  return Math.min(Math.max(reference, minAngle), maxAngle);
+}
+
+function drawRightTriangle() {
+  const canvas = controls.unitCircleCanvas;
+  const rect = canvas.getBoundingClientRect();
+  const width = Math.max(320, rect.width || canvas.width);
+  const height = Math.max(280, rect.height || canvas.height);
+  const ratio = window.devicePixelRatio || 1;
+
+  canvas.width = Math.round(width * ratio);
+  canvas.height = Math.round(height * ratio);
+
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+
+  const state = getState();
+  const texts = getTextBundle();
+  const theta = state.b * (state.x - state.c);
+  const alpha = normalizeTriangleAngle(theta);
+  const adjacent = Math.cos(alpha);
+  const opposite = Math.sin(alpha);
+  const tangent = Math.tan(alpha);
+  const baseLength = Math.min(width * 0.46, height * 0.58);
+  const leftX = width * 0.12;
+  const baseY = height * 0.72;
+  const topY = baseY - baseLength * tangent;
+  const scaleCorrection = topY < height * 0.12 ? (baseY - height * 0.12) / (baseLength * tangent) : 1;
+  const drawnBase = baseLength * scaleCorrection;
+  const drawnHeight = drawnBase * tangent;
+  const bx = leftX + drawnBase;
+  const by = baseY;
+  const cx = bx;
+  const cy = baseY - drawnHeight;
+
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+
+  ctx.strokeStyle = '#0969da';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(leftX, baseY);
+  ctx.lineTo(bx, by);
+  ctx.stroke();
+
+  ctx.strokeStyle = '#2ea043';
+  ctx.beginPath();
+  ctx.moveTo(bx, by);
+  ctx.lineTo(cx, cy);
+  ctx.stroke();
+
+  ctx.strokeStyle = '#57606a';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(leftX, baseY);
+  ctx.lineTo(cx, cy);
+  ctx.stroke();
+
+  ctx.strokeStyle = '#1f2328';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(bx - 24, by - 24, 24, 24);
+
+  ctx.strokeStyle = '#bf8700';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(leftX, baseY, 44, -alpha, 0);
+  ctx.stroke();
+
+  ctx.fillStyle = '#1f2328';
+  ctx.font = '13px system-ui, sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(texts.canvas.alpha, leftX + 52, baseY - 16);
+
+  ctx.fillStyle = '#0969da';
+  ctx.fillText(texts.canvas.adjacent, leftX + drawnBase * 0.34, baseY + 24);
+
+  ctx.fillStyle = '#2ea043';
+  ctx.fillText(texts.canvas.opposite, bx + 12, baseY - drawnHeight * 0.5);
+
+  ctx.fillStyle = '#57606a';
+  ctx.fillText(texts.canvas.hypotenuse, leftX + drawnBase * 0.44, baseY - drawnHeight * 0.5 - 14);
+
+  ctx.fillStyle = '#1f2328';
+  ctx.font = '14px system-ui, sans-serif';
+  ctx.fillText(`${texts.canvas.alpha}=${formatNumber(alpha)} rad`, width * 0.66, height * 0.24);
+
+  ctx.fillStyle = '#2ea043';
+  ctx.fillText(`${texts.canvas.sin}=${formatNumber(opposite)}`, width * 0.66, height * 0.38);
+
+  ctx.fillStyle = '#0969da';
+  ctx.fillText(`${texts.canvas.cos}=${formatNumber(adjacent)}`, width * 0.66, height * 0.50);
+
+  ctx.fillStyle = '#bf8700';
+  ctx.fillText(`${texts.canvas.tan}=${formatNumber(tangent)}`, width * 0.66, height * 0.62);
+
+  ctx.fillStyle = '#57606a';
+  ctx.fillText(`theta=${formatNumber(theta)}`, width * 0.66, height * 0.76);
+}
+
+function drawVisualization() {
+  updateContextText();
+  if (currentContext === CONTEXTS.triangle) {
+    drawRightTriangle();
+    return;
+  }
+  drawUnitCircle();
+}
+
 function updateAllDisplays() {
   updateResetButtonState();
   updateFormulaDisplay();
   updateFacts();
   updateProbeValues();
-  drawUnitCircle();
+  drawVisualization();
 }
 
 function buildGeoGebraExpression(state) {
@@ -884,6 +1116,9 @@ function applyGraph() {
 }
 
 function syncAppSettingsFromIntro() {
+  currentContext = getSelectedIntroContext();
+  configureProbeRangeForContext();
+  updateContextCards();
   controls.functionSelect.value = controls.introFunctionSelect.value;
 }
 
@@ -929,6 +1164,7 @@ function startFromIntro() {
 function resetAll() {
   controls.functionSelect.value = 'sin';
   controls.introFunctionSelect.value = 'sin';
+  configureProbeRangeForContext();
   syncPair(controls.aRange, controls.aNumber, DEFAULT_PARAMETERS.a);
   syncPair(controls.bRange, controls.bNumber, DEFAULT_PARAMETERS.b);
   syncPair(controls.cRange, controls.cNumber, DEFAULT_PARAMETERS.c);
@@ -983,6 +1219,18 @@ controls.introFunctionSelect.addEventListener('change', function() {
   controls.functionSelect.value = controls.introFunctionSelect.value;
 });
 
+controls.introTriangleContext.addEventListener('change', function() {
+  if (controls.introTriangleContext.checked) {
+    setIntroContext(CONTEXTS.triangle);
+  }
+});
+
+controls.introCircleContext.addEventListener('change', function() {
+  if (controls.introCircleContext.checked) {
+    setIntroContext(CONTEXTS.unitCircle);
+  }
+});
+
 controls.resetButton.addEventListener('click', resetAll);
 
 controls.langDeButton.addEventListener('click', function() {
@@ -994,7 +1242,7 @@ controls.langEnButton.addEventListener('click', function() {
 });
 
 window.addEventListener('resize', function() {
-  drawUnitCircle();
+  drawVisualization();
 });
 
 window.addEventListener('popstate', function(event) {
@@ -1017,6 +1265,7 @@ if (storedLanguage) {
   currentLanguage = storedLanguage;
 }
 
+configureProbeRangeForContext();
 applyLanguage();
 persistLanguage();
 showIntroScreen();

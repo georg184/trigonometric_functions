@@ -20,6 +20,27 @@
   <div id="introScreen" class="screen intro-screen">
     <div class="panel">
       <div class="control-group">
+        <div id="introContextTitle" class="intro-field-title">Wähle den Zugang</div>
+        <div class="intro-choice-list" role="radiogroup" aria-labelledby="introContextTitle">
+          <label id="introTriangleChoice" class="intro-choice is-active" for="introTriangleContext">
+            <input id="introTriangleContext" type="radio" name="introContext" value="triangle" checked />
+            <span class="intro-choice-body">
+              <span id="introTriangleTitle" class="intro-choice-title">am rechtwinkligen Dreieck</span>
+              <span id="introTriangleDescription" class="intro-choice-description">Seitenverhältnisse im rechtwinkligen Dreieck</span>
+            </span>
+          </label>
+
+          <label id="introCircleChoice" class="intro-choice" for="introCircleContext">
+            <input id="introCircleContext" type="radio" name="introContext" value="unitCircle" />
+            <span class="intro-choice-body">
+              <span id="introCircleTitle" class="intro-choice-title">am Einheitskreis</span>
+              <span id="introCircleDescription" class="intro-choice-description">Koordinaten und Winkel am Einheitskreis</span>
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div class="control-group">
         <label id="introFunctionTitle" for="introFunctionSelect">Wähle eine Grundfunktion</label>
         <select id="introFunctionSelect">
           <option value="sin" selected>Sinus</option>
@@ -144,7 +165,7 @@
 
     <div class="analysis-grid">
       <div class="panel">
-        <div id="unitCircleTitle" class="panel-title">Einheitskreis</div>
+        <div id="visualTitle" class="panel-title">Einheitskreis</div>
         <canvas id="unitCircleCanvas" class="unit-circle-canvas" width="720" height="420" aria-label="Einheitskreis"></canvas>
       </div>
 
