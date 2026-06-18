@@ -10,6 +10,8 @@ const controls = {
   placeholderBackButton: document.getElementById('placeholderBackButton'),
   backButton: document.getElementById('backButton'),
   nextButton: document.getElementById('nextButton'),
+  rightAngleArcDot: document.getElementById('rightAngleArcDot'),
+  rightAngleSquare: document.getElementById('rightAngleSquare'),
   triangleCanvas: document.getElementById('triangleCanvas'),
   taskCounter: document.getElementById('taskCounter'),
   taskQuestion: document.getElementById('taskQuestion'),
@@ -22,6 +24,10 @@ const controls = {
 
 const DEGREE = Math.PI / 180;
 const TASK_TYPES = ['sin', 'cos', 'tan'];
+const RIGHT_ANGLE_MARKERS = {
+  arcDot: 'arcDot',
+  square: 'square'
+};
 const VERTEX_SETS = [
   ['A', 'B', 'C'],
   ['D', 'E', 'F'],
@@ -49,6 +55,7 @@ const ANGLE_SETS = [
 
 let currentTask = null;
 let taskNumber = 0;
+let rightAngleMarker = RIGHT_ANGLE_MARKERS.arcDot;
 
 function showScreen(name) {
   for (const [screenName, element] of Object.entries(screens)) {
@@ -85,12 +92,12 @@ function renderMath(element, latex) {
   }
 }
 
-function formatDegrees(value) {
-  return `${Math.round(value)}°`;
-}
-
 function sideLabelForVertex(vertexLabel) {
   return vertexLabel.toLowerCase();
+}
+
+function readRightAngleMarkerSetting() {
+  return controls.rightAngleSquare.checked ? RIGHT_ANGLE_MARKERS.square : RIGHT_ANGLE_MARKERS.arcDot;
 }
 
 function buildTask() {
@@ -303,16 +310,33 @@ function drawTriangle(task) {
   drawSide(ctx, points[0], points[2], '#2ea043');
   drawSide(ctx, points[0], points[1], '#bf8700');
 
-  drawRightAngleMarker(ctx, points[task.rightIndex], points[task.acuteIndices[0]], points[task.acuteIndices[1]]);
+  drawRightAngleMarker(
+    ctx,
+    points[task.rightIndex],
+    points[task.acuteIndices[0]],
+    points[task.acuteIndices[1]],
+    task.angleLabels[task.rightIndex].text
+  );
   for (const index of task.acuteIndices) {
     const neighborIndices = [0, 1, 2].filter(function(otherIndex) {
       return otherIndex !== index;
     });
-    drawAngleArc(ctx, points[index], points[neighborIndices[0]], points[neighborIndices[1]], 34, '#57606a');
+    drawAngleMarker(
+      ctx,
+      points[index],
+      points[neighborIndices[0]],
+      points[neighborIndices[1]],
+      task.angleLabels[index].text,
+      {
+        radius: 36,
+        labelRadius: 52,
+        color: '#57606a'
+      }
+    );
   }
 
   for (let index = 0; index < 3; index += 1) {
-    drawVertexLabel(ctx, points[index], centroid, task.vertexLabels[index], task.angleLabels[index].text, task.angleDegrees[index]);
+    drawVertexLabel(ctx, points[index], centroid, task.vertexLabels[index]);
   }
 
   for (let vertexIndex = 0; vertexIndex < 3; vertexIndex += 1) {
@@ -339,7 +363,22 @@ function unitVector(from, to) {
   return { x: dx / length, y: dy / length };
 }
 
-function drawRightAngleMarker(ctx, vertex, first, second) {
+function drawRightAngleMarker(ctx, vertex, first, second, label) {
+  if (rightAngleMarker === RIGHT_ANGLE_MARKERS.square) {
+    drawSquareRightAngleMarker(ctx, vertex, first, second);
+    drawAngleLabel(ctx, vertex, first, second, label, 46, '#b42318');
+    return;
+  }
+
+  drawAngleMarker(ctx, vertex, first, second, label, {
+    radius: 36,
+    labelRadius: 56,
+    color: '#b42318',
+    dotRadius: 22
+  });
+}
+
+function drawSquareRightAngleMarker(ctx, vertex, first, second) {
   const size = 24;
   const u = unitVector(vertex, first);
   const v = unitVector(vertex, second);
@@ -356,7 +395,7 @@ function drawRightAngleMarker(ctx, vertex, first, second) {
   ctx.stroke();
 }
 
-function drawAngleArc(ctx, vertex, first, second, radius, color) {
+function getInteriorAngleGeometry(vertex, first, second) {
   const start = Math.atan2(first.y - vertex.y, first.x - vertex.x);
   let delta = Math.atan2(second.y - vertex.y, second.x - vertex.x) - start;
   while (delta <= -Math.PI) {
@@ -366,11 +405,46 @@ function drawAngleArc(ctx, vertex, first, second, radius, color) {
     delta -= Math.PI * 2;
   }
 
+  return {
+    start,
+    delta,
+    middle: start + delta / 2
+  };
+}
+
+function drawAngleMarker(ctx, vertex, first, second, label, options = {}) {
+  const radius = options.radius || 34;
+  const labelRadius = options.labelRadius || 50;
+  const color = options.color || '#57606a';
+  const geometry = getInteriorAngleGeometry(vertex, first, second);
+
   ctx.strokeStyle = color;
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.arc(vertex.x, vertex.y, radius, start, start + delta, delta < 0);
+  ctx.arc(vertex.x, vertex.y, radius, geometry.start, geometry.start + geometry.delta, geometry.delta < 0);
   ctx.stroke();
+
+  if (options.dotRadius) {
+    const dotX = vertex.x + Math.cos(geometry.middle) * options.dotRadius;
+    const dotY = vertex.y + Math.sin(geometry.middle) * options.dotRadius;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  drawAngleLabel(ctx, vertex, first, second, label, labelRadius, color);
+}
+
+function drawAngleLabel(ctx, vertex, first, second, label, labelRadius, color) {
+  const geometry = getInteriorAngleGeometry(vertex, first, second);
+  const x = vertex.x + Math.cos(geometry.middle) * labelRadius;
+  const y = vertex.y + Math.sin(geometry.middle) * labelRadius;
+  drawLabelBox(ctx, label, x, y, {
+    color,
+    font: '800 16px system-ui, sans-serif',
+    compact: true
+  });
 }
 
 function drawRoundedRect(ctx, x, y, width, height, radius) {
@@ -393,10 +467,9 @@ function drawRoundedRect(ctx, x, y, width, height, radius) {
 function drawLabelBox(ctx, text, x, y, options = {}) {
   ctx.font = options.font || '700 15px system-ui, sans-serif';
   const metrics = ctx.measureText(text);
-  const paddingX = 7;
-  const paddingY = 4;
+  const paddingX = options.compact ? 5 : 7;
   const boxWidth = metrics.width + paddingX * 2;
-  const boxHeight = 24;
+  const boxHeight = options.compact ? 22 : 24;
 
   ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
   ctx.strokeStyle = '#d0d7de';
@@ -412,12 +485,13 @@ function drawLabelBox(ctx, text, x, y, options = {}) {
   ctx.fillText(text, x, y + 0.5);
 }
 
-function drawVertexLabel(ctx, point, centroid, vertexLabel, angleLabel, angleDegrees) {
+function drawVertexLabel(ctx, point, centroid, vertexLabel) {
   const direction = unitVector(centroid, point);
   const x = point.x + direction.x * 56;
   const y = point.y + direction.y * 44;
-  drawLabelBox(ctx, `${vertexLabel}: ${angleLabel}=${formatDegrees(angleDegrees)}`, x, y, {
-    color: angleDegrees === 90 ? '#b42318' : '#1f2328'
+  drawLabelBox(ctx, vertexLabel, x, y, {
+    color: '#1f2328',
+    font: '800 16px system-ui, sans-serif'
   });
 }
 
@@ -435,6 +509,7 @@ function drawSideLabel(ctx, first, second, centroid, label) {
 
 function startTriangleQuiz() {
   taskNumber = 0;
+  rightAngleMarker = readRightAngleMarkerSetting();
   showScreen('quiz');
   newTask();
 }
@@ -455,6 +530,14 @@ controls.backButton.addEventListener('click', function() {
 
 controls.nextButton.addEventListener('click', newTask);
 controls.answerForm.addEventListener('submit', submitAnswer);
+
+controls.rightAngleArcDot.addEventListener('change', function() {
+  rightAngleMarker = readRightAngleMarkerSetting();
+});
+
+controls.rightAngleSquare.addEventListener('change', function() {
+  rightAngleMarker = readRightAngleMarkerSetting();
+});
 
 window.addEventListener('resize', function() {
   if (currentTask && !screens.quiz.classList.contains('hidden')) {
