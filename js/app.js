@@ -328,8 +328,8 @@ function drawTriangle(task) {
       points[neighborIndices[1]],
       task.angleLabels[index].text,
       {
-        radius: 36,
-        labelRadius: 52,
+        radius: 44,
+        labelRadius: 24,
         color: '#57606a'
       }
     );
@@ -366,15 +366,15 @@ function unitVector(from, to) {
 function drawRightAngleMarker(ctx, vertex, first, second, label) {
   if (rightAngleMarker === RIGHT_ANGLE_MARKERS.square) {
     drawSquareRightAngleMarker(ctx, vertex, first, second);
-    drawAngleLabel(ctx, vertex, first, second, label, 46, '#b42318');
+    drawAngleLabel(ctx, vertex, first, second, label, 22, '#b42318');
     return;
   }
 
   drawAngleMarker(ctx, vertex, first, second, label, {
-    radius: 36,
-    labelRadius: 56,
+    radius: 44,
+    labelRadius: 22,
     color: '#b42318',
-    dotRadius: 22
+    dotRadius: 34
   });
 }
 
@@ -440,48 +440,21 @@ function drawAngleLabel(ctx, vertex, first, second, label, labelRadius, color) {
   const geometry = getInteriorAngleGeometry(vertex, first, second);
   const x = vertex.x + Math.cos(geometry.middle) * labelRadius;
   const y = vertex.y + Math.sin(geometry.middle) * labelRadius;
-  drawLabelBox(ctx, label, x, y, {
+  drawCanvasText(ctx, label, x, y, {
     color,
     font: '800 16px system-ui, sans-serif',
-    compact: true
+    align: 'center'
   });
 }
 
-function drawRoundedRect(ctx, x, y, width, height, radius) {
-  if (typeof ctx.roundRect === 'function') {
-    ctx.roundRect(x, y, width, height, radius);
-    return;
-  }
-
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + width - radius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-  ctx.lineTo(x + width, y + height - radius);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  ctx.lineTo(x + radius, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
-}
-
-function drawLabelBox(ctx, text, x, y, options = {}) {
+function drawCanvasText(ctx, text, x, y, options = {}) {
   ctx.font = options.font || '700 15px system-ui, sans-serif';
-  const metrics = ctx.measureText(text);
-  const paddingX = options.compact ? 5 : 7;
-  const boxWidth = metrics.width + paddingX * 2;
-  const boxHeight = options.compact ? 22 : 24;
-
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
-  ctx.strokeStyle = '#d0d7de';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  drawRoundedRect(ctx, x - boxWidth / 2, y - boxHeight / 2, boxWidth, boxHeight, 6);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = options.color || '#1f2328';
-  ctx.textAlign = 'center';
+  ctx.textAlign = options.align || 'center';
   ctx.textBaseline = 'middle';
+  ctx.lineWidth = options.haloWidth || 5;
+  ctx.strokeStyle = options.halo || 'rgba(255, 255, 255, 0.92)';
+  ctx.strokeText(text, x, y + 0.5);
+  ctx.fillStyle = options.color || '#1f2328';
   ctx.fillText(text, x, y + 0.5);
 }
 
@@ -489,7 +462,7 @@ function drawVertexLabel(ctx, point, centroid, vertexLabel) {
   const direction = unitVector(centroid, point);
   const x = point.x + direction.x * 56;
   const y = point.y + direction.y * 44;
-  drawLabelBox(ctx, vertexLabel, x, y, {
+  drawCanvasText(ctx, vertexLabel, x, y, {
     color: '#1f2328',
     font: '800 16px system-ui, sans-serif'
   });
@@ -501,7 +474,7 @@ function drawSideLabel(ctx, first, second, centroid, label) {
     y: (first.y + second.y) / 2
   };
   const direction = unitVector(centroid, midpoint);
-  drawLabelBox(ctx, label, midpoint.x + direction.x * 30, midpoint.y + direction.y * 30, {
+  drawCanvasText(ctx, label, midpoint.x + direction.x * 30, midpoint.y + direction.y * 30, {
     color: '#0969da',
     font: '800 18px system-ui, sans-serif'
   });
