@@ -1,6 +1,6 @@
 # trigonometric_functions
 
-Interactive HTML applet for exploring trigonometric functions with GeoGebra, MathJax, and a unit-circle view.
+Interactive HTML quiz for practicing sine, cosine, and tangent on right triangles.
 
 ## Live Version
 
@@ -13,7 +13,7 @@ The public version is intended to be available through GitHub Pages:
 - `index.html`: the main document structure and external file references
 - `css/styles.css`: the app styling
 - `js/mathjax-config.js`: MathJax configuration
-- `js/app.js`: the app logic, controls, unit-circle rendering, and GeoGebra integration
+- `js/app.js`: the quiz logic, random task generation, answer checking, and triangle canvas rendering
 
 ## Local Workflow
 
