@@ -137,50 +137,54 @@ const ANGLE_TEST_VIEWBOX = {
   width: 300,
   height: 300
 };
-const ANGLE_TEST_STORAGE_KEY = 'trigonometric-functions-angle-tuning-v4';
+const ANGLE_TEST_STORAGE_KEY = 'trigonometric-functions-angle-tuning-v5';
 const ANGLE_TEST_DEFAULT_FONT_SIZE = 16;
-const ANGLE_TEST_CALIBRATED_DEFAULTS = {
-  10: {
-    small: { arcRadius: 90, labelPercent: 86 },
-    medium: { arcRadius: 100, labelPercent: 88 },
-    large: { arcRadius: 128, labelPercent: 90 }
-  },
-  20: {
-    small: { arcRadius: 54, labelPercent: 77 },
-    medium: { arcRadius: 60, labelPercent: 78 },
-    large: { arcRadius: 76, labelPercent: 80 }
-  },
-  30: {
-    small: { arcRadius: 44, labelPercent: 70 },
-    medium: { arcRadius: 46, labelPercent: 71 },
-    large: { arcRadius: 50, labelPercent: 75 }
-  },
-  40: {
-    small: { arcRadius: 44, labelPercent: 68 },
-    medium: { arcRadius: 44, labelPercent: 72 },
-    large: { arcRadius: 44, labelPercent: 70 }
-  },
-  50: {
-    small: { arcRadius: 41, labelPercent: 63 },
-    medium: { arcRadius: 42, labelPercent: 63 },
-    large: { arcRadius: 43, labelPercent: 60 }
-  },
-  60: {
-    small: { arcRadius: 39, labelPercent: 60 },
-    medium: { arcRadius: 39, labelPercent: 62 },
-    large: { arcRadius: 40, labelPercent: 60 }
-  },
-  70: {
-    small: { arcRadius: 36, labelPercent: 60 },
-    medium: { arcRadius: 37, labelPercent: 60 },
-    large: { arcRadius: 38, labelPercent: 60 }
-  },
-  80: {
-    small: { arcRadius: 32, labelPercent: 60 },
-    medium: { arcRadius: 32, labelPercent: 60 },
-    large: { arcRadius: 35, labelPercent: 60 }
-  }
-};
+const ANGLE_TEST_CALIBRATED_DEFAULT_ROWS = [
+  [10, [90, 86], [100, 88], [128, 90]],
+  [20, [54, 77], [60, 78], [76, 80]],
+  [30, [44, 70], [46, 71], [50, 75]],
+  [40, [44, 68], [44, 72], [44, 69]],
+  [50, [41, 64], [42, 63], [43, 60]],
+  [60, [39, 60], [39, 62], [40, 60]],
+  [70, [36, 60], [35, 63], [38, 58]],
+  [80, [32, 60], [32, 59], [32, 54]],
+  [90, [29, 60], [30, 60], [33, 54]],
+  [100, [30, 60], [30, 60], [33, 53]],
+  [110, [28, 60], [29, 56], [32, 53]],
+  [120, [27, 60], [27, 55], [32, 51]],
+  [130, [26, 56], [27, 54], [30, 48]],
+  [140, [24, 56], [25, 55], [30, 46]],
+  [150, [24, 53], [24, 53], [27, 47]],
+  [160, [24, 51], [26, 49], [29, 44]],
+  [170, [24, 48], [25, 48], [25, 41]],
+  [180, [25, 48], [25, 48], [27, 41]],
+  [190, [27, 52], [28, 50], [31, 43]],
+  [200, [27, 52], [28, 50], [31, 43]],
+  [210, [27, 52], [28, 50], [31, 43]],
+  [220, [27, 52], [28, 49], [31, 43]],
+  [230, [27, 51], [28, 49], [31, 42]],
+  [240, [27, 51], [28, 49], [31, 42]],
+  [250, [27, 51], [28, 49], [31, 42]],
+  [260, [27, 51], [28, 49], [31, 42]],
+  [270, [27, 51], [28, 49], [31, 42]],
+  [280, [27, 51], [28, 49], [31, 42]],
+  [290, [27, 51], [28, 49], [31, 42]],
+  [300, [27, 51], [28, 49], [31, 42]],
+  [310, [27, 51], [28, 48], [31, 42]],
+  [320, [27, 51], [28, 48], [31, 42]],
+  [330, [27, 51], [28, 48], [31, 42]],
+  [340, [27, 51], [28, 48], [31, 42]],
+  [350, [27, 51], [28, 48], [31, 41]]
+];
+const ANGLE_TEST_CALIBRATED_DEFAULTS = ANGLE_TEST_CALIBRATED_DEFAULT_ROWS.reduce(function(result, row) {
+  const [angleDeg, small, medium, large] = row;
+  result[angleDeg] = {
+    small: angleTestDefaultPair(small),
+    medium: angleTestDefaultPair(medium),
+    large: angleTestDefaultPair(large)
+  };
+  return result;
+}, {});
 const VERTEX_SETS = [
   ['A', 'B', 'C'],
   ['D', 'E', 'F'],
@@ -1206,6 +1210,13 @@ function normalizeDirectedDegrees(degrees) {
   return ((degrees % 360) + 360) % 360;
 }
 
+function angleTestDefaultPair(pair) {
+  return {
+    arcRadius: pair[0],
+    labelPercent: pair[1]
+  };
+}
+
 function defaultAngleTestSetting(degrees, labelClassId) {
   if (!ANGLE_TEST_LABEL_CLASS_BY_ID[labelClassId]) {
     throw new Error(`Unknown angle label class: ${labelClassId}`);
@@ -1365,7 +1376,7 @@ function updateAngleTuningExport() {
     return;
   }
   controls.angleTuningExport.value = JSON.stringify({
-    version: 'angle-label-tuning-v4',
+    version: 'angle-label-tuning-v5',
     labelClasses: getAngleLabelClassExportValues(),
     units: {
       angleDeg: 'directed counterclockwise degrees from the positive horizontal ray',
