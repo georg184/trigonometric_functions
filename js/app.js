@@ -35,7 +35,9 @@ const RIGHT_ANGLE_MARKERS = {
   square: 'square'
 };
 const RIGHT_ANGLE_ARC_RADIUS = 26;
-const RIGHT_ANGLE_DOT_DISTANCE = RIGHT_ANGLE_ARC_RADIUS / 2;
+const RIGHT_ANGLE_DOT_DISTANCE = RIGHT_ANGLE_ARC_RADIUS * 0.6;
+const RIGHT_ANGLE_DOT_RADIUS = 3.2;
+const RIGHT_ANGLE_JSX_DOT_SIZE = 2.4;
 const VERTEX_SETS = [
   ['A', 'B', 'C'],
   ['D', 'E', 'F'],
@@ -525,7 +527,7 @@ function drawSvgRightAngleMarker(svg, task, points) {
   svg.appendChild(createSvgElement('circle', {
     cx: vertex.x + Math.cos(geometry.middle) * RIGHT_ANGLE_DOT_DISTANCE,
     cy: vertex.y + Math.sin(geometry.middle) * RIGHT_ANGLE_DOT_DISTANCE,
-    r: 4,
+    r: RIGHT_ANGLE_DOT_RADIUS,
     fill: '#b42318'
   }));
 }
@@ -723,7 +725,7 @@ function drawJsxGraphRightAngleMarker(board, task, points) {
     vertex.x + Math.cos(geometry.middle) * RIGHT_ANGLE_DOT_DISTANCE,
     vertex.y + Math.sin(geometry.middle) * RIGHT_ANGLE_DOT_DISTANCE
   ], {
-    size: 3,
+    size: RIGHT_ANGLE_JSX_DOT_SIZE,
     fillColor: '#b42318',
     strokeColor: '#b42318',
     fixed: true,
@@ -903,7 +905,7 @@ function addGeoGebraRightAngleMarker(task, points) {
   );
   geoGebraApplet.evalCommand(`rightDot=(${num(vertex.x + Math.cos(geometry.middle) * RIGHT_ANGLE_DOT_DISTANCE)},${num(vertex.y + Math.sin(geometry.middle) * RIGHT_ANGLE_DOT_DISTANCE)})`);
   geoGebraApplet.setColor('rightDot', ...hexToRgb('#b42318'));
-  geoGebraApplet.setPointSize('rightDot', 4);
+  geoGebraApplet.setPointSize('rightDot', RIGHT_ANGLE_DOT_RADIUS);
   geoGebraApplet.setLabelVisible('rightDot', false);
 }
 
