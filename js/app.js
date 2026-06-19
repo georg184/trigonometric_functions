@@ -534,6 +534,7 @@ function renderInlineSvg(surface, task) {
   const points = transformPoints(task, size.width, size.height);
   const labels = getTriangleLabels(task, points);
   const svg = createSvgElement('svg', {
+    class: 'geometry-svg',
     viewBox: `0 0 ${size.width} ${size.height}`,
     role: 'img',
     'aria-label': 'Dreieck als Inline-SVG'
@@ -552,6 +553,7 @@ function renderSvgWithHtmlLabels(surface, task) {
   const points = transformPoints(task, size.width, size.height);
   const labels = getTriangleLabels(task, points);
   const svg = createSvgElement('svg', {
+    class: 'geometry-svg',
     viewBox: `0 0 ${size.width} ${size.height}`,
     role: 'img',
     'aria-label': 'Dreieck als SVG mit HTML Labels'
@@ -577,6 +579,7 @@ function renderD3Svg(surface, task) {
   const labels = getTriangleLabels(task, points);
   const svg = d3.select(surface)
     .append('svg')
+    .attr('class', 'geometry-svg')
     .attr('viewBox', `0 0 ${size.width} ${size.height}`)
     .attr('role', 'img')
     .attr('aria-label', 'Dreieck mit D3 und SVG');

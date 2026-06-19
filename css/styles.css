@@ -193,7 +193,7 @@ p {
   overflow: hidden;
 }
 
-.render-surface svg {
+.geometry-svg {
   display: block;
   width: 100%;
   height: 310px;
@@ -407,7 +407,7 @@ input:disabled {
     min-height: 280px;
   }
 
-  .render-surface svg {
+  .geometry-svg {
     height: 280px;
   }
 }
