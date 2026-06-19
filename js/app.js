@@ -1,3 +1,14 @@
+const APP_VERSION = '20260619.23';
+if (window.GG_APP_VERSION && window.GG_APP_VERSION !== APP_VERSION) {
+  document.body.innerHTML = [
+    '<main style="max-width:720px;margin:40px auto;padding:20px;font-family:system-ui,sans-serif;line-height:1.45">',
+    '<h1>Neue Version verfuegbar</h1>',
+    '<p>Diese Seite hat HTML und JavaScript aus unterschiedlichen Versionen geladen. Bitte die Seite neu laden.</p>',
+    '</main>'
+  ].join('');
+  throw new Error(`Version mismatch: index ${window.GG_APP_VERSION}, app ${APP_VERSION}`);
+}
+
 const screens = {
   intro: document.getElementById('introScreen'),
   quiz: document.getElementById('quizScreen'),

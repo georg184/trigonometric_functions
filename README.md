@@ -28,6 +28,16 @@ When the shared helper changes, copy the updated file into `js/vendor/` and comm
 
 The current right-triangle angle arcs and angle-label positions use the calibrated helper data from `angle-label-tuning-v6`.
 
+## Cache And Version Safety
+
+The page uses a shared app version in three places:
+
+- `window.GG_APP_VERSION` in `index.html`
+- `?v=...` query strings on every local CSS/JS/vendor asset
+- `APP_VERSION` at the top of `js/app.js`
+
+Whenever `index.html`, local CSS, local JavaScript, `js/mathjax-config.js`, or `js/vendor/geometry-angle-layout.js` changes, update all three places together and keep the visible version badge current. This prevents GitHub Pages or browser caches from mixing old JavaScript with new HTML.
+
 ## Local Workflow
 
 The project can be edited locally and then transferred to GitHub with Git.
