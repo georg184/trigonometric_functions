@@ -189,7 +189,7 @@ p {
 
 .angle-test-matrix {
   display: grid;
-  grid-template-columns: 86px repeat(4, 132px);
+  grid-template-columns: 70px 90px 92px 92px repeat(4, 152px);
   gap: 8px;
   align-items: stretch;
   overflow-x: auto;
@@ -213,22 +213,41 @@ p {
   display: grid;
   align-content: center;
   gap: 4px;
-  min-height: 104px;
+  min-height: 120px;
   color: var(--text);
   font-weight: 800;
 }
 
-.angle-test-row-meta {
+.angle-test-control {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  min-height: 120px;
+}
+
+.angle-test-control label {
   color: var(--muted);
   font-size: 0.72rem;
   font-weight: 700;
   line-height: 1.2;
 }
 
+.angle-test-number {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: white;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
 .angle-test-cell {
   position: relative;
-  width: 132px;
-  height: 104px;
+  width: 152px;
+  height: 120px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: white;
@@ -237,8 +256,8 @@ p {
 
 .angle-test-svg {
   display: block;
-  width: 132px;
-  height: 104px;
+  width: 152px;
+  height: 120px;
 }
 
 .angle-test-label {
@@ -256,6 +275,43 @@ p {
     -2px 2px 0 #fff,
     2px 2px 0 #fff,
     0 0 5px #fff;
+}
+
+.angle-test-label mjx-container,
+.angle-test-header mjx-container {
+  font-size: inherit !important;
+}
+
+.angle-test-export {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.angle-test-export textarea {
+  min-height: 190px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: white;
+  color: var(--text);
+  font: 0.84rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  line-height: 1.35;
+  resize: vertical;
+}
+
+.angle-test-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.angle-tuning-status {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 700;
 }
 
 .render-title {
