@@ -273,12 +273,13 @@ p {
 }
 
 .task-question {
-  min-height: 72px;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: white;
-  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  color: var(--text);
+  font-size: 1.35rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .answer-form {
@@ -292,7 +293,8 @@ label {
 
 .answer-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
   gap: 10px;
 }
 
@@ -413,9 +415,16 @@ input:disabled {
 }
 
 @media (max-width: 560px) {
-  .quiz-top-row,
-  .answer-row {
+  .quiz-top-row {
     grid-template-columns: 1fr;
     display: grid;
+  }
+
+  .answer-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .answer-row button {
+    grid-column: 1 / -1;
   }
 }

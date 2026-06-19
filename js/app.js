@@ -194,9 +194,7 @@ function getSideName(task, vertexIndex) {
 
 function getQuestionLatex(task) {
   const angle = task.angleLabels[task.targetIndex].latex;
-  return `\\[
-    \\text{Bestimme } ${task.taskType}\\!\\left(${angle}\\right).
-  \\]`;
+  return `\\(${task.taskType}\\!\\left(${angle}\\right)=\\)`;
 }
 
 function getSolutionLatex(task) {
