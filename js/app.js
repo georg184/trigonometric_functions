@@ -46,22 +46,95 @@ const RIGHT_ANGLE_MARKERS = {
 const RIGHT_ANGLE_JSX_DOT_SIZE = 2.4;
 const ACUTE_ANGLE_ARC_RADIUS = angleLayout.DEFAULTS.acuteAngleArcRadius;
 const ANGLE_TEST_DEGREES = [10, 20, 30, 40, 50, 60, 70, 80];
-const ANGLE_TEST_LABELS = [
-  { text: 'α', latex: '\\alpha' },
-  { text: 'β', latex: '\\beta' },
-  { text: 'γ', latex: '\\gamma' },
-  { text: 'δ', latex: '\\delta' }
+const ANGLE_LABEL_CLASSES = [
+  {
+    id: 'compact',
+    name: 'kompakt',
+    representative: { text: 'α', latex: '\\alpha' },
+    covers: [
+      { text: 'α', latex: '\\alpha' },
+      { text: 'ε', latex: '\\varepsilon' },
+      { text: 'η', latex: '\\eta' },
+      { text: 'ι', latex: '\\iota' },
+      { text: 'ν', latex: '\\nu' },
+      { text: 'τ', latex: '\\tau' }
+    ]
+  },
+  {
+    id: 'medium',
+    name: 'mittel',
+    representative: { text: 'δ', latex: '\\delta' },
+    covers: [
+      { text: 'β', latex: '\\beta' },
+      { text: 'γ', latex: '\\gamma' },
+      { text: 'δ', latex: '\\delta' },
+      { text: 'θ', latex: '\\theta' },
+      { text: 'κ', latex: '\\kappa' },
+      { text: 'λ', latex: '\\lambda' },
+      { text: 'μ', latex: '\\mu' },
+      { text: 'π', latex: '\\pi' },
+      { text: 'ρ', latex: '\\rho' },
+      { text: 'σ', latex: '\\sigma' },
+      { text: 'φ', latex: '\\varphi' },
+      { text: 'χ', latex: '\\chi' },
+      { text: 'ω', latex: '\\omega' }
+    ]
+  },
+  {
+    id: 'large',
+    name: 'groß',
+    representative: { text: 'ψ', latex: '\\psi' },
+    covers: [
+      { text: 'ζ', latex: '\\zeta' },
+      { text: 'ξ', latex: '\\xi' },
+      { text: 'ψ', latex: '\\psi' }
+    ]
+  }
+];
+const ANGLE_TEST_LABELS = ANGLE_LABEL_CLASSES.map(function(labelClass) {
+  return Object.assign({}, labelClass.representative, {
+    classId: labelClass.id,
+    className: labelClass.name,
+    covers: labelClass.covers
+  });
+});
+const ANGLE_TEST_LABEL_CLASS_IDS = ANGLE_LABEL_CLASSES.map(function(labelClass) {
+  return labelClass.id;
+});
+const ANGLE_TEST_LABEL_CLASS_BY_ID = ANGLE_LABEL_CLASSES.reduce(function(result, labelClass) {
+  result[labelClass.id] = labelClass;
+  return result;
+}, {});
+const ANGLE_TEST_LABEL_BY_CLASS_ID = ANGLE_TEST_LABELS.reduce(function(result, label) {
+  result[label.classId] = label;
+  return result;
+}, {});
+const ANGLE_TEST_CONTROL_LABELS = {
+  arcRadius: 'Radius',
+  labelPercent: 'Label %'
+};
+const ANGLE_TEST_CONTROL_RANGES = {
+  arcRadius: {
+    min: 20,
+    max: 130,
+    step: 1
+  },
+  labelPercent: {
+    min: 35,
+    max: 125,
+    step: 1
+  }
+};
+const ANGLE_TEST_FIELDS = [
+  'arcRadius',
+  'labelPercent'
 ];
 const ANGLE_TEST_VIEWBOX = {
   width: 224,
   height: 168
 };
-const ANGLE_TEST_STORAGE_KEY = 'trigonometric-functions-angle-tuning-v1';
+const ANGLE_TEST_STORAGE_KEY = 'trigonometric-functions-angle-tuning-v2';
 const ANGLE_TEST_DEFAULT_FONT_SIZE = 16;
-const ANGLE_TEST_RADIUS_MIN = 20;
-const ANGLE_TEST_RADIUS_MAX = 130;
-const ANGLE_TEST_LABEL_PERCENT_MIN = 35;
-const ANGLE_TEST_LABEL_PERCENT_MAX = 125;
 const VERTEX_SETS = [
   ['A', 'B', 'C'],
   ['D', 'E', 'F'],
@@ -925,20 +998,16 @@ function renderAngleTestMatrix() {
   corner.textContent = 'Winkel';
   controls.angleTestMatrix.appendChild(corner);
 
-  [
-    { text: 'Radius', className: 'angle-test-header' },
-    { text: 'Label %', className: 'angle-test-header' }
-  ].forEach(function(headerConfig) {
-    const header = document.createElement('div');
-    header.className = headerConfig.className;
-    header.textContent = headerConfig.text;
-    controls.angleTestMatrix.appendChild(header);
-  });
-
   ANGLE_TEST_LABELS.forEach(function(label) {
     const header = document.createElement('div');
     header.className = 'angle-test-header mathjax-inline';
-    header.innerHTML = `\\(${label.latex}\\)`;
+    header.innerHTML = [
+      `<span class="angle-test-header-main">${label.className}</span>`,
+      `<span class="angle-test-header-representative">\\(${label.latex}\\)</span>`,
+      `<span class="angle-test-header-covers">${label.covers.map(function(item) {
+        return item.text;
+      }).join(' ')}</span>`
+    ].join('');
     controls.angleTestMatrix.appendChild(header);
   });
 
@@ -947,22 +1016,6 @@ function renderAngleTestMatrix() {
     rowLabel.className = 'angle-test-row-label mathjax-inline';
     rowLabel.innerHTML = `<span>\\(${degrees}^{\\circ}\\)</span>`;
     controls.angleTestMatrix.appendChild(rowLabel);
-    controls.angleTestMatrix.appendChild(createAngleTestControl(
-      degrees,
-      'arcRadius',
-      'Radius',
-      ANGLE_TEST_RADIUS_MIN,
-      ANGLE_TEST_RADIUS_MAX,
-      1
-    ));
-    controls.angleTestMatrix.appendChild(createAngleTestControl(
-      degrees,
-      'labelPercent',
-      'Label %',
-      ANGLE_TEST_LABEL_PERCENT_MIN,
-      ANGLE_TEST_LABEL_PERCENT_MAX,
-      1
-    ));
 
     ANGLE_TEST_LABELS.forEach(function(label) {
       controls.angleTestMatrix.appendChild(createAngleTestCell(degrees, label));
@@ -974,27 +1027,29 @@ function renderAngleTestMatrix() {
   typesetElements([controls.angleTestMatrix]);
 }
 
-function createAngleTestControl(degrees, field, label, min, max, step) {
+function createAngleTestControl(degrees, labelClassId, field) {
   const wrapper = document.createElement('div');
   wrapper.className = 'angle-test-control';
 
-  const inputId = `angleTest-${degrees}-${field}`;
+  const range = ANGLE_TEST_CONTROL_RANGES[field];
+  const inputId = `angleTest-${degrees}-${labelClassId}-${field}`;
   const inputLabel = document.createElement('label');
   inputLabel.setAttribute('for', inputId);
-  inputLabel.textContent = label;
+  inputLabel.textContent = ANGLE_TEST_CONTROL_LABELS[field];
 
   const input = document.createElement('input');
   input.id = inputId;
   input.className = 'angle-test-number';
   input.type = 'number';
-  input.min = String(min);
-  input.max = String(max);
-  input.step = String(step);
+  input.min = String(range.min);
+  input.max = String(range.max);
+  input.step = String(range.step);
   input.inputMode = 'decimal';
   input.dataset.angle = String(degrees);
+  input.dataset.labelClass = labelClassId;
   input.dataset.field = field;
-  input.value = String(getAngleTestSetting(degrees)[field]);
-  input.setAttribute('aria-label', `${label} für ${degrees} Grad`);
+  input.value = String(getAngleTestSetting(degrees, labelClassId)[field]);
+  input.setAttribute('aria-label', `${ANGLE_TEST_CONTROL_LABELS[field]} für ${degrees} Grad und ${labelClassId}`);
 
   wrapper.appendChild(inputLabel);
   wrapper.appendChild(input);
@@ -1006,8 +1061,21 @@ function createAngleTestCell(degrees, label) {
   cell.className = 'angle-test-cell';
   cell.dataset.angle = String(degrees);
   cell.dataset.label = label.text;
+  cell.dataset.labelClass = label.classId;
 
-  const settings = getAngleTestSetting(degrees);
+  const controlsContainer = document.createElement('div');
+  controlsContainer.className = 'angle-test-cell-controls';
+  ANGLE_TEST_FIELDS.forEach(function(field) {
+    controlsContainer.appendChild(createAngleTestControl(degrees, label.classId, field));
+  });
+
+  cell.appendChild(createAngleTestDrawing(degrees, label));
+  cell.appendChild(controlsContainer);
+  return cell;
+}
+
+function createAngleTestDrawing(degrees, label) {
+  const settings = getAngleTestSetting(degrees, label.classId);
   const width = ANGLE_TEST_VIEWBOX.width;
   const height = ANGLE_TEST_VIEWBOX.height;
   const vertex = { x: 30, y: 150 };
@@ -1026,6 +1094,9 @@ function createAngleTestCell(degrees, label) {
     narrowAngleLabelEccentricity: settings.labelPercent / 100,
     narrowAngleThresholdDeg: 0
   });
+
+  const drawing = document.createElement('div');
+  drawing.className = 'angle-test-drawing';
 
   const svg = createSvgElement('svg', {
     class: 'angle-test-svg',
@@ -1067,12 +1138,15 @@ function createAngleTestCell(degrees, label) {
   labelElement.style.fontSize = `${settings.fontSizePx}px`;
   labelElement.innerHTML = `\\(${label.latex}\\)`;
 
-  cell.appendChild(svg);
-  cell.appendChild(labelElement);
-  return cell;
+  drawing.appendChild(svg);
+  drawing.appendChild(labelElement);
+  return drawing;
 }
 
-function defaultAngleTestSetting(degrees) {
+function defaultAngleTestSetting(degrees, labelClassId) {
+  if (!ANGLE_TEST_LABEL_CLASS_BY_ID[labelClassId]) {
+    throw new Error(`Unknown angle label class: ${labelClassId}`);
+  }
   return {
     arcRadius: ACUTE_ANGLE_ARC_RADIUS,
     labelPercent: Math.round(angleLayout.labelEccentricityForAngle(degrees) * 100),
@@ -1083,16 +1157,19 @@ function defaultAngleTestSetting(degrees) {
 function buildDefaultAngleTestSettings() {
   const settings = {};
   ANGLE_TEST_DEGREES.forEach(function(degrees) {
-    settings[String(degrees)] = defaultAngleTestSetting(degrees);
+    settings[String(degrees)] = {};
+    ANGLE_TEST_LABEL_CLASS_IDS.forEach(function(labelClassId) {
+      settings[String(degrees)][labelClassId] = defaultAngleTestSetting(degrees, labelClassId);
+    });
   });
   return settings;
 }
 
-function getAngleTestSetting(degrees) {
+function getAngleTestSetting(degrees, labelClassId) {
   if (!angleTestSettings) {
     angleTestSettings = loadAngleTestSettings();
   }
-  return angleTestSettings[String(degrees)];
+  return angleTestSettings[String(degrees)][labelClassId];
 }
 
 function loadAngleTestSettings() {
@@ -1114,7 +1191,10 @@ function loadAngleTestSettings() {
       if (!ANGLE_TEST_DEGREES.includes(degrees)) {
         return;
       }
-      settings[String(degrees)] = sanitizeAngleTestSetting(degrees, item);
+      ANGLE_TEST_LABEL_CLASS_IDS.forEach(function(labelClassId) {
+        const classSetting = item[labelClassId] || item;
+        settings[String(degrees)][labelClassId] = sanitizeAngleTestSetting(degrees, labelClassId, classSetting);
+      });
     });
   } catch (error) {
     console.warn('Angle tuning settings could not be loaded:', error);
@@ -1123,19 +1203,19 @@ function loadAngleTestSettings() {
   return settings;
 }
 
-function sanitizeAngleTestSetting(degrees, setting) {
-  const defaults = defaultAngleTestSetting(degrees);
+function sanitizeAngleTestSetting(degrees, labelClassId, setting) {
+  const defaults = defaultAngleTestSetting(degrees, labelClassId);
   return {
     arcRadius: clampNumber(
       setting.arcRadius,
-      ANGLE_TEST_RADIUS_MIN,
-      ANGLE_TEST_RADIUS_MAX,
+      ANGLE_TEST_CONTROL_RANGES.arcRadius.min,
+      ANGLE_TEST_CONTROL_RANGES.arcRadius.max,
       defaults.arcRadius
     ),
     labelPercent: clampNumber(
       setting.labelPercent,
-      ANGLE_TEST_LABEL_PERCENT_MIN,
-      ANGLE_TEST_LABEL_PERCENT_MAX,
+      ANGLE_TEST_CONTROL_RANGES.labelPercent.min,
+      ANGLE_TEST_CONTROL_RANGES.labelPercent.max,
       defaults.labelPercent
     ),
     fontSizePx: ANGLE_TEST_DEFAULT_FONT_SIZE
@@ -1157,25 +1237,30 @@ function handleAngleTestInput(event) {
   }
 
   const degrees = Number(input.dataset.angle);
+  const labelClassId = input.dataset.labelClass;
   const field = input.dataset.field;
-  const settings = getAngleTestSetting(degrees);
+  const settings = getAngleTestSetting(degrees, labelClassId);
   settings[field] = clampNumber(input.value, Number(input.min), Number(input.max), settings[field]);
   input.value = String(settings[field]);
   saveAngleTestSettings();
-  redrawAngleTestCells(degrees);
+  redrawAngleTestCell(degrees, labelClassId);
   updateAngleTuningExport();
   setAngleTuningStatus('');
 }
 
-function redrawAngleTestCells(degrees) {
-  const cells = Array.from(controls.angleTestMatrix.querySelectorAll(`.angle-test-cell[data-angle="${degrees}"]`));
-  const newCells = [];
-  cells.forEach(function(cell, index) {
-    const nextCell = createAngleTestCell(degrees, ANGLE_TEST_LABELS[index]);
-    cell.replaceWith(nextCell);
-    newCells.push(nextCell);
-  });
-  typesetElements(newCells);
+function redrawAngleTestCell(degrees, labelClassId) {
+  const cell = controls.angleTestMatrix.querySelector(
+    `.angle-test-cell[data-angle="${degrees}"][data-label-class="${labelClassId}"]`
+  );
+  const label = ANGLE_TEST_LABEL_BY_CLASS_ID[labelClassId];
+  if (!cell || !label) {
+    return;
+  }
+
+  const drawing = cell.querySelector('.angle-test-drawing');
+  const nextDrawing = createAngleTestDrawing(degrees, label);
+  drawing.replaceWith(nextDrawing);
+  typesetElements([nextDrawing]);
 }
 
 function saveAngleTestSettings() {
@@ -1190,13 +1275,16 @@ function saveAngleTestSettings() {
 
 function getAngleTestExportValues() {
   return ANGLE_TEST_DEGREES.map(function(degrees) {
-    const settings = getAngleTestSetting(degrees);
-    return {
-      angleDeg: degrees,
-      arcRadius: settings.arcRadius,
-      labelPercent: settings.labelPercent,
-      fontSizePx: settings.fontSizePx
-    };
+    const result = { angleDeg: degrees };
+    ANGLE_TEST_LABEL_CLASS_IDS.forEach(function(labelClassId) {
+      const settings = getAngleTestSetting(degrees, labelClassId);
+      result[labelClassId] = {
+        arcRadius: settings.arcRadius,
+        labelPercent: settings.labelPercent,
+        fontSizePx: settings.fontSizePx
+      };
+    });
+    return result;
   });
 }
 
@@ -1205,7 +1293,8 @@ function updateAngleTuningExport() {
     return;
   }
   controls.angleTuningExport.value = JSON.stringify({
-    version: 'angle-label-tuning-v1',
+    version: 'angle-label-tuning-v2',
+    labelClasses: getAngleLabelClassExportValues(),
     units: {
       arcRadius: 'SVG units in the test cells',
       labelPercent: 'label distance / arc radius * 100',
@@ -1213,6 +1302,17 @@ function updateAngleTuningExport() {
     },
     values: getAngleTestExportValues()
   }, null, 2);
+}
+
+function getAngleLabelClassExportValues() {
+  return ANGLE_LABEL_CLASSES.map(function(labelClass) {
+    return {
+      id: labelClass.id,
+      name: labelClass.name,
+      representative: labelClass.representative,
+      covers: labelClass.covers
+    };
+  });
 }
 
 function copyAngleTuningValues() {

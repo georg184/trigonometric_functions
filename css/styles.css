@@ -189,7 +189,7 @@ p {
 
 .angle-test-matrix {
   display: grid;
-  grid-template-columns: 70px 90px 92px repeat(4, 224px);
+  grid-template-columns: 70px repeat(3, 224px);
   gap: 8px;
   align-items: stretch;
   overflow-x: auto;
@@ -197,32 +197,50 @@ p {
 }
 
 .angle-test-header {
-  display: flex;
+  display: grid;
   align-items: center;
   justify-content: center;
   min-height: 34px;
   color: var(--muted);
   font-weight: 800;
+  text-align: center;
 }
 
 .angle-test-corner {
   justify-content: flex-start;
 }
 
+.angle-test-header-main {
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.angle-test-header-representative {
+  margin-top: 2px;
+  font-size: 1rem;
+}
+
+.angle-test-header-covers {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
 .angle-test-row-label {
   display: grid;
   align-content: center;
   gap: 4px;
-  min-height: 168px;
+  min-height: 224px;
   color: var(--text);
   font-weight: 800;
 }
 
 .angle-test-control {
   display: grid;
-  align-content: center;
-  gap: 5px;
-  min-height: 168px;
+  gap: 3px;
+  min-width: 0;
 }
 
 .angle-test-control label {
@@ -247,11 +265,26 @@ p {
 .angle-test-cell {
   position: relative;
   width: 224px;
-  height: 168px;
+  min-height: 224px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: white;
   overflow: hidden;
+}
+
+.angle-test-drawing {
+  position: relative;
+  width: 224px;
+  height: 168px;
+}
+
+.angle-test-cell-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 8px;
+  border-top: 1px solid var(--border);
+  background: #f6f8fa;
 }
 
 .angle-test-svg {
