@@ -854,10 +854,10 @@ function addGeoGebraRightAngleMarker(task, points) {
     marker.arc.points,
     '#b42318'
   );
-  geoGebraApplet.evalCommand(`rightDot=(${num(marker.dot.x)},${num(marker.dot.y)})`);
-  geoGebraApplet.setColor('rightDot', ...hexToRgb('#b42318'));
-  geoGebraApplet.setPointSize('rightDot', marker.dot.radius);
-  geoGebraApplet.setLabelVisible('rightDot', false);
+  geoGebraApplet.evalCommand(`RightDot=(${num(marker.dot.x)},${num(marker.dot.y)})`);
+  geoGebraApplet.setColor('RightDot', ...hexToRgb('#b42318'));
+  geoGebraApplet.setPointSize('RightDot', marker.dot.radius);
+  geoGebraApplet.setLabelVisible('RightDot', false);
 }
 
 function addGeoGebraPolyline(name, points, color) {
