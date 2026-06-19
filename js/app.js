@@ -27,6 +27,10 @@ const controls = {
 };
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+const angleLayout = window.GGGeometryAngleLayout;
+if (!angleLayout) {
+  throw new Error('GGGeometryAngleLayout must be loaded before js/app.js.');
+}
 const DEGREE = Math.PI / 180;
 const TASK_TYPES = ['sin', 'cos', 'tan'];
 const SIDE_COLORS = ['#bf8700', '#2ea043', '#0969da'];
@@ -34,12 +38,8 @@ const RIGHT_ANGLE_MARKERS = {
   arcDot: 'arcDot',
   square: 'square'
 };
-const RIGHT_ANGLE_ARC_RADIUS = 26;
-const RIGHT_ANGLE_DOT_DISTANCE = RIGHT_ANGLE_ARC_RADIUS * 0.6;
-const RIGHT_ANGLE_DOT_RADIUS = 3.2;
 const RIGHT_ANGLE_JSX_DOT_SIZE = 2.4;
-const ACUTE_ANGLE_ARC_RADIUS = 44;
-const ACUTE_ANGLE_LABEL_DISTANCE = ACUTE_ANGLE_ARC_RADIUS * 0.6;
+const ACUTE_ANGLE_ARC_RADIUS = angleLayout.DEFAULTS.acuteAngleArcRadius;
 const VERTEX_SETS = [
   ['A', 'B', 'C'],
   ['D', 'E', 'F'],
@@ -322,33 +322,10 @@ function toMathPlanePoints(points, height) {
   });
 }
 
-function unitVector(from, to) {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const length = Math.hypot(dx, dy) || 1;
-  return { x: dx / length, y: dy / length };
-}
-
 function centroidOf(points) {
   return {
     x: (points[0].x + points[1].x + points[2].x) / 3,
     y: (points[0].y + points[1].y + points[2].y) / 3
-  };
-}
-
-function getInteriorAngleGeometry(vertex, first, second) {
-  const start = Math.atan2(first.y - vertex.y, first.x - vertex.x);
-  let delta = Math.atan2(second.y - vertex.y, second.x - vertex.x) - start;
-  while (delta <= -Math.PI) {
-    delta += Math.PI * 2;
-  }
-  while (delta > Math.PI) {
-    delta -= Math.PI * 2;
-  }
-  return {
-    start,
-    delta,
-    middle: start + delta / 2
   };
 }
 
@@ -357,7 +334,7 @@ function getTriangleLabels(task, points) {
   const labels = [];
 
   for (let index = 0; index < 3; index += 1) {
-    const direction = unitVector(centroid, points[index]);
+    const direction = angleLayout.unitVector(centroid, points[index]);
     labels.push({
       type: 'vertex',
       text: task.vertexLabels[index],
@@ -376,7 +353,7 @@ function getTriangleLabels(task, points) {
       x: (points[sidePoints[0]].x + points[sidePoints[1]].x) / 2,
       y: (points[sidePoints[0]].y + points[sidePoints[1]].y) / 2
     };
-    const direction = unitVector(centroid, midpoint);
+    const direction = angleLayout.unitVector(centroid, midpoint);
     labels.push({
       type: 'side',
       text: getSideName(task, vertexIndex),
@@ -391,32 +368,23 @@ function getTriangleLabels(task, points) {
     const neighborIndices = [0, 1, 2].filter(function(otherIndex) {
       return otherIndex !== index;
     });
-    const geometry = getInteriorAngleGeometry(points[index], points[neighborIndices[0]], points[neighborIndices[1]]);
+    const labelPosition = angleLayout.angleLabelPosition(
+      points[index],
+      points[neighborIndices[0]],
+      points[neighborIndices[1]],
+      ACUTE_ANGLE_ARC_RADIUS
+    );
     labels.push({
       type: 'angle',
       text: task.angleLabels[index].text,
       latex: task.angleLabels[index].latex,
-      x: points[index].x + Math.cos(geometry.middle) * ACUTE_ANGLE_LABEL_DISTANCE,
-      y: points[index].y + Math.sin(geometry.middle) * ACUTE_ANGLE_LABEL_DISTANCE,
+      x: labelPosition.x,
+      y: labelPosition.y,
       color: '#57606a'
     });
   }
 
   return labels;
-}
-
-function buildArcPath(vertex, first, second, radius) {
-  const geometry = getInteriorAngleGeometry(vertex, first, second);
-  const start = {
-    x: vertex.x + Math.cos(geometry.start) * radius,
-    y: vertex.y + Math.sin(geometry.start) * radius
-  };
-  const end = {
-    x: vertex.x + Math.cos(geometry.start + geometry.delta) * radius,
-    y: vertex.y + Math.sin(geometry.start + geometry.delta) * radius
-  };
-  const sweep = geometry.delta > 0 ? 1 : 0;
-  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 0 ${sweep} ${end.x} ${end.y}`;
 }
 
 function createSvgElement(name, attributes = {}) {
@@ -487,7 +455,7 @@ function addSvgTrianglePrimitives(svg, task, points) {
       return otherIndex !== index;
     });
     svg.appendChild(createSvgElement('path', {
-      d: buildArcPath(points[index], points[neighborIndices[0]], points[neighborIndices[1]], ACUTE_ANGLE_ARC_RADIUS),
+      d: angleLayout.arcSvgPath(points[index], points[neighborIndices[0]], points[neighborIndices[1]], ACUTE_ANGLE_ARC_RADIUS),
       fill: 'none',
       stroke: '#57606a',
       'stroke-width': 2,
@@ -502,12 +470,8 @@ function drawSvgRightAngleMarker(svg, task, points) {
   const second = points[task.acuteIndices[1]];
 
   if (rightAngleMarker === RIGHT_ANGLE_MARKERS.square) {
-    const size = 24;
-    const u = unitVector(vertex, first);
-    const v = unitVector(vertex, second);
-    const p1 = { x: vertex.x + u.x * size, y: vertex.y + u.y * size };
-    const p2 = { x: p1.x + v.x * size, y: p1.y + v.y * size };
-    const p3 = { x: vertex.x + v.x * size, y: vertex.y + v.y * size };
+    const marker = angleLayout.rightAngleSquareMarker(vertex, first, second);
+    const [p1, p2, p3] = marker.points;
     svg.appendChild(createSvgElement('polyline', {
       points: `${p1.x},${p1.y} ${p2.x},${p2.y} ${p3.x},${p3.y}`,
       fill: 'none',
@@ -518,18 +482,18 @@ function drawSvgRightAngleMarker(svg, task, points) {
     return;
   }
 
-  const geometry = getInteriorAngleGeometry(vertex, first, second);
+  const marker = angleLayout.rightAngleArcDotMarker(vertex, first, second);
   svg.appendChild(createSvgElement('path', {
-    d: buildArcPath(vertex, first, second, RIGHT_ANGLE_ARC_RADIUS),
+    d: marker.arc.path,
     fill: 'none',
     stroke: '#b42318',
     'stroke-width': 2,
     'stroke-linecap': 'round'
   }));
   svg.appendChild(createSvgElement('circle', {
-    cx: vertex.x + Math.cos(geometry.middle) * RIGHT_ANGLE_DOT_DISTANCE,
-    cy: vertex.y + Math.sin(geometry.middle) * RIGHT_ANGLE_DOT_DISTANCE,
-    r: RIGHT_ANGLE_DOT_RADIUS,
+    cx: marker.dot.x,
+    cy: marker.dot.y,
+    r: marker.dot.radius,
     fill: '#b42318'
   }));
 }
@@ -608,7 +572,7 @@ function renderD3Svg(surface, task) {
       return otherIndex !== index;
     });
     svg.append('path')
-      .attr('d', buildArcPath(points[index], points[neighborIndices[0]], points[neighborIndices[1]], ACUTE_ANGLE_ARC_RADIUS))
+      .attr('d', angleLayout.arcSvgPath(points[index], points[neighborIndices[0]], points[neighborIndices[1]], ACUTE_ANGLE_ARC_RADIUS))
       .attr('fill', 'none')
       .attr('stroke', '#57606a')
       .attr('stroke-width', 2)
@@ -707,12 +671,8 @@ function drawJsxGraphRightAngleMarker(board, task, points) {
   const first = points[task.acuteIndices[0]];
   const second = points[task.acuteIndices[1]];
   if (rightAngleMarker === RIGHT_ANGLE_MARKERS.square) {
-    const size = 24;
-    const u = unitVector(vertex, first);
-    const v = unitVector(vertex, second);
-    const p1 = { x: vertex.x + u.x * size, y: vertex.y + u.y * size };
-    const p2 = { x: p1.x + v.x * size, y: p1.y + v.y * size };
-    const p3 = { x: vertex.x + v.x * size, y: vertex.y + v.y * size };
+    const marker = angleLayout.rightAngleSquareMarker(vertex, first, second);
+    const [p1, p2, p3] = marker.points;
     board.create('curve', [[p1.x, p2.x, p3.x], [p1.y, p2.y, p3.y]], {
       strokeColor: '#b42318',
       strokeWidth: 2,
@@ -721,11 +681,11 @@ function drawJsxGraphRightAngleMarker(board, task, points) {
     });
     return;
   }
-  const geometry = getInteriorAngleGeometry(vertex, first, second);
-  drawJsxGraphArc(board, vertex, first, second, RIGHT_ANGLE_ARC_RADIUS, '#b42318');
+  const marker = angleLayout.rightAngleArcDotMarker(vertex, first, second);
+  drawJsxGraphCurve(board, marker.arc.points, '#b42318');
   board.create('point', [
-    vertex.x + Math.cos(geometry.middle) * RIGHT_ANGLE_DOT_DISTANCE,
-    vertex.y + Math.sin(geometry.middle) * RIGHT_ANGLE_DOT_DISTANCE
+    marker.dot.x,
+    marker.dot.y
   ], {
     size: RIGHT_ANGLE_JSX_DOT_SIZE,
     fillColor: '#b42318',
@@ -738,7 +698,10 @@ function drawJsxGraphRightAngleMarker(board, task, points) {
 }
 
 function drawJsxGraphArc(board, vertex, first, second, radius, color) {
-  const samples = sampleArc(vertex, first, second, radius, 18);
+  drawJsxGraphCurve(board, angleLayout.arcPoints(vertex, first, second, radius, 18), color);
+}
+
+function drawJsxGraphCurve(board, samples, color) {
   board.create('curve', [
     samples.map(function(point) { return point.x; }),
     samples.map(function(point) { return point.y; })
@@ -748,19 +711,6 @@ function drawJsxGraphArc(board, vertex, first, second, radius, color) {
     fixed: true,
     highlight: false
   });
-}
-
-function sampleArc(vertex, first, second, radius, steps) {
-  const geometry = getInteriorAngleGeometry(vertex, first, second);
-  const points = [];
-  for (let i = 0; i <= steps; i += 1) {
-    const angle = geometry.start + geometry.delta * (i / steps);
-    points.push({
-      x: vertex.x + Math.cos(angle) * radius,
-      y: vertex.y + Math.sin(angle) * radius
-    });
-  }
-  return points;
 }
 
 function renderGeoGebra(surface, task) {
@@ -882,7 +832,7 @@ function addGeoGebraAngleMarkers(task, points) {
     });
     addGeoGebraPolyline(
       `arc${index}`,
-      sampleArc(points[index], points[neighborIndices[0]], points[neighborIndices[1]], ACUTE_ANGLE_ARC_RADIUS, 18),
+      angleLayout.arcPoints(points[index], points[neighborIndices[0]], points[neighborIndices[1]], ACUTE_ANGLE_ARC_RADIUS, 18),
       '#57606a'
     );
   }
@@ -893,25 +843,20 @@ function addGeoGebraRightAngleMarker(task, points) {
   const first = points[task.acuteIndices[0]];
   const second = points[task.acuteIndices[1]];
   if (rightAngleMarker === RIGHT_ANGLE_MARKERS.square) {
-    const size = 24;
-    const u = unitVector(vertex, first);
-    const v = unitVector(vertex, second);
-    const p1 = { x: vertex.x + u.x * size, y: vertex.y + u.y * size };
-    const p2 = { x: p1.x + v.x * size, y: p1.y + v.y * size };
-    const p3 = { x: vertex.x + v.x * size, y: vertex.y + v.y * size };
-    addGeoGebraPolyline('rightAngle', [p1, p2, p3], '#b42318');
+    const marker = angleLayout.rightAngleSquareMarker(vertex, first, second);
+    addGeoGebraPolyline('rightAngle', marker.points, '#b42318');
     return;
   }
 
-  const geometry = getInteriorAngleGeometry(vertex, first, second);
+  const marker = angleLayout.rightAngleArcDotMarker(vertex, first, second);
   addGeoGebraPolyline(
     'rightAngle',
-    sampleArc(vertex, first, second, RIGHT_ANGLE_ARC_RADIUS, 18),
+    marker.arc.points,
     '#b42318'
   );
-  geoGebraApplet.evalCommand(`rightDot=(${num(vertex.x + Math.cos(geometry.middle) * RIGHT_ANGLE_DOT_DISTANCE)},${num(vertex.y + Math.sin(geometry.middle) * RIGHT_ANGLE_DOT_DISTANCE)})`);
+  geoGebraApplet.evalCommand(`rightDot=(${num(marker.dot.x)},${num(marker.dot.y)})`);
   geoGebraApplet.setColor('rightDot', ...hexToRgb('#b42318'));
-  geoGebraApplet.setPointSize('rightDot', RIGHT_ANGLE_DOT_RADIUS);
+  geoGebraApplet.setPointSize('rightDot', marker.dot.radius);
   geoGebraApplet.setLabelVisible('rightDot', false);
 }
 

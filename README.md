@@ -13,7 +13,18 @@ The public version is intended to be available through GitHub Pages:
 - `index.html`: the main document structure and external file references
 - `css/styles.css`: the app styling
 - `js/mathjax-config.js`: MathJax configuration
+- `js/vendor/geometry-angle-layout.js`: vendored copy of `ggprojects/shared/geometry-angle-layout.js` for public GitHub Pages use
 - `js/app.js`: the quiz logic, random task generation, answer checking, and geometry renderers
+
+## Vendored Shared Code
+
+`js/vendor/geometry-angle-layout.js` is copied from the local shared helper:
+
+`/mnt/data/sync/software/HTML/ggprojects/shared/geometry-angle-layout.js`
+
+Current vendored helper version: `0.1.0`.
+
+When the shared helper changes, copy the updated file into `js/vendor/` and commit the project copy so GitHub Pages can serve it publicly.
 
 ## Local Workflow
 
