@@ -123,13 +123,34 @@ function sideLabelForVertex(vertexLabel) {
   return vertexLabel.toLowerCase();
 }
 
+function hasSideW(vertexLabels) {
+  return vertexLabels.some(function(vertexLabel) {
+    return sideLabelForVertex(vertexLabel) === 'w';
+  });
+}
+
+function hasOmegaAngle(angleSet) {
+  return angleSet.some(function(angleLabel) {
+    return angleLabel.text === 'ω' || angleLabel.latex === '\\omega';
+  });
+}
+
+function getCompatibleAngleSets(vertexLabels) {
+  if (!hasSideW(vertexLabels)) {
+    return ANGLE_SETS;
+  }
+  return ANGLE_SETS.filter(function(angleSet) {
+    return !hasOmegaAngle(angleSet);
+  });
+}
+
 function readRightAngleMarkerSetting() {
   return controls.rightAngleSquare.checked ? RIGHT_ANGLE_MARKERS.square : RIGHT_ANGLE_MARKERS.arcDot;
 }
 
 function buildTask() {
   const vertexLabels = randomChoice(VERTEX_SETS);
-  const angleLabels = shuffle(randomChoice(ANGLE_SETS));
+  const angleLabels = shuffle(randomChoice(getCompatibleAngleSets(vertexLabels)));
   const rightIndex = randomInt(0, 2);
   const acuteIndices = [0, 1, 2].filter(function(index) {
     return index !== rightIndex;
