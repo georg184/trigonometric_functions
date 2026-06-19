@@ -53,11 +53,15 @@ const ANGLE_TEST_LABELS = [
   { text: 'δ', latex: '\\delta' }
 ];
 const ANGLE_TEST_VIEWBOX = {
-  width: 152,
-  height: 120
+  width: 224,
+  height: 168
 };
 const ANGLE_TEST_STORAGE_KEY = 'trigonometric-functions-angle-tuning-v1';
 const ANGLE_TEST_DEFAULT_FONT_SIZE = 16;
+const ANGLE_TEST_RADIUS_MIN = 20;
+const ANGLE_TEST_RADIUS_MAX = 130;
+const ANGLE_TEST_LABEL_PERCENT_MIN = 35;
+const ANGLE_TEST_LABEL_PERCENT_MAX = 125;
 const VERTEX_SETS = [
   ['A', 'B', 'C'],
   ['D', 'E', 'F'],
@@ -923,8 +927,7 @@ function renderAngleTestMatrix() {
 
   [
     { text: 'Radius', className: 'angle-test-header' },
-    { text: 'Label %', className: 'angle-test-header' },
-    { text: 'Schrift', className: 'angle-test-header' }
+    { text: 'Label %', className: 'angle-test-header' }
   ].forEach(function(headerConfig) {
     const header = document.createElement('div');
     header.className = headerConfig.className;
@@ -944,9 +947,22 @@ function renderAngleTestMatrix() {
     rowLabel.className = 'angle-test-row-label mathjax-inline';
     rowLabel.innerHTML = `<span>\\(${degrees}^{\\circ}\\)</span>`;
     controls.angleTestMatrix.appendChild(rowLabel);
-    controls.angleTestMatrix.appendChild(createAngleTestControl(degrees, 'arcRadius', 'Radius', 20, 80, 1));
-    controls.angleTestMatrix.appendChild(createAngleTestControl(degrees, 'labelPercent', 'Label %', 35, 125, 1));
-    controls.angleTestMatrix.appendChild(createAngleTestControl(degrees, 'fontSizePx', 'Schrift px', 12, 24, 1));
+    controls.angleTestMatrix.appendChild(createAngleTestControl(
+      degrees,
+      'arcRadius',
+      'Radius',
+      ANGLE_TEST_RADIUS_MIN,
+      ANGLE_TEST_RADIUS_MAX,
+      1
+    ));
+    controls.angleTestMatrix.appendChild(createAngleTestControl(
+      degrees,
+      'labelPercent',
+      'Label %',
+      ANGLE_TEST_LABEL_PERCENT_MIN,
+      ANGLE_TEST_LABEL_PERCENT_MAX,
+      1
+    ));
 
     ANGLE_TEST_LABELS.forEach(function(label) {
       controls.angleTestMatrix.appendChild(createAngleTestCell(degrees, label));
@@ -994,8 +1010,8 @@ function createAngleTestCell(degrees, label) {
   const settings = getAngleTestSetting(degrees);
   const width = ANGLE_TEST_VIEWBOX.width;
   const height = ANGLE_TEST_VIEWBOX.height;
-  const vertex = { x: 28, y: 94 };
-  const rayLength = 92;
+  const vertex = { x: 30, y: 150 };
+  const rayLength = 150;
   const angle = degrees * DEGREE;
   const first = {
     x: vertex.x + rayLength,
@@ -1110,9 +1126,19 @@ function loadAngleTestSettings() {
 function sanitizeAngleTestSetting(degrees, setting) {
   const defaults = defaultAngleTestSetting(degrees);
   return {
-    arcRadius: clampNumber(setting.arcRadius, 20, 80, defaults.arcRadius),
-    labelPercent: clampNumber(setting.labelPercent, 35, 125, defaults.labelPercent),
-    fontSizePx: clampNumber(setting.fontSizePx, 12, 24, defaults.fontSizePx)
+    arcRadius: clampNumber(
+      setting.arcRadius,
+      ANGLE_TEST_RADIUS_MIN,
+      ANGLE_TEST_RADIUS_MAX,
+      defaults.arcRadius
+    ),
+    labelPercent: clampNumber(
+      setting.labelPercent,
+      ANGLE_TEST_LABEL_PERCENT_MIN,
+      ANGLE_TEST_LABEL_PERCENT_MAX,
+      defaults.labelPercent
+    ),
+    fontSizePx: ANGLE_TEST_DEFAULT_FONT_SIZE
   };
 }
 
