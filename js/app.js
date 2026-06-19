@@ -767,10 +767,12 @@ function renderGeoGebra(surface, task) {
     surface.innerHTML = '';
     const size = getSurfaceSize(surface);
     const applet = new GGBApplet({
-      appName: 'geometry',
+      appName: 'classic',
+      perspective: 'G',
       width: size.width,
       height: size.height,
       showToolBar: false,
+      showToolBarHelp: false,
       showMenuBar: false,
       showAlgebraInput: false,
       showResetIcon: false,
@@ -799,15 +801,20 @@ function updateGeoGebraConstruction(task) {
   }
   const surface = controls.geoGebraRenderer;
   const size = getSurfaceSize(surface);
-  const points = toMathPlanePoints(transformPoints(task, size.width, size.height), size.height);
-  const labels = getTriangleLabels(task, points);
 
   try {
     geoGebraApplet.setRepaintingActive(false);
+    geoGebraApplet.setWidth(size.width);
+    geoGebraApplet.setHeight(size.height);
     geoGebraApplet.reset();
     geoGebraApplet.setAxesVisible(false, false);
     geoGebraApplet.setGridVisible(false);
-    geoGebraApplet.setCoordSystem(0, size.width, 0, size.height);
+
+    const viewSize = getGeoGebraViewSize(size);
+    const points = toMathPlanePoints(transformPoints(task, viewSize.width, viewSize.height), viewSize.height);
+    const labels = getTriangleLabels(task, points);
+
+    geoGebraApplet.setCoordSystem(0, viewSize.width, 0, viewSize.height);
 
     points.forEach(function(point, index) {
       geoGebraApplet.evalCommand(`${task.vertexLabels[index]}=(${num(point.x)},${num(point.y)})`);
@@ -834,6 +841,30 @@ function updateGeoGebraConstruction(task) {
     console.error('GeoGebra rendering failed:', error);
   } finally {
     geoGebraApplet.setRepaintingActive(true);
+  }
+}
+
+function getGeoGebraViewSize(fallbackSize) {
+  const fallback = {
+    width: Math.max(320, fallbackSize.width),
+    height: Math.max(260, fallbackSize.height)
+  };
+  if (!geoGebraApplet || typeof geoGebraApplet.getViewProperties !== 'function') {
+    return fallback;
+  }
+
+  try {
+    const properties = JSON.parse(geoGebraApplet.getViewProperties() || '{}');
+    if (properties.width > 0 && properties.height > 0) {
+      return {
+        width: Math.round(properties.width),
+        height: Math.round(properties.height)
+      };
+    }
+    return fallback;
+  } catch (error) {
+    console.error('GeoGebra view size could not be read:', error);
+    return fallback;
   }
 }
 
