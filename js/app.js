@@ -34,6 +34,8 @@ const RIGHT_ANGLE_MARKERS = {
   arcDot: 'arcDot',
   square: 'square'
 };
+const RIGHT_ANGLE_ARC_RADIUS = 26;
+const RIGHT_ANGLE_DOT_DISTANCE = RIGHT_ANGLE_ARC_RADIUS / 2;
 const VERTEX_SETS = [
   ['A', 'B', 'C'],
   ['D', 'E', 'F'],
@@ -514,15 +516,15 @@ function drawSvgRightAngleMarker(svg, task, points) {
 
   const geometry = getInteriorAngleGeometry(vertex, first, second);
   svg.appendChild(createSvgElement('path', {
-    d: buildArcPath(vertex, first, second, 44),
+    d: buildArcPath(vertex, first, second, RIGHT_ANGLE_ARC_RADIUS),
     fill: 'none',
     stroke: '#b42318',
     'stroke-width': 2,
     'stroke-linecap': 'round'
   }));
   svg.appendChild(createSvgElement('circle', {
-    cx: vertex.x + Math.cos(geometry.middle) * 34,
-    cy: vertex.y + Math.sin(geometry.middle) * 34,
+    cx: vertex.x + Math.cos(geometry.middle) * RIGHT_ANGLE_DOT_DISTANCE,
+    cy: vertex.y + Math.sin(geometry.middle) * RIGHT_ANGLE_DOT_DISTANCE,
     r: 4,
     fill: '#b42318'
   }));
@@ -716,10 +718,10 @@ function drawJsxGraphRightAngleMarker(board, task, points) {
     return;
   }
   const geometry = getInteriorAngleGeometry(vertex, first, second);
-  drawJsxGraphArc(board, vertex, first, second, 44, '#b42318');
+  drawJsxGraphArc(board, vertex, first, second, RIGHT_ANGLE_ARC_RADIUS, '#b42318');
   board.create('point', [
-    vertex.x + Math.cos(geometry.middle) * 34,
-    vertex.y + Math.sin(geometry.middle) * 34
+    vertex.x + Math.cos(geometry.middle) * RIGHT_ANGLE_DOT_DISTANCE,
+    vertex.y + Math.sin(geometry.middle) * RIGHT_ANGLE_DOT_DISTANCE
   ], {
     size: 3,
     fillColor: '#b42318',
@@ -894,8 +896,12 @@ function addGeoGebraRightAngleMarker(task, points) {
   }
 
   const geometry = getInteriorAngleGeometry(vertex, first, second);
-  addGeoGebraPolyline('rightAngle', sampleArc(vertex, first, second, 44, 18), '#b42318');
-  geoGebraApplet.evalCommand(`rightDot=(${num(vertex.x + Math.cos(geometry.middle) * 34)},${num(vertex.y + Math.sin(geometry.middle) * 34)})`);
+  addGeoGebraPolyline(
+    'rightAngle',
+    sampleArc(vertex, first, second, RIGHT_ANGLE_ARC_RADIUS, 18),
+    '#b42318'
+  );
+  geoGebraApplet.evalCommand(`rightDot=(${num(vertex.x + Math.cos(geometry.middle) * RIGHT_ANGLE_DOT_DISTANCE)},${num(vertex.y + Math.sin(geometry.middle) * RIGHT_ANGLE_DOT_DISTANCE)})`);
   geoGebraApplet.setColor('rightDot', ...hexToRgb('#b42318'));
   geoGebraApplet.setPointSize('rightDot', 4);
   geoGebraApplet.setLabelVisible('rightDot', false);
