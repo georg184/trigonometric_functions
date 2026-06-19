@@ -137,7 +137,7 @@ const ANGLE_TEST_VIEWBOX = {
   width: 300,
   height: 300
 };
-const ANGLE_TEST_STORAGE_KEY = 'trigonometric-functions-angle-tuning-v5';
+const ANGLE_TEST_STORAGE_KEY = 'trigonometric-functions-angle-tuning-v6';
 const ANGLE_TEST_DEFAULT_FONT_SIZE = 16;
 const ANGLE_TEST_CALIBRATED_DEFAULT_ROWS = [
   [10, [90, 86], [100, 88], [128, 90]],
@@ -158,23 +158,23 @@ const ANGLE_TEST_CALIBRATED_DEFAULT_ROWS = [
   [160, [24, 51], [26, 49], [29, 44]],
   [170, [24, 48], [25, 48], [25, 41]],
   [180, [25, 48], [25, 48], [27, 41]],
-  [190, [27, 52], [28, 50], [31, 43]],
-  [200, [27, 52], [28, 50], [31, 43]],
-  [210, [27, 52], [28, 50], [31, 43]],
-  [220, [27, 52], [28, 49], [31, 43]],
-  [230, [27, 51], [28, 49], [31, 42]],
-  [240, [27, 51], [28, 49], [31, 42]],
-  [250, [27, 51], [28, 49], [31, 42]],
-  [260, [27, 51], [28, 49], [31, 42]],
-  [270, [27, 51], [28, 49], [31, 42]],
-  [280, [27, 51], [28, 49], [31, 42]],
-  [290, [27, 51], [28, 49], [31, 42]],
-  [300, [27, 51], [28, 49], [31, 42]],
-  [310, [27, 51], [28, 48], [31, 42]],
-  [320, [27, 51], [28, 48], [31, 42]],
-  [330, [27, 51], [28, 48], [31, 42]],
-  [340, [27, 51], [28, 48], [31, 42]],
-  [350, [27, 51], [28, 48], [31, 41]]
+  [190, [25, 46], [25, 50], [25, 42]],
+  [200, [25, 46], [23, 48], [26, 42]],
+  [210, [23, 46], [24, 46], [26, 38]],
+  [220, [23, 46], [24, 49], [25, 43]],
+  [230, [22, 43], [22, 46], [25, 36]],
+  [240, [24, 45], [23, 43], [24, 37]],
+  [250, [24, 46], [24, 45], [25, 37]],
+  [260, [24, 43], [24, 41], [25, 35]],
+  [270, [23, 43], [23, 43], [23, 37]],
+  [280, [23, 46], [25, 44], [25, 42]],
+  [290, [23, 44], [22, 45], [23, 42]],
+  [300, [24, 43], [23, 42], [24, 41]],
+  [310, [23, 46], [24, 45], [25, 45]],
+  [320, [24, 45], [24, 46], [24, 44]],
+  [330, [24, 45], [24, 42], [24, 42]],
+  [340, [22, 46], [23, 43], [24, 42]],
+  [350, [24, 46], [24, 44], [24, 41]]
 ];
 const ANGLE_TEST_CALIBRATED_DEFAULTS = ANGLE_TEST_CALIBRATED_DEFAULT_ROWS.reduce(function(result, row) {
   const [angleDeg, small, medium, large] = row;
@@ -1376,7 +1376,7 @@ function updateAngleTuningExport() {
     return;
   }
   controls.angleTuningExport.value = JSON.stringify({
-    version: 'angle-label-tuning-v5',
+    version: 'angle-label-tuning-v6',
     labelClasses: getAngleLabelClassExportValues(),
     units: {
       angleDeg: 'directed counterclockwise degrees from the positive horizontal ray',
