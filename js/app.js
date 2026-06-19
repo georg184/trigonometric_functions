@@ -345,18 +345,6 @@ function getTriangleLabels(task, points) {
   const centroid = centroidOf(points);
   const labels = [];
 
-  for (let index = 0; index < 3; index += 1) {
-    const direction = angleLayout.unitVector(centroid, points[index]);
-    labels.push({
-      type: 'vertex',
-      text: task.vertexLabels[index],
-      latex: task.vertexLabels[index],
-      x: points[index].x + direction.x * 42,
-      y: points[index].y + direction.y * 34,
-      color: '#1f2328'
-    });
-  }
-
   for (let vertexIndex = 0; vertexIndex < 3; vertexIndex += 1) {
     const sidePoints = [0, 1, 2].filter(function(index) {
       return index !== vertexIndex;
