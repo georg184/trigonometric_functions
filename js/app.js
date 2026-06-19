@@ -17,6 +17,7 @@ const controls = {
   jsxGraphRenderer: document.getElementById('jsxGraphRenderer'),
   geoGebraRenderer: document.getElementById('geoGebraRenderer'),
   d3Renderer: document.getElementById('d3Renderer'),
+  angleTestMatrix: document.getElementById('angleTestMatrix'),
   taskCounter: document.getElementById('taskCounter'),
   taskQuestion: document.getElementById('taskQuestion'),
   answerForm: document.getElementById('answerForm'),
@@ -40,6 +41,17 @@ const RIGHT_ANGLE_MARKERS = {
 };
 const RIGHT_ANGLE_JSX_DOT_SIZE = 2.4;
 const ACUTE_ANGLE_ARC_RADIUS = angleLayout.DEFAULTS.acuteAngleArcRadius;
+const ANGLE_TEST_DEGREES = [10, 20, 30, 40, 50, 60, 70, 80];
+const ANGLE_TEST_LABELS = [
+  { text: 'α', latex: '\\alpha' },
+  { text: 'β', latex: '\\beta' },
+  { text: 'γ', latex: '\\gamma' },
+  { text: 'δ', latex: '\\delta' }
+];
+const ANGLE_TEST_VIEWBOX = {
+  width: 132,
+  height: 104
+};
 const VERTEX_SETS = [
   ['A', 'B', 'C'],
   ['D', 'E', 'F'],
@@ -72,6 +84,7 @@ let jsxBoard = null;
 let geoGebraApplet = null;
 let geoGebraReady = false;
 let geoGebraTask = null;
+let angleTestRendered = false;
 
 function showScreen(name) {
   for (const [screenName, element] of Object.entries(screens)) {
@@ -885,6 +898,109 @@ function renderUnavailable(surface, message) {
   surface.innerHTML = `<div class="renderer-note">${message}</div>`;
 }
 
+function renderAngleTestMatrix() {
+  if (!controls.angleTestMatrix || angleTestRendered) {
+    return;
+  }
+
+  controls.angleTestMatrix.innerHTML = '';
+
+  const corner = document.createElement('div');
+  corner.className = 'angle-test-header angle-test-corner';
+  corner.textContent = 'Winkel';
+  controls.angleTestMatrix.appendChild(corner);
+
+  ANGLE_TEST_LABELS.forEach(function(label) {
+    const header = document.createElement('div');
+    header.className = 'angle-test-header mathjax-inline';
+    header.innerHTML = `\\(${label.latex}\\)`;
+    controls.angleTestMatrix.appendChild(header);
+  });
+
+  ANGLE_TEST_DEGREES.forEach(function(degrees) {
+    const rowLabel = document.createElement('div');
+    rowLabel.className = 'angle-test-row-label mathjax-inline';
+    const eccentricity = angleLayout.labelEccentricityForAngle(degrees);
+    rowLabel.innerHTML = [
+      `<span>\\(${degrees}^{\\circ}\\)</span>`,
+      `<span class="angle-test-row-meta">${Math.round(eccentricity * 100)} % vom Radius</span>`
+    ].join('');
+    controls.angleTestMatrix.appendChild(rowLabel);
+
+    ANGLE_TEST_LABELS.forEach(function(label) {
+      controls.angleTestMatrix.appendChild(createAngleTestCell(degrees, label));
+    });
+  });
+
+  angleTestRendered = true;
+  typesetElements([controls.angleTestMatrix]);
+}
+
+function createAngleTestCell(degrees, label) {
+  const cell = document.createElement('div');
+  cell.className = 'angle-test-cell';
+  cell.dataset.angle = String(degrees);
+  cell.dataset.label = label.text;
+
+  const width = ANGLE_TEST_VIEWBOX.width;
+  const height = ANGLE_TEST_VIEWBOX.height;
+  const vertex = { x: 24, y: 82 };
+  const rayLength = 78;
+  const angle = degrees * DEGREE;
+  const first = {
+    x: vertex.x + rayLength,
+    y: vertex.y
+  };
+  const second = {
+    x: vertex.x + Math.cos(angle) * rayLength,
+    y: vertex.y - Math.sin(angle) * rayLength
+  };
+  const labelPosition = angleLayout.angleLabelPosition(vertex, first, second, ACUTE_ANGLE_ARC_RADIUS);
+
+  const svg = createSvgElement('svg', {
+    class: 'angle-test-svg',
+    viewBox: `0 0 ${width} ${height}`,
+    role: 'img',
+    'aria-label': `${degrees} Grad mit ${label.text}`
+  });
+
+  svg.appendChild(createSvgElement('line', {
+    x1: vertex.x,
+    y1: vertex.y,
+    x2: first.x,
+    y2: first.y,
+    stroke: '#1f2328',
+    'stroke-width': 2.2,
+    'stroke-linecap': 'round'
+  }));
+  svg.appendChild(createSvgElement('line', {
+    x1: vertex.x,
+    y1: vertex.y,
+    x2: second.x,
+    y2: second.y,
+    stroke: '#1f2328',
+    'stroke-width': 2.2,
+    'stroke-linecap': 'round'
+  }));
+  svg.appendChild(createSvgElement('path', {
+    d: angleLayout.arcSvgPath(vertex, first, second, ACUTE_ANGLE_ARC_RADIUS),
+    fill: 'none',
+    stroke: '#57606a',
+    'stroke-width': 2,
+    'stroke-linecap': 'round'
+  }));
+
+  const labelElement = document.createElement('span');
+  labelElement.className = 'angle-test-label mathjax-inline';
+  labelElement.style.left = `${labelPosition.x}px`;
+  labelElement.style.top = `${labelPosition.y}px`;
+  labelElement.innerHTML = `\\(${label.latex}\\)`;
+
+  cell.appendChild(svg);
+  cell.appendChild(labelElement);
+  return cell;
+}
+
 function renderAllTriangles(task) {
   renderInlineSvg(controls.svgRenderer, task);
   renderSvgWithHtmlLabels(controls.svgHtmlRenderer, task);
@@ -897,6 +1013,7 @@ function startTriangleQuiz() {
   taskNumber = 0;
   rightAngleMarker = readRightAngleMarkerSetting();
   showScreen('quiz');
+  renderAngleTestMatrix();
   newTask();
 }
 

@@ -176,6 +176,88 @@ p {
   grid-column: 1 / -1;
 }
 
+.angle-test-panel {
+  margin-top: 18px;
+}
+
+.angle-test-title {
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.angle-test-matrix {
+  display: grid;
+  grid-template-columns: 86px repeat(4, 132px);
+  gap: 8px;
+  align-items: stretch;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.angle-test-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.angle-test-corner {
+  justify-content: flex-start;
+}
+
+.angle-test-row-label {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  min-height: 104px;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.angle-test-row-meta {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.angle-test-cell {
+  position: relative;
+  width: 132px;
+  height: 104px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: white;
+  overflow: hidden;
+}
+
+.angle-test-svg {
+  display: block;
+  width: 132px;
+  height: 104px;
+}
+
+.angle-test-label {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  color: var(--muted);
+  font-size: 0.98rem;
+  font-weight: 800;
+  line-height: 1;
+  pointer-events: none;
+  text-shadow:
+    -2px -2px 0 #fff,
+    2px -2px 0 #fff,
+    -2px 2px 0 #fff,
+    2px 2px 0 #fff,
+    0 0 5px #fff;
+}
+
 .render-title {
   margin-bottom: 8px;
   color: var(--muted);
