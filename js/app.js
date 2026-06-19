@@ -1,4 +1,4 @@
-const APP_VERSION = '20260619.26';
+const APP_VERSION = '20260619.27';
 if (window.GG_APP_VERSION && window.GG_APP_VERSION !== APP_VERSION) {
   document.body.innerHTML = [
     '<main style="max-width:720px;margin:40px auto;padding:20px;font-family:system-ui,sans-serif;line-height:1.45">',
@@ -474,7 +474,7 @@ function addSvgTrianglePrimitives(svg, task, points) {
       x2: points[pair[1]].x,
       y2: points[pair[1]].y,
       stroke: SIDE_COLORS[index],
-      'stroke-width': 4,
+      'stroke-width': 3.5,
       'stroke-linecap': 'round'
     }));
   });
@@ -589,7 +589,7 @@ function renderD3Svg(surface, task) {
       .attr('x2', points[pair[1]].x)
       .attr('y2', points[pair[1]].y)
       .attr('stroke', SIDE_COLORS[index])
-      .attr('stroke-width', 4)
+      .attr('stroke-width', 3.5)
       .attr('stroke-linecap', 'round');
   });
 
@@ -662,7 +662,7 @@ function renderJsxGraph(surface, task) {
   [[1, 2], [0, 2], [0, 1]].forEach(function(pair, index) {
     jsxBoard.create('segment', [jPoints[pair[0]], jPoints[pair[1]]], {
       strokeColor: SIDE_COLORS[index],
-      strokeWidth: 4,
+      strokeWidth: 3.5,
       fixed: true,
       highlight: false
     });
@@ -806,7 +806,7 @@ function updateGeoGebraConstruction(task) {
       const name = `s${index}`;
       geoGebraApplet.evalCommand(`${name}=Segment(${task.vertexLabels[pair[0]]},${task.vertexLabels[pair[1]]})`);
       geoGebraApplet.setColor(name, ...hexToRgb(SIDE_COLORS[index]));
-      geoGebraApplet.setLineThickness(name, 6);
+      geoGebraApplet.setLineThickness(name, 5);
       geoGebraApplet.setLabelVisible(name, false);
     });
 
