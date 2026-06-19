@@ -48,33 +48,32 @@ const ACUTE_ANGLE_ARC_RADIUS = angleLayout.DEFAULTS.acuteAngleArcRadius;
 const ANGLE_TEST_DEGREES = [10, 20, 30, 40, 50, 60, 70, 80];
 const ANGLE_LABEL_CLASSES = [
   {
-    id: 'compact',
-    name: 'kompakt',
+    id: 'small',
+    name: 'klein',
     representative: { text: 'α', latex: '\\alpha' },
     covers: [
       { text: 'α', latex: '\\alpha' },
       { text: 'ε', latex: '\\varepsilon' },
-      { text: 'η', latex: '\\eta' },
       { text: 'ι', latex: '\\iota' },
+      { text: 'κ', latex: '\\kappa' },
       { text: 'ν', latex: '\\nu' },
-      { text: 'τ', latex: '\\tau' }
+      { text: 'ο', latex: 'o' },
+      { text: 'σ', latex: '\\sigma' },
+      { text: 'τ', latex: '\\tau' },
+      { text: 'υ', latex: '\\upsilon' }
     ]
   },
   {
     id: 'medium',
     name: 'mittel',
-    representative: { text: 'δ', latex: '\\delta' },
+    representative: { text: 'γ', latex: '\\gamma' },
     covers: [
-      { text: 'β', latex: '\\beta' },
       { text: 'γ', latex: '\\gamma' },
-      { text: 'δ', latex: '\\delta' },
       { text: 'θ', latex: '\\theta' },
-      { text: 'κ', latex: '\\kappa' },
-      { text: 'λ', latex: '\\lambda' },
+      { text: 'η', latex: '\\eta' },
       { text: 'μ', latex: '\\mu' },
       { text: 'π', latex: '\\pi' },
       { text: 'ρ', latex: '\\rho' },
-      { text: 'σ', latex: '\\sigma' },
       { text: 'φ', latex: '\\varphi' },
       { text: 'χ', latex: '\\chi' },
       { text: 'ω', latex: '\\omega' }
@@ -83,9 +82,12 @@ const ANGLE_LABEL_CLASSES = [
   {
     id: 'large',
     name: 'groß',
-    representative: { text: 'ψ', latex: '\\psi' },
+    representative: { text: 'δ', latex: '\\delta' },
     covers: [
+      { text: 'β', latex: '\\beta' },
+      { text: 'δ', latex: '\\delta' },
       { text: 'ζ', latex: '\\zeta' },
+      { text: 'λ', latex: '\\lambda' },
       { text: 'ξ', latex: '\\xi' },
       { text: 'ψ', latex: '\\psi' }
     ]
@@ -133,7 +135,7 @@ const ANGLE_TEST_VIEWBOX = {
   width: 224,
   height: 168
 };
-const ANGLE_TEST_STORAGE_KEY = 'trigonometric-functions-angle-tuning-v2';
+const ANGLE_TEST_STORAGE_KEY = 'trigonometric-functions-angle-tuning-v3';
 const ANGLE_TEST_DEFAULT_FONT_SIZE = 16;
 const VERTEX_SETS = [
   ['A', 'B', 'C'],
@@ -1293,7 +1295,7 @@ function updateAngleTuningExport() {
     return;
   }
   controls.angleTuningExport.value = JSON.stringify({
-    version: 'angle-label-tuning-v2',
+    version: 'angle-label-tuning-v3',
     labelClasses: getAngleLabelClassExportValues(),
     units: {
       arcRadius: 'SVG units in the test cells',
