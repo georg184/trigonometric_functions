@@ -8,7 +8,7 @@
 (function(global) {
   'use strict';
 
-  const VERSION = '0.2.0';
+  const VERSION = '0.3.0';
 
   const DEFAULTS = Object.freeze({
     acuteAngleArcRadius: 44,
@@ -110,6 +110,29 @@
     [350, [24, 46], [24, 44], [24, 41]]
   ]);
 
+  const ANGLE_LABEL_SAMPLE_ROWS = Object.freeze([
+    [350, 260, 'κ', '\\kappa', 'small', 20, 22, 58, 0],
+    [10, 170, 'χ', '\\chi', 'medium', 12, 92, 90, -1],
+    [100, 30, 'ε', '\\varepsilon', 'small', 12, 18, 62, 0],
+    [50, 190, 'ρ', '\\rho', 'medium', 20, 36, 61, -3],
+    [150, 140, 'σ', '\\sigma', 'small', 20, 24, 45, -2],
+    [40, 130, 'ο', 'o', 'small', 12, 27, 74, -2],
+    [40, 80, 'ε', '\\varepsilon', 'small', 24, 41, 77, -2],
+    [60, 210, 'α', '\\alpha', 'small', 14, 23, 60, 0],
+    [310, 150, 'π', '\\pi', 'medium', 22, 20, 45, 5],
+    [250, 160, 'α', '\\alpha', 'small', 22, 21, 40, 8],
+    [240, 260, 'ρ', '\\rho', 'medium', 24, 23, 52, 5],
+    [230, 30, 'κ', '\\kappa', 'small', 24, 22, 59, -10],
+    [230, 290, 'ζ', '\\zeta', 'large', 22, 26, 48, 0],
+    [210, 190, 'λ', '\\lambda', 'large', 14, 20, 47, 3],
+    [240, 270, 'ο', 'o', 'small', 24, 22, 54, 10],
+    [120, 320, 'ι', '\\iota', 'small', 14, 16, 60, 8],
+    [150, 120, 'γ', '\\gamma', 'medium', 14, 16, 55, 0],
+    [330, 240, 'τ', '\\tau', 'small', 16, 17, 55, 3],
+    [230, 250, 'λ', '\\lambda', 'large', 18, 20, 48, 0],
+    [350, 260, 'π', '\\pi', 'medium', 20, 21, 60, 4]
+  ]);
+
   const ANGLE_LABEL_CLASS_IDS = ANGLE_LABEL_CLASSES.map(function(labelClass) {
     return labelClass.id;
   });
@@ -132,6 +155,8 @@
     };
   });
 
+  const ANGLE_LABEL_SAMPLE_DATA = Object.freeze(ANGLE_LABEL_SAMPLE_ROWS.map(sampleRow));
+
   function mergeOptions(options) {
     return Object.assign({}, DEFAULTS, options || {});
   }
@@ -140,6 +165,22 @@
     return {
       arcRadius: pair[0],
       labelPercent: pair[1]
+    };
+  }
+
+  function sampleRow(row) {
+    return {
+      angleDeg: row[0],
+      baseRayAngleDeg: row[1],
+      label: {
+        text: row[2],
+        latex: row[3]
+      },
+      labelClassId: row[4],
+      fontSizePx: row[5],
+      arcRadius: row[6],
+      labelPercent: row[7],
+      labelAngleOffsetDeg: row[8]
     };
   }
 
@@ -223,15 +264,95 @@
     const settings = mergeOptions(options);
     const labelClassId = settings.labelClassId || angleLabelClassFor(label);
     const fontSizePx = settings.fontSizePx || settings.angleLabelFontSizePx;
-    const calibration = angleLabelCalibrationAt(angleDeg, labelClassId);
-    return {
-      angleDeg: normalizeDegrees(angleDeg),
+    const normalizedAngle = clamp(normalizeDegrees(angleDeg), 10, 350);
+    const baseline = baselineAngleLabelStyle(normalizedAngle, labelClassId, fontSizePx, settings);
+    const correction = angleLabelSampleCorrection({
+      angleDeg: normalizedAngle,
+      baseRayAngleDeg: settings.baseRayAngleDeg,
+      label,
       labelClassId,
-      arcRadius: scaleRadiusForFont(calibration.arcRadius, fontSizePx, settings),
-      labelPercent: calibration.labelPercent,
+      fontSizePx
+    }, settings);
+    return {
+      angleDeg: normalizedAngle,
+      labelClassId,
+      arcRadius: clamp(baseline.arcRadius + correction.arcRadius, 12, 220),
+      labelPercent: clamp(baseline.labelPercent + correction.labelPercent, 25, 130),
+      labelAngleOffsetDeg: clamp(correction.labelAngleOffsetDeg, -90, 90),
+      sampleCorrectionWeight: correction.weight,
       fontSizePx,
       baselineFontSizePx: DEFAULTS.angleLabelFontSizePx
     };
+  }
+
+  function baselineAngleLabelStyle(angleDeg, labelClassId, fontSizePx, settings) {
+    const calibration = angleLabelCalibrationAt(angleDeg, labelClassId);
+    return {
+      arcRadius: scaleRadiusForFont(calibration.arcRadius, fontSizePx, settings),
+      labelPercent: calibration.labelPercent,
+      labelAngleOffsetDeg: 0
+    };
+  }
+
+  function angleLabelSampleCorrection(target, options) {
+    const settings = mergeOptions(options);
+    const baseRayAngleDeg = normalizeOptionalDegrees(target.baseRayAngleDeg);
+    if (baseRayAngleDeg === null || ANGLE_LABEL_SAMPLE_DATA.length === 0) {
+      return zeroSampleCorrection();
+    }
+
+    let totalWeight = 0;
+    let arcRadius = 0;
+    let labelPercent = 0;
+    let labelAngleOffsetDeg = 0;
+    const safeClassId = ANGLE_LABEL_CLASS_IDS.includes(target.labelClassId) ? target.labelClassId : 'medium';
+    const targetLabel = normalizeLabel(target.label);
+
+    ANGLE_LABEL_SAMPLE_DATA.forEach(function(sample) {
+      const weight = sampleWeight(sample, target, baseRayAngleDeg, safeClassId, targetLabel);
+      if (weight < 0.01) {
+        return;
+      }
+
+      const baseline = baselineAngleLabelStyle(
+        sample.angleDeg,
+        sample.labelClassId,
+        sample.fontSizePx,
+        settings
+      );
+      arcRadius += weight * clamp(sample.arcRadius - baseline.arcRadius, -40, 40);
+      labelPercent += weight * clamp(sample.labelPercent - baseline.labelPercent, -30, 30);
+      labelAngleOffsetDeg += weight * clamp(sample.labelAngleOffsetDeg, -20, 20);
+      totalWeight += weight;
+    });
+
+    if (totalWeight < 0.08) {
+      return zeroSampleCorrection();
+    }
+
+    return {
+      arcRadius: arcRadius / totalWeight,
+      labelPercent: labelPercent / totalWeight,
+      labelAngleOffsetDeg: labelAngleOffsetDeg / totalWeight,
+      weight: totalWeight
+    };
+  }
+
+  function sampleWeight(sample, target, baseRayAngleDeg, labelClassId, targetLabel) {
+    const angleDistance = Math.abs(sample.angleDeg - target.angleDeg);
+    const baseRayDistance = circularDistance(sample.baseRayAngleDeg, baseRayAngleDeg);
+    const fontDistance = Math.abs(sample.fontSizePx - target.fontSizePx);
+    let distanceSquared = square(angleDistance / 35)
+      + square(baseRayDistance / 70)
+      + square(fontDistance / 6);
+
+    if (sample.labelClassId !== labelClassId) {
+      distanceSquared += 5;
+    } else if (!labelsMatch(sample.label, targetLabel)) {
+      distanceSquared += 0.35;
+    }
+
+    return Math.exp(-0.5 * distanceSquared);
   }
 
   function angleLabelCalibrationAt(angleDeg, labelClassId) {
@@ -271,17 +392,23 @@
 
   function calibratedAngleMarker(vertex, first, second, label, options) {
     const geometry = angleGeometry(vertex, first, second);
-    const style = angleLabelStyle(geometry.angleDeg, label, options);
+    const style = angleLabelStyle(geometry.angleDeg, label, Object.assign({}, options || {}, {
+      baseRayAngleDeg: normalizeOptionalDegrees(options && options.baseRayAngleDeg) === null
+        ? normalizeDegrees(-geometry.start * 180 / Math.PI)
+        : options.baseRayAngleDeg
+    }));
     const labelDistance = style.arcRadius * style.labelPercent / 100;
+    const labelAngle = geometry.middle - style.labelAngleOffsetDeg * Math.PI / 180;
     return {
       geometry,
       style,
       arcRadius: style.arcRadius,
-      label: Object.assign(pointOnRay(vertex, geometry.middle, labelDistance), {
+      label: Object.assign(pointOnRay(vertex, labelAngle, labelDistance), {
         distance: labelDistance,
         eccentricity: style.labelPercent / 100,
         angleDeg: geometry.angleDeg,
-        labelClassId: style.labelClassId
+        labelClassId: style.labelClassId,
+        labelAngleOffsetDeg: style.labelAngleOffsetDeg
       })
     };
   }
@@ -349,8 +476,43 @@
     return ((Number(angleDeg) % 360) + 360) % 360;
   }
 
+  function normalizeOptionalDegrees(angleDeg) {
+    const number = Number(angleDeg);
+    return Number.isFinite(number) ? normalizeDegrees(number) : null;
+  }
+
+  function normalizeLabel(label) {
+    return {
+      text: label && typeof label === 'object' ? label.text : label,
+      latex: label && typeof label === 'object' ? label.latex : label
+    };
+  }
+
+  function labelsMatch(first, second) {
+    return Boolean(first && second)
+      && (first.text === second.text || first.latex === second.latex);
+  }
+
+  function circularDistance(firstDeg, secondDeg) {
+    const difference = Math.abs(normalizeDegrees(firstDeg) - normalizeDegrees(secondDeg));
+    return Math.min(difference, 360 - difference);
+  }
+
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
+  }
+
+  function square(value) {
+    return value * value;
+  }
+
+  function zeroSampleCorrection() {
+    return {
+      arcRadius: 0,
+      labelPercent: 0,
+      labelAngleOffsetDeg: 0,
+      weight: 0
+    };
   }
 
   function lerp(start, end, t) {
@@ -362,6 +524,7 @@
     DEFAULTS,
     ANGLE_LABEL_CLASSES,
     ANGLE_LABEL_CALIBRATION_ROWS,
+    ANGLE_LABEL_SAMPLE_DATA,
     unitVector,
     angleGeometry,
     arcPoints,
@@ -371,6 +534,7 @@
     angleLabelClassFor,
     angleLabelStyle,
     angleLabelCalibrationAt,
+    angleLabelSampleCorrection,
     calibratedAngleMarker,
     calibratedAngleLabelPosition,
     rightAngleArcDotMarker,
