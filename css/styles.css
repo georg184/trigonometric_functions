@@ -189,7 +189,7 @@ p {
 
 .angle-test-matrix {
   display: grid;
-  grid-template-columns: 70px repeat(3, 224px);
+  grid-template-columns: 70px repeat(3, 300px);
   gap: 8px;
   align-items: stretch;
   overflow-x: auto;
@@ -232,7 +232,7 @@ p {
   display: grid;
   align-content: center;
   gap: 4px;
-  min-height: 224px;
+  min-height: 356px;
   color: var(--text);
   font-weight: 800;
 }
@@ -264,8 +264,8 @@ p {
 
 .angle-test-cell {
   position: relative;
-  width: 224px;
-  min-height: 224px;
+  width: 300px;
+  min-height: 356px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: white;
@@ -274,8 +274,8 @@ p {
 
 .angle-test-drawing {
   position: relative;
-  width: 224px;
-  height: 168px;
+  width: 300px;
+  height: 300px;
 }
 
 .angle-test-cell-controls {
@@ -289,8 +289,8 @@ p {
 
 .angle-test-svg {
   display: block;
-  width: 224px;
-  height: 168px;
+  width: 300px;
+  height: 300px;
 }
 
 .angle-test-label {

@@ -45,7 +45,9 @@ const RIGHT_ANGLE_MARKERS = {
 };
 const RIGHT_ANGLE_JSX_DOT_SIZE = 2.4;
 const ACUTE_ANGLE_ARC_RADIUS = angleLayout.DEFAULTS.acuteAngleArcRadius;
-const ANGLE_TEST_DEGREES = [10, 20, 30, 40, 50, 60, 70, 80];
+const ANGLE_TEST_DEGREES = Array.from({ length: 35 }, function(_, index) {
+  return (index + 1) * 10;
+});
 const ANGLE_LABEL_CLASSES = [
   {
     id: 'small',
@@ -132,11 +134,53 @@ const ANGLE_TEST_FIELDS = [
   'labelPercent'
 ];
 const ANGLE_TEST_VIEWBOX = {
-  width: 224,
-  height: 168
+  width: 300,
+  height: 300
 };
-const ANGLE_TEST_STORAGE_KEY = 'trigonometric-functions-angle-tuning-v3';
+const ANGLE_TEST_STORAGE_KEY = 'trigonometric-functions-angle-tuning-v4';
 const ANGLE_TEST_DEFAULT_FONT_SIZE = 16;
+const ANGLE_TEST_CALIBRATED_DEFAULTS = {
+  10: {
+    small: { arcRadius: 90, labelPercent: 86 },
+    medium: { arcRadius: 100, labelPercent: 88 },
+    large: { arcRadius: 128, labelPercent: 90 }
+  },
+  20: {
+    small: { arcRadius: 54, labelPercent: 77 },
+    medium: { arcRadius: 60, labelPercent: 78 },
+    large: { arcRadius: 76, labelPercent: 80 }
+  },
+  30: {
+    small: { arcRadius: 44, labelPercent: 70 },
+    medium: { arcRadius: 46, labelPercent: 71 },
+    large: { arcRadius: 50, labelPercent: 75 }
+  },
+  40: {
+    small: { arcRadius: 44, labelPercent: 68 },
+    medium: { arcRadius: 44, labelPercent: 72 },
+    large: { arcRadius: 44, labelPercent: 70 }
+  },
+  50: {
+    small: { arcRadius: 41, labelPercent: 63 },
+    medium: { arcRadius: 42, labelPercent: 63 },
+    large: { arcRadius: 43, labelPercent: 60 }
+  },
+  60: {
+    small: { arcRadius: 39, labelPercent: 60 },
+    medium: { arcRadius: 39, labelPercent: 62 },
+    large: { arcRadius: 40, labelPercent: 60 }
+  },
+  70: {
+    small: { arcRadius: 36, labelPercent: 60 },
+    medium: { arcRadius: 37, labelPercent: 60 },
+    large: { arcRadius: 38, labelPercent: 60 }
+  },
+  80: {
+    small: { arcRadius: 32, labelPercent: 60 },
+    medium: { arcRadius: 32, labelPercent: 60 },
+    large: { arcRadius: 35, labelPercent: 60 }
+  }
+};
 const VERTEX_SETS = [
   ['A', 'B', 'C'],
   ['D', 'E', 'F'],
@@ -1080,22 +1124,11 @@ function createAngleTestDrawing(degrees, label) {
   const settings = getAngleTestSetting(degrees, label.classId);
   const width = ANGLE_TEST_VIEWBOX.width;
   const height = ANGLE_TEST_VIEWBOX.height;
-  const vertex = { x: 30, y: 150 };
-  const rayLength = 150;
-  const angle = degrees * DEGREE;
-  const first = {
-    x: vertex.x + rayLength,
-    y: vertex.y
-  };
-  const second = {
-    x: vertex.x + Math.cos(angle) * rayLength,
-    y: vertex.y - Math.sin(angle) * rayLength
-  };
-  const labelPosition = angleLayout.angleLabelPosition(vertex, first, second, settings.arcRadius, {
-    labelEccentricity: settings.labelPercent / 100,
-    narrowAngleLabelEccentricity: settings.labelPercent / 100,
-    narrowAngleThresholdDeg: 0
-  });
+  const vertex = { x: width / 2, y: height / 2 };
+  const rayLength = 132;
+  const first = angleTestPointOnRay(vertex, 0, rayLength);
+  const second = angleTestPointOnRay(vertex, degrees, rayLength);
+  const labelPosition = angleTestLabelPosition(vertex, degrees, settings.arcRadius, settings.labelPercent);
 
   const drawing = document.createElement('div');
   drawing.className = 'angle-test-drawing';
@@ -1126,7 +1159,7 @@ function createAngleTestDrawing(degrees, label) {
     'stroke-linecap': 'round'
   }));
   svg.appendChild(createSvgElement('path', {
-    d: angleLayout.arcSvgPath(vertex, first, second, settings.arcRadius),
+    d: angleTestArcSvgPath(vertex, settings.arcRadius, degrees),
     fill: 'none',
     stroke: '#57606a',
     'stroke-width': 2,
@@ -1145,13 +1178,50 @@ function createAngleTestDrawing(degrees, label) {
   return drawing;
 }
 
+function angleTestPointOnRay(vertex, degrees, distance) {
+  const angle = degrees * DEGREE;
+  return {
+    x: vertex.x + Math.cos(angle) * distance,
+    y: vertex.y - Math.sin(angle) * distance
+  };
+}
+
+function angleTestArcSvgPath(vertex, radius, degrees) {
+  const start = angleTestPointOnRay(vertex, 0, radius);
+  const end = angleTestPointOnRay(vertex, degrees, radius);
+  const normalizedDegrees = normalizeDirectedDegrees(degrees);
+  const largeArcFlag = normalizedDegrees > 180 ? 1 : 0;
+
+  return [
+    'M', start.x, start.y,
+    'A', radius, radius, 0, largeArcFlag, 0, end.x, end.y
+  ].join(' ');
+}
+
+function angleTestLabelPosition(vertex, degrees, radius, labelPercent) {
+  return angleTestPointOnRay(vertex, normalizeDirectedDegrees(degrees) / 2, radius * labelPercent / 100);
+}
+
+function normalizeDirectedDegrees(degrees) {
+  return ((degrees % 360) + 360) % 360;
+}
+
 function defaultAngleTestSetting(degrees, labelClassId) {
   if (!ANGLE_TEST_LABEL_CLASS_BY_ID[labelClassId]) {
     throw new Error(`Unknown angle label class: ${labelClassId}`);
   }
+  const calibratedDefaults = ANGLE_TEST_CALIBRATED_DEFAULTS[degrees]?.[labelClassId];
+  if (calibratedDefaults) {
+    return {
+      arcRadius: calibratedDefaults.arcRadius,
+      labelPercent: calibratedDefaults.labelPercent,
+      fontSizePx: ANGLE_TEST_DEFAULT_FONT_SIZE
+    };
+  }
+
   return {
-    arcRadius: ACUTE_ANGLE_ARC_RADIUS,
-    labelPercent: Math.round(angleLayout.labelEccentricityForAngle(degrees) * 100),
+    arcRadius: labelClassId === 'large' ? 35 : 32,
+    labelPercent: 60,
     fontSizePx: ANGLE_TEST_DEFAULT_FONT_SIZE
   };
 }
@@ -1295,9 +1365,10 @@ function updateAngleTuningExport() {
     return;
   }
   controls.angleTuningExport.value = JSON.stringify({
-    version: 'angle-label-tuning-v3',
+    version: 'angle-label-tuning-v4',
     labelClasses: getAngleLabelClassExportValues(),
     units: {
+      angleDeg: 'directed counterclockwise degrees from the positive horizontal ray',
       arcRadius: 'SVG units in the test cells',
       labelPercent: 'label distance / arc radius * 100',
       fontSizePx: 'MathJax label font size in px'
