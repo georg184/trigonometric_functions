@@ -213,13 +213,19 @@ function getSideName(task, vertexIndex) {
   return sideLabelForVertex(task.vertexLabels[vertexIndex]);
 }
 
+function trigFunctionLatex(taskType) {
+  return `\\${taskType}`;
+}
+
 function getQuestionLatex(task) {
   const angle = task.angleLabels[task.targetIndex].latex;
-  return `\\(${task.taskType}\\!\\left(${angle}\\right)=\\)`;
+  const functionName = trigFunctionLatex(task.taskType);
+  return `\\(${functionName}\\!\\left(${angle}\\right)=\\)`;
 }
 
 function getSolutionLatex(task) {
   const angle = task.angleLabels[task.targetIndex].latex;
+  const functionName = trigFunctionLatex(task.taskType);
   const numerator = task.answer.numerator;
   const denominator = task.answer.denominator;
   const ratioText = {
@@ -230,7 +236,7 @@ function getSolutionLatex(task) {
 
   return `\\[
     \\begin{aligned}
-      ${task.taskType}\\!\\left(${angle}\\right)
+      ${functionName}\\!\\left(${angle}\\right)
         &= ${ratioText} \\\\
         &= \\frac{${numerator}}{${denominator}}
     \\end{aligned}
