@@ -38,6 +38,8 @@ const RIGHT_ANGLE_ARC_RADIUS = 26;
 const RIGHT_ANGLE_DOT_DISTANCE = RIGHT_ANGLE_ARC_RADIUS * 0.6;
 const RIGHT_ANGLE_DOT_RADIUS = 3.2;
 const RIGHT_ANGLE_JSX_DOT_SIZE = 2.4;
+const ACUTE_ANGLE_ARC_RADIUS = 44;
+const ACUTE_ANGLE_LABEL_DISTANCE = ACUTE_ANGLE_ARC_RADIUS * 0.6;
 const VERTEX_SETS = [
   ['A', 'B', 'C'],
   ['D', 'E', 'F'],
@@ -394,8 +396,8 @@ function getTriangleLabels(task, points) {
       type: 'angle',
       text: task.angleLabels[index].text,
       latex: task.angleLabels[index].latex,
-      x: points[index].x + Math.cos(geometry.middle) * 24,
-      y: points[index].y + Math.sin(geometry.middle) * 24,
+      x: points[index].x + Math.cos(geometry.middle) * ACUTE_ANGLE_LABEL_DISTANCE,
+      y: points[index].y + Math.sin(geometry.middle) * ACUTE_ANGLE_LABEL_DISTANCE,
       color: '#57606a'
     });
   }
@@ -485,7 +487,7 @@ function addSvgTrianglePrimitives(svg, task, points) {
       return otherIndex !== index;
     });
     svg.appendChild(createSvgElement('path', {
-      d: buildArcPath(points[index], points[neighborIndices[0]], points[neighborIndices[1]], 44),
+      d: buildArcPath(points[index], points[neighborIndices[0]], points[neighborIndices[1]], ACUTE_ANGLE_ARC_RADIUS),
       fill: 'none',
       stroke: '#57606a',
       'stroke-width': 2,
@@ -606,7 +608,7 @@ function renderD3Svg(surface, task) {
       return otherIndex !== index;
     });
     svg.append('path')
-      .attr('d', buildArcPath(points[index], points[neighborIndices[0]], points[neighborIndices[1]], 44))
+      .attr('d', buildArcPath(points[index], points[neighborIndices[0]], points[neighborIndices[1]], ACUTE_ANGLE_ARC_RADIUS))
       .attr('fill', 'none')
       .attr('stroke', '#57606a')
       .attr('stroke-width', 2)
@@ -696,7 +698,7 @@ function drawJsxGraphAngleMarkers(board, task, points) {
     const neighborIndices = [0, 1, 2].filter(function(otherIndex) {
       return otherIndex !== index;
     });
-    drawJsxGraphArc(board, points[index], points[neighborIndices[0]], points[neighborIndices[1]], 44, '#57606a');
+    drawJsxGraphArc(board, points[index], points[neighborIndices[0]], points[neighborIndices[1]], ACUTE_ANGLE_ARC_RADIUS, '#57606a');
   }
 }
 
@@ -878,7 +880,11 @@ function addGeoGebraAngleMarkers(task, points) {
     const neighborIndices = [0, 1, 2].filter(function(otherIndex) {
       return otherIndex !== index;
     });
-    addGeoGebraPolyline(`arc${index}`, sampleArc(points[index], points[neighborIndices[0]], points[neighborIndices[1]], 44, 18), '#57606a');
+    addGeoGebraPolyline(
+      `arc${index}`,
+      sampleArc(points[index], points[neighborIndices[0]], points[neighborIndices[1]], ACUTE_ANGLE_ARC_RADIUS, 18),
+      '#57606a'
+    );
   }
 }
 
