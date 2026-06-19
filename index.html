@@ -5,8 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Trigonometrische Funktionen</title>
   <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsxgraph/distrib/jsxgraph.css" />
   <script src="js/mathjax-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsxgraph/distrib/jsxgraphcore.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+  <script src="https://www.geogebra.org/apps/deployggb.js"></script>
 </head>
 <body>
   <main>
@@ -51,8 +55,31 @@
       </div>
 
       <div class="quiz-layout">
-        <div class="panel triangle-panel">
-          <canvas id="triangleCanvas" width="900" height="620" aria-label="Beschriftetes rechtwinkliges Dreieck"></canvas>
+        <div class="render-comparison" aria-label="Vergleich der Darstellungsarten">
+          <div class="render-panel">
+            <div class="render-title">1. Inline-SVG</div>
+            <div id="svgRenderer" class="render-surface"></div>
+          </div>
+
+          <div class="render-panel">
+            <div class="render-title">2. SVG + HTML/MathJax-Labels</div>
+            <div id="svgHtmlRenderer" class="render-surface render-surface-layered"></div>
+          </div>
+
+          <div class="render-panel">
+            <div class="render-title">3. JSXGraph</div>
+            <div id="jsxGraphRenderer" class="render-surface jsxgraph-surface"></div>
+          </div>
+
+          <div class="render-panel">
+            <div class="render-title">4. GeoGebra-Applet</div>
+            <div id="geoGebraRenderer" class="render-surface geogebra-surface"></div>
+          </div>
+
+          <div class="render-panel render-panel-wide">
+            <div class="render-title">5. D3.js + SVG</div>
+            <div id="d3Renderer" class="render-surface"></div>
+          </div>
         </div>
 
         <div class="panel task-panel">
@@ -81,7 +108,7 @@
     </section>
   </main>
 
-  <div class="version-badge" aria-label="Version">v2026.06.18.2</div>
+  <div class="version-badge" aria-label="Version">v2026.06.19.1</div>
 
   <script src="js/app.js"></script>
 </body>

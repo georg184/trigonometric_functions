@@ -12,7 +12,11 @@ const controls = {
   nextButton: document.getElementById('nextButton'),
   rightAngleArcDot: document.getElementById('rightAngleArcDot'),
   rightAngleSquare: document.getElementById('rightAngleSquare'),
-  triangleCanvas: document.getElementById('triangleCanvas'),
+  svgRenderer: document.getElementById('svgRenderer'),
+  svgHtmlRenderer: document.getElementById('svgHtmlRenderer'),
+  jsxGraphRenderer: document.getElementById('jsxGraphRenderer'),
+  geoGebraRenderer: document.getElementById('geoGebraRenderer'),
+  d3Renderer: document.getElementById('d3Renderer'),
   taskCounter: document.getElementById('taskCounter'),
   taskQuestion: document.getElementById('taskQuestion'),
   answerForm: document.getElementById('answerForm'),
@@ -22,8 +26,10 @@ const controls = {
   solution: document.getElementById('solution')
 };
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
 const DEGREE = Math.PI / 180;
 const TASK_TYPES = ['sin', 'cos', 'tan'];
+const SIDE_COLORS = ['#bf8700', '#2ea043', '#0969da'];
 const RIGHT_ANGLE_MARKERS = {
   arcDot: 'arcDot',
   square: 'square'
@@ -56,6 +62,10 @@ const ANGLE_SETS = [
 let currentTask = null;
 let taskNumber = 0;
 let rightAngleMarker = RIGHT_ANGLE_MARKERS.arcDot;
+let jsxBoard = null;
+let geoGebraApplet = null;
+let geoGebraReady = false;
+let geoGebraTask = null;
 
 function showScreen(name) {
   for (const [screenName, element] of Object.entries(screens)) {
@@ -92,6 +102,17 @@ function renderMath(element, latex) {
   }
 }
 
+function typesetElements(elements) {
+  if (window.MathJax && typeof MathJax.typesetClear === 'function') {
+    MathJax.typesetClear(elements);
+  }
+  if (window.MathJax && typeof MathJax.typesetPromise === 'function') {
+    MathJax.typesetPromise(elements).catch(function(error) {
+      console.error('MathJax rendering failed:', error);
+    });
+  }
+}
+
 function sideLabelForVertex(vertexLabel) {
   return vertexLabel.toLowerCase();
 }
@@ -107,7 +128,6 @@ function buildTask() {
   const acuteIndices = [0, 1, 2].filter(function(index) {
     return index !== rightIndex;
   });
-
   const firstAcuteAngle = randomInt(24, 66);
   const secondAcuteAngle = 90 - firstAcuteAngle;
   const angleDegrees = [0, 0, 0];
@@ -141,9 +161,9 @@ function buildTask() {
     localLegs: makeLocalTriangle(angleDegrees, acuteIndices, rightIndex),
     rotation: Math.random() * Math.PI * 2,
     flip: Math.random() < 0.5 ? -1 : 1,
-    layoutScale: 0.82 + Math.random() * 0.24,
-    centerOffsetX: (Math.random() - 0.5) * 0.10,
-    centerOffsetY: (Math.random() - 0.5) * 0.10
+    layoutScale: 0.84 + Math.random() * 0.20,
+    centerOffsetX: (Math.random() - 0.5) * 0.08,
+    centerOffsetY: (Math.random() - 0.5) * 0.08
   };
 }
 
@@ -233,7 +253,7 @@ function newTask() {
   clearSolvedState();
   controls.taskCounter.textContent = `Aufgabe ${taskNumber}`;
   renderMath(controls.taskQuestion, getQuestionLatex(currentTask));
-  drawTriangle(currentTask);
+  renderAllTriangles(currentTask);
   window.setTimeout(function() {
     controls.answerInput.focus();
   }, 0);
@@ -249,21 +269,12 @@ function submitAnswer(event) {
   setSolvedState(isCorrect);
 }
 
-function getCanvasContext() {
-  const canvas = controls.triangleCanvas;
-  const rect = canvas.getBoundingClientRect();
-  const width = Math.max(320, rect.width || canvas.width);
-  const height = Math.max(320, rect.height || canvas.height);
-  const ratio = window.devicePixelRatio || 1;
-
-  canvas.width = Math.round(width * ratio);
-  canvas.height = Math.round(height * ratio);
-
-  const ctx = canvas.getContext('2d');
-  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-  ctx.clearRect(0, 0, width, height);
-
-  return { canvas, ctx, width, height };
+function getSurfaceSize(surface) {
+  const rect = surface.getBoundingClientRect();
+  return {
+    width: Math.max(320, Math.round(rect.width || surface.clientWidth || 420)),
+    height: Math.max(260, Math.round(rect.height || surface.clientHeight || 310))
+  };
 }
 
 function transformPoints(task, width, height) {
@@ -282,9 +293,9 @@ function transformPoints(task, width, height) {
   const maxY = Math.max(...rotated.map(function(point) { return point.y; }));
   const rawWidth = maxX - minX;
   const rawHeight = maxY - minY;
-  const scale = Math.min(width * 0.64 / rawWidth, height * 0.62 / rawHeight) * task.layoutScale;
-  const centerX = width * (0.45 + task.centerOffsetX);
-  const centerY = height * (0.50 + task.centerOffsetY);
+  const scale = Math.min(width * 0.62 / rawWidth, height * 0.58 / rawHeight) * task.layoutScale;
+  const centerX = width * (0.48 + task.centerOffsetX);
+  const centerY = height * (0.51 + task.centerOffsetY);
   const rawCenterX = (minX + maxX) / 2;
   const rawCenterY = (minY + maxY) / 2;
 
@@ -296,64 +307,13 @@ function transformPoints(task, width, height) {
   });
 }
 
-function drawTriangle(task) {
-  const { ctx, width, height } = getCanvasContext();
-  const points = transformPoints(task, width, height);
-  const centroid = {
-    x: (points[0].x + points[1].x + points[2].x) / 3,
-    y: (points[0].y + points[1].y + points[2].y) / 3
-  };
-
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
-  drawSide(ctx, points[1], points[2], '#0969da');
-  drawSide(ctx, points[0], points[2], '#2ea043');
-  drawSide(ctx, points[0], points[1], '#bf8700');
-
-  drawRightAngleMarker(
-    ctx,
-    points[task.rightIndex],
-    points[task.acuteIndices[0]],
-    points[task.acuteIndices[1]],
-    task.angleLabels[task.rightIndex].text
-  );
-  for (const index of task.acuteIndices) {
-    const neighborIndices = [0, 1, 2].filter(function(otherIndex) {
-      return otherIndex !== index;
-    });
-    drawAngleMarker(
-      ctx,
-      points[index],
-      points[neighborIndices[0]],
-      points[neighborIndices[1]],
-      task.angleLabels[index].text,
-      {
-        radius: 44,
-        labelRadius: 24,
-        color: '#57606a'
-      }
-    );
-  }
-
-  for (let index = 0; index < 3; index += 1) {
-    drawVertexLabel(ctx, points[index], centroid, task.vertexLabels[index]);
-  }
-
-  for (let vertexIndex = 0; vertexIndex < 3; vertexIndex += 1) {
-    const sidePoints = [0, 1, 2].filter(function(index) {
-      return index !== vertexIndex;
-    });
-    drawSideLabel(ctx, points[sidePoints[0]], points[sidePoints[1]], centroid, getSideName(task, vertexIndex));
-  }
-}
-
-function drawSide(ctx, start, end, color) {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  ctx.moveTo(start.x, start.y);
-  ctx.lineTo(end.x, end.y);
-  ctx.stroke();
+function toMathPlanePoints(points, height) {
+  return points.map(function(point) {
+    return {
+      x: point.x,
+      y: height - point.y
+    };
+  });
 }
 
 function unitVector(from, to) {
@@ -363,36 +323,11 @@ function unitVector(from, to) {
   return { x: dx / length, y: dy / length };
 }
 
-function drawRightAngleMarker(ctx, vertex, first, second, label) {
-  if (rightAngleMarker === RIGHT_ANGLE_MARKERS.square) {
-    drawSquareRightAngleMarker(ctx, vertex, first, second);
-    drawAngleLabel(ctx, vertex, first, second, label, 22, '#b42318');
-    return;
-  }
-
-  drawAngleMarker(ctx, vertex, first, second, label, {
-    radius: 44,
-    labelRadius: 22,
-    color: '#b42318',
-    dotRadius: 34
-  });
-}
-
-function drawSquareRightAngleMarker(ctx, vertex, first, second) {
-  const size = 24;
-  const u = unitVector(vertex, first);
-  const v = unitVector(vertex, second);
-  const p1 = { x: vertex.x + u.x * size, y: vertex.y + u.y * size };
-  const p2 = { x: p1.x + v.x * size, y: p1.y + v.y * size };
-  const p3 = { x: vertex.x + v.x * size, y: vertex.y + v.y * size };
-
-  ctx.strokeStyle = '#1f2328';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(p1.x, p1.y);
-  ctx.lineTo(p2.x, p2.y);
-  ctx.lineTo(p3.x, p3.y);
-  ctx.stroke();
+function centroidOf(points) {
+  return {
+    x: (points[0].x + points[1].x + points[2].x) / 3,
+    y: (points[0].y + points[1].y + points[2].y) / 3
+  };
 }
 
 function getInteriorAngleGeometry(vertex, first, second) {
@@ -404,7 +339,6 @@ function getInteriorAngleGeometry(vertex, first, second) {
   while (delta > Math.PI) {
     delta -= Math.PI * 2;
   }
-
   return {
     start,
     delta,
@@ -412,72 +346,560 @@ function getInteriorAngleGeometry(vertex, first, second) {
   };
 }
 
-function drawAngleMarker(ctx, vertex, first, second, label, options = {}) {
-  const radius = options.radius || 34;
-  const labelRadius = options.labelRadius || 50;
-  const color = options.color || '#57606a';
-  const geometry = getInteriorAngleGeometry(vertex, first, second);
+function getTriangleLabels(task, points) {
+  const centroid = centroidOf(points);
+  const labels = [];
 
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(vertex.x, vertex.y, radius, geometry.start, geometry.start + geometry.delta, geometry.delta < 0);
-  ctx.stroke();
-
-  if (options.dotRadius) {
-    const dotX = vertex.x + Math.cos(geometry.middle) * options.dotRadius;
-    const dotY = vertex.y + Math.sin(geometry.middle) * options.dotRadius;
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(dotX, dotY, 4, 0, Math.PI * 2);
-    ctx.fill();
+  for (let index = 0; index < 3; index += 1) {
+    const direction = unitVector(centroid, points[index]);
+    labels.push({
+      type: 'vertex',
+      text: task.vertexLabels[index],
+      latex: task.vertexLabels[index],
+      x: points[index].x + direction.x * 42,
+      y: points[index].y + direction.y * 34,
+      color: '#1f2328'
+    });
   }
 
-  drawAngleLabel(ctx, vertex, first, second, label, labelRadius, color);
+  for (let vertexIndex = 0; vertexIndex < 3; vertexIndex += 1) {
+    const sidePoints = [0, 1, 2].filter(function(index) {
+      return index !== vertexIndex;
+    });
+    const midpoint = {
+      x: (points[sidePoints[0]].x + points[sidePoints[1]].x) / 2,
+      y: (points[sidePoints[0]].y + points[sidePoints[1]].y) / 2
+    };
+    const direction = unitVector(centroid, midpoint);
+    labels.push({
+      type: 'side',
+      text: getSideName(task, vertexIndex),
+      latex: getSideName(task, vertexIndex),
+      x: midpoint.x + direction.x * 26,
+      y: midpoint.y + direction.y * 26,
+      color: '#0969da'
+    });
+  }
+
+  for (const index of task.acuteIndices) {
+    const neighborIndices = [0, 1, 2].filter(function(otherIndex) {
+      return otherIndex !== index;
+    });
+    const geometry = getInteriorAngleGeometry(points[index], points[neighborIndices[0]], points[neighborIndices[1]]);
+    labels.push({
+      type: 'angle',
+      text: task.angleLabels[index].text,
+      latex: task.angleLabels[index].latex,
+      x: points[index].x + Math.cos(geometry.middle) * 24,
+      y: points[index].y + Math.sin(geometry.middle) * 24,
+      color: '#57606a'
+    });
+  }
+
+  return labels;
 }
 
-function drawAngleLabel(ctx, vertex, first, second, label, labelRadius, color) {
+function buildArcPath(vertex, first, second, radius) {
   const geometry = getInteriorAngleGeometry(vertex, first, second);
-  const x = vertex.x + Math.cos(geometry.middle) * labelRadius;
-  const y = vertex.y + Math.sin(geometry.middle) * labelRadius;
-  drawCanvasText(ctx, label, x, y, {
-    color,
-    font: '800 16px system-ui, sans-serif',
-    align: 'center'
-  });
-}
-
-function drawCanvasText(ctx, text, x, y, options = {}) {
-  ctx.font = options.font || '700 15px system-ui, sans-serif';
-  ctx.textAlign = options.align || 'center';
-  ctx.textBaseline = 'middle';
-  ctx.lineWidth = options.haloWidth || 5;
-  ctx.strokeStyle = options.halo || 'rgba(255, 255, 255, 0.92)';
-  ctx.strokeText(text, x, y + 0.5);
-  ctx.fillStyle = options.color || '#1f2328';
-  ctx.fillText(text, x, y + 0.5);
-}
-
-function drawVertexLabel(ctx, point, centroid, vertexLabel) {
-  const direction = unitVector(centroid, point);
-  const x = point.x + direction.x * 56;
-  const y = point.y + direction.y * 44;
-  drawCanvasText(ctx, vertexLabel, x, y, {
-    color: '#1f2328',
-    font: '800 16px system-ui, sans-serif'
-  });
-}
-
-function drawSideLabel(ctx, first, second, centroid, label) {
-  const midpoint = {
-    x: (first.x + second.x) / 2,
-    y: (first.y + second.y) / 2
+  const start = {
+    x: vertex.x + Math.cos(geometry.start) * radius,
+    y: vertex.y + Math.sin(geometry.start) * radius
   };
-  const direction = unitVector(centroid, midpoint);
-  drawCanvasText(ctx, label, midpoint.x + direction.x * 30, midpoint.y + direction.y * 30, {
-    color: '#0969da',
-    font: '800 18px system-ui, sans-serif'
+  const end = {
+    x: vertex.x + Math.cos(geometry.start + geometry.delta) * radius,
+    y: vertex.y + Math.sin(geometry.start + geometry.delta) * radius
+  };
+  const sweep = geometry.delta > 0 ? 1 : 0;
+  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 0 ${sweep} ${end.x} ${end.y}`;
+}
+
+function createSvgElement(name, attributes = {}) {
+  const element = document.createElementNS(SVG_NS, name);
+  for (const [key, value] of Object.entries(attributes)) {
+    element.setAttribute(key, String(value));
+  }
+  return element;
+}
+
+function addSvgText(svg, label, options = {}) {
+  const text = createSvgElement('text', {
+    x: label.x,
+    y: label.y,
+    'text-anchor': 'middle',
+    'dominant-baseline': 'middle',
+    fill: options.color || label.color,
+    class: `svg-label svg-label-${label.type}`
   });
+  text.textContent = label.text;
+  svg.appendChild(text);
+}
+
+function addSvgHaloText(svg, label) {
+  const halo = createSvgElement('text', {
+    x: label.x,
+    y: label.y,
+    'text-anchor': 'middle',
+    'dominant-baseline': 'middle',
+    fill: 'none',
+    stroke: '#fff',
+    'stroke-width': 5,
+    'stroke-linejoin': 'round',
+    class: `svg-label svg-label-${label.type}`
+  });
+  halo.textContent = label.text;
+  svg.appendChild(halo);
+  addSvgText(svg, label);
+}
+
+function addHtmlMathLabel(surface, label) {
+  const element = document.createElement('span');
+  element.className = `render-label render-label-${label.type}`;
+  element.style.left = `${label.x}px`;
+  element.style.top = `${label.y}px`;
+  element.style.color = label.color;
+  element.innerHTML = `\\(${label.latex}\\)`;
+  surface.appendChild(element);
+}
+
+function addSvgTrianglePrimitives(svg, task, points) {
+  const sidePairs = [[1, 2], [0, 2], [0, 1]];
+  sidePairs.forEach(function(pair, index) {
+    svg.appendChild(createSvgElement('line', {
+      x1: points[pair[0]].x,
+      y1: points[pair[0]].y,
+      x2: points[pair[1]].x,
+      y2: points[pair[1]].y,
+      stroke: SIDE_COLORS[index],
+      'stroke-width': 4,
+      'stroke-linecap': 'round'
+    }));
+  });
+
+  drawSvgRightAngleMarker(svg, task, points);
+  for (const index of task.acuteIndices) {
+    const neighborIndices = [0, 1, 2].filter(function(otherIndex) {
+      return otherIndex !== index;
+    });
+    svg.appendChild(createSvgElement('path', {
+      d: buildArcPath(points[index], points[neighborIndices[0]], points[neighborIndices[1]], 44),
+      fill: 'none',
+      stroke: '#57606a',
+      'stroke-width': 2,
+      'stroke-linecap': 'round'
+    }));
+  }
+}
+
+function drawSvgRightAngleMarker(svg, task, points) {
+  const vertex = points[task.rightIndex];
+  const first = points[task.acuteIndices[0]];
+  const second = points[task.acuteIndices[1]];
+
+  if (rightAngleMarker === RIGHT_ANGLE_MARKERS.square) {
+    const size = 24;
+    const u = unitVector(vertex, first);
+    const v = unitVector(vertex, second);
+    const p1 = { x: vertex.x + u.x * size, y: vertex.y + u.y * size };
+    const p2 = { x: p1.x + v.x * size, y: p1.y + v.y * size };
+    const p3 = { x: vertex.x + v.x * size, y: vertex.y + v.y * size };
+    svg.appendChild(createSvgElement('polyline', {
+      points: `${p1.x},${p1.y} ${p2.x},${p2.y} ${p3.x},${p3.y}`,
+      fill: 'none',
+      stroke: '#b42318',
+      'stroke-width': 2,
+      'stroke-linejoin': 'round'
+    }));
+    return;
+  }
+
+  const geometry = getInteriorAngleGeometry(vertex, first, second);
+  svg.appendChild(createSvgElement('path', {
+    d: buildArcPath(vertex, first, second, 44),
+    fill: 'none',
+    stroke: '#b42318',
+    'stroke-width': 2,
+    'stroke-linecap': 'round'
+  }));
+  svg.appendChild(createSvgElement('circle', {
+    cx: vertex.x + Math.cos(geometry.middle) * 34,
+    cy: vertex.y + Math.sin(geometry.middle) * 34,
+    r: 4,
+    fill: '#b42318'
+  }));
+}
+
+function renderInlineSvg(surface, task) {
+  surface.innerHTML = '';
+  const size = getSurfaceSize(surface);
+  const points = transformPoints(task, size.width, size.height);
+  const labels = getTriangleLabels(task, points);
+  const svg = createSvgElement('svg', {
+    viewBox: `0 0 ${size.width} ${size.height}`,
+    role: 'img',
+    'aria-label': 'Dreieck als Inline-SVG'
+  });
+
+  addSvgTrianglePrimitives(svg, task, points);
+  labels.forEach(function(label) {
+    addSvgHaloText(svg, label);
+  });
+  surface.appendChild(svg);
+}
+
+function renderSvgWithHtmlLabels(surface, task) {
+  surface.innerHTML = '';
+  const size = getSurfaceSize(surface);
+  const points = transformPoints(task, size.width, size.height);
+  const labels = getTriangleLabels(task, points);
+  const svg = createSvgElement('svg', {
+    viewBox: `0 0 ${size.width} ${size.height}`,
+    role: 'img',
+    'aria-label': 'Dreieck als SVG mit HTML Labels'
+  });
+
+  addSvgTrianglePrimitives(svg, task, points);
+  surface.appendChild(svg);
+  labels.forEach(function(label) {
+    addHtmlMathLabel(surface, label);
+  });
+  typesetElements([surface]);
+}
+
+function renderD3Svg(surface, task) {
+  surface.innerHTML = '';
+  if (!window.d3) {
+    renderUnavailable(surface, 'D3.js ist noch nicht geladen.');
+    return;
+  }
+
+  const size = getSurfaceSize(surface);
+  const points = transformPoints(task, size.width, size.height);
+  const labels = getTriangleLabels(task, points);
+  const svg = d3.select(surface)
+    .append('svg')
+    .attr('viewBox', `0 0 ${size.width} ${size.height}`)
+    .attr('role', 'img')
+    .attr('aria-label', 'Dreieck mit D3 und SVG');
+
+  [[1, 2], [0, 2], [0, 1]].forEach(function(pair, index) {
+    svg.append('line')
+      .attr('x1', points[pair[0]].x)
+      .attr('y1', points[pair[0]].y)
+      .attr('x2', points[pair[1]].x)
+      .attr('y2', points[pair[1]].y)
+      .attr('stroke', SIDE_COLORS[index])
+      .attr('stroke-width', 4)
+      .attr('stroke-linecap', 'round');
+  });
+
+  const tempSvg = svg.node();
+  drawSvgRightAngleMarker(tempSvg, task, points);
+  for (const index of task.acuteIndices) {
+    const neighborIndices = [0, 1, 2].filter(function(otherIndex) {
+      return otherIndex !== index;
+    });
+    svg.append('path')
+      .attr('d', buildArcPath(points[index], points[neighborIndices[0]], points[neighborIndices[1]], 44))
+      .attr('fill', 'none')
+      .attr('stroke', '#57606a')
+      .attr('stroke-width', 2)
+      .attr('stroke-linecap', 'round');
+  }
+
+  labels.forEach(function(label) {
+    svg.append('text')
+      .attr('x', label.x)
+      .attr('y', label.y)
+      .attr('text-anchor', 'middle')
+      .attr('dominant-baseline', 'middle')
+      .attr('class', `svg-label svg-label-${label.type}`)
+      .attr('fill', 'none')
+      .attr('stroke', '#fff')
+      .attr('stroke-width', 5)
+      .attr('stroke-linejoin', 'round')
+      .text(label.text);
+    svg.append('text')
+      .attr('x', label.x)
+      .attr('y', label.y)
+      .attr('text-anchor', 'middle')
+      .attr('dominant-baseline', 'middle')
+      .attr('class', `svg-label svg-label-${label.type}`)
+      .attr('fill', label.color)
+      .text(label.text);
+  });
+}
+
+function renderJsxGraph(surface, task) {
+  if (jsxBoard && window.JXG) {
+    JXG.JSXGraph.freeBoard(jsxBoard);
+    jsxBoard = null;
+  }
+  surface.innerHTML = '';
+  if (!window.JXG) {
+    renderUnavailable(surface, 'JSXGraph ist noch nicht geladen.');
+    return;
+  }
+
+  const size = getSurfaceSize(surface);
+  const points = toMathPlanePoints(transformPoints(task, size.width, size.height), size.height);
+  const labels = getTriangleLabels(task, points);
+  jsxBoard = JXG.JSXGraph.initBoard(surface.id, {
+    boundingbox: [0, size.height, size.width, 0],
+    axis: false,
+    showCopyright: false,
+    showNavigation: false,
+    pan: { enabled: false },
+    zoom: { enabled: false }
+  });
+  jsxBoard.suspendUpdate();
+  const jPoints = points.map(function(point) {
+    return jsxBoard.create('point', [point.x, point.y], {
+      visible: false,
+      fixed: true,
+      showInfobox: false
+    });
+  });
+
+  [[1, 2], [0, 2], [0, 1]].forEach(function(pair, index) {
+    jsxBoard.create('segment', [jPoints[pair[0]], jPoints[pair[1]]], {
+      strokeColor: SIDE_COLORS[index],
+      strokeWidth: 4,
+      fixed: true,
+      highlight: false
+    });
+  });
+
+  drawJsxGraphAngleMarkers(jsxBoard, task, points);
+  labels.forEach(function(label) {
+    jsxBoard.create('text', [label.x, label.y, label.text], {
+      fixed: true,
+      highlight: false,
+      anchorX: 'middle',
+      anchorY: 'middle',
+      fontSize: label.type === 'side' ? 18 : 16,
+      cssStyle: `color:${label.color};font-weight:800;text-shadow:0 0 5px #fff;`
+    });
+  });
+  jsxBoard.unsuspendUpdate();
+}
+
+function drawJsxGraphAngleMarkers(board, task, points) {
+  drawJsxGraphRightAngleMarker(board, task, points);
+  for (const index of task.acuteIndices) {
+    const neighborIndices = [0, 1, 2].filter(function(otherIndex) {
+      return otherIndex !== index;
+    });
+    drawJsxGraphArc(board, points[index], points[neighborIndices[0]], points[neighborIndices[1]], 44, '#57606a');
+  }
+}
+
+function drawJsxGraphRightAngleMarker(board, task, points) {
+  const vertex = points[task.rightIndex];
+  const first = points[task.acuteIndices[0]];
+  const second = points[task.acuteIndices[1]];
+  if (rightAngleMarker === RIGHT_ANGLE_MARKERS.square) {
+    const size = 24;
+    const u = unitVector(vertex, first);
+    const v = unitVector(vertex, second);
+    const p1 = { x: vertex.x + u.x * size, y: vertex.y + u.y * size };
+    const p2 = { x: p1.x + v.x * size, y: p1.y + v.y * size };
+    const p3 = { x: vertex.x + v.x * size, y: vertex.y + v.y * size };
+    board.create('curve', [[p1.x, p2.x, p3.x], [p1.y, p2.y, p3.y]], {
+      strokeColor: '#b42318',
+      strokeWidth: 2,
+      fixed: true,
+      highlight: false
+    });
+    return;
+  }
+  const geometry = getInteriorAngleGeometry(vertex, first, second);
+  drawJsxGraphArc(board, vertex, first, second, 44, '#b42318');
+  board.create('point', [
+    vertex.x + Math.cos(geometry.middle) * 34,
+    vertex.y + Math.sin(geometry.middle) * 34
+  ], {
+    size: 3,
+    fillColor: '#b42318',
+    strokeColor: '#b42318',
+    fixed: true,
+    name: '',
+    showInfobox: false,
+    highlight: false
+  });
+}
+
+function drawJsxGraphArc(board, vertex, first, second, radius, color) {
+  const samples = sampleArc(vertex, first, second, radius, 18);
+  board.create('curve', [
+    samples.map(function(point) { return point.x; }),
+    samples.map(function(point) { return point.y; })
+  ], {
+    strokeColor: color,
+    strokeWidth: 2,
+    fixed: true,
+    highlight: false
+  });
+}
+
+function sampleArc(vertex, first, second, radius, steps) {
+  const geometry = getInteriorAngleGeometry(vertex, first, second);
+  const points = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const angle = geometry.start + geometry.delta * (i / steps);
+    points.push({
+      x: vertex.x + Math.cos(angle) * radius,
+      y: vertex.y + Math.sin(angle) * radius
+    });
+  }
+  return points;
+}
+
+function renderGeoGebra(surface, task) {
+  geoGebraTask = task;
+  if (!window.GGBApplet) {
+    renderUnavailable(surface, 'GeoGebra ist noch nicht geladen.');
+    return;
+  }
+  if (!geoGebraApplet) {
+    surface.innerHTML = '';
+    const size = getSurfaceSize(surface);
+    const applet = new GGBApplet({
+      appName: 'geometry',
+      width: size.width,
+      height: size.height,
+      showToolBar: false,
+      showMenuBar: false,
+      showAlgebraInput: false,
+      showResetIcon: false,
+      enableShiftDragZoom: false,
+      showZoomButtons: false,
+      borderRadius: 10,
+      errorDialogsActive: false,
+      useBrowserForJS: true,
+      appletOnLoad: function(api) {
+        geoGebraApplet = api;
+        geoGebraReady = true;
+        updateGeoGebraConstruction(geoGebraTask);
+      }
+    }, true);
+    applet.inject(surface.id);
+    return;
+  }
+  if (geoGebraReady) {
+    updateGeoGebraConstruction(task);
+  }
+}
+
+function updateGeoGebraConstruction(task) {
+  if (!geoGebraApplet || !task) {
+    return;
+  }
+  const surface = controls.geoGebraRenderer;
+  const size = getSurfaceSize(surface);
+  const points = toMathPlanePoints(transformPoints(task, size.width, size.height), size.height);
+  const labels = getTriangleLabels(task, points);
+
+  try {
+    geoGebraApplet.setRepaintingActive(false);
+    geoGebraApplet.reset();
+    geoGebraApplet.setAxesVisible(false, false);
+    geoGebraApplet.setGridVisible(false);
+    geoGebraApplet.setCoordSystem(0, size.width, 0, size.height);
+
+    points.forEach(function(point, index) {
+      geoGebraApplet.evalCommand(`${task.vertexLabels[index]}=(${num(point.x)},${num(point.y)})`);
+      geoGebraApplet.setPointSize(task.vertexLabels[index], 2);
+      geoGebraApplet.setLabelVisible(task.vertexLabels[index], false);
+    });
+
+    [[1, 2], [0, 2], [0, 1]].forEach(function(pair, index) {
+      const name = `s${index}`;
+      geoGebraApplet.evalCommand(`${name}=Segment(${task.vertexLabels[pair[0]]},${task.vertexLabels[pair[1]]})`);
+      geoGebraApplet.setColor(name, ...hexToRgb(SIDE_COLORS[index]));
+      geoGebraApplet.setLineThickness(name, 6);
+      geoGebraApplet.setLabelVisible(name, false);
+    });
+
+    addGeoGebraAngleMarkers(task, points);
+    labels.forEach(function(label, index) {
+      const name = `t${index}`;
+      geoGebraApplet.evalCommand(`${name}=Text("${label.text}",(${num(label.x)},${num(label.y)}))`);
+      geoGebraApplet.setColor(name, ...hexToRgb(label.color));
+      geoGebraApplet.setLabelVisible(name, false);
+    });
+  } catch (error) {
+    console.error('GeoGebra rendering failed:', error);
+  } finally {
+    geoGebraApplet.setRepaintingActive(true);
+  }
+}
+
+function addGeoGebraAngleMarkers(task, points) {
+  addGeoGebraRightAngleMarker(task, points);
+  for (const index of task.acuteIndices) {
+    const neighborIndices = [0, 1, 2].filter(function(otherIndex) {
+      return otherIndex !== index;
+    });
+    addGeoGebraPolyline(`arc${index}`, sampleArc(points[index], points[neighborIndices[0]], points[neighborIndices[1]], 44, 18), '#57606a');
+  }
+}
+
+function addGeoGebraRightAngleMarker(task, points) {
+  const vertex = points[task.rightIndex];
+  const first = points[task.acuteIndices[0]];
+  const second = points[task.acuteIndices[1]];
+  if (rightAngleMarker === RIGHT_ANGLE_MARKERS.square) {
+    const size = 24;
+    const u = unitVector(vertex, first);
+    const v = unitVector(vertex, second);
+    const p1 = { x: vertex.x + u.x * size, y: vertex.y + u.y * size };
+    const p2 = { x: p1.x + v.x * size, y: p1.y + v.y * size };
+    const p3 = { x: vertex.x + v.x * size, y: vertex.y + v.y * size };
+    addGeoGebraPolyline('rightAngle', [p1, p2, p3], '#b42318');
+    return;
+  }
+
+  const geometry = getInteriorAngleGeometry(vertex, first, second);
+  addGeoGebraPolyline('rightAngle', sampleArc(vertex, first, second, 44, 18), '#b42318');
+  geoGebraApplet.evalCommand(`rightDot=(${num(vertex.x + Math.cos(geometry.middle) * 34)},${num(vertex.y + Math.sin(geometry.middle) * 34)})`);
+  geoGebraApplet.setColor('rightDot', ...hexToRgb('#b42318'));
+  geoGebraApplet.setPointSize('rightDot', 4);
+  geoGebraApplet.setLabelVisible('rightDot', false);
+}
+
+function addGeoGebraPolyline(name, points, color) {
+  const commandPoints = points.map(function(point) {
+    return `(${num(point.x)},${num(point.y)})`;
+  }).join(',');
+  geoGebraApplet.evalCommand(`${name}=Polyline(${commandPoints})`);
+  geoGebraApplet.setColor(name, ...hexToRgb(color));
+  geoGebraApplet.setLineThickness(name, 4);
+  geoGebraApplet.setLabelVisible(name, false);
+}
+
+function hexToRgb(hex) {
+  const normalized = hex.replace('#', '');
+  return [
+    parseInt(normalized.slice(0, 2), 16),
+    parseInt(normalized.slice(2, 4), 16),
+    parseInt(normalized.slice(4, 6), 16)
+  ];
+}
+
+function num(value) {
+  return String(Math.round(value * 1000) / 1000);
+}
+
+function renderUnavailable(surface, message) {
+  surface.innerHTML = `<div class="renderer-note">${message}</div>`;
+}
+
+function renderAllTriangles(task) {
+  renderInlineSvg(controls.svgRenderer, task);
+  renderSvgWithHtmlLabels(controls.svgHtmlRenderer, task);
+  renderJsxGraph(controls.jsxGraphRenderer, task);
+  renderGeoGebra(controls.geoGebraRenderer, task);
+  renderD3Svg(controls.d3Renderer, task);
 }
 
 function startTriangleQuiz() {
@@ -514,7 +936,7 @@ controls.rightAngleSquare.addEventListener('change', function() {
 
 window.addEventListener('resize', function() {
   if (currentTask && !screens.quiz.classList.contains('hidden')) {
-    drawTriangle(currentTask);
+    renderAllTriangles(currentTask);
   }
 });
 

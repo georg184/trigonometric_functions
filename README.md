@@ -1,6 +1,6 @@
 # trigonometric_functions
 
-Interactive HTML quiz for practicing sine, cosine, and tangent on right triangles. The triangle path generates random labeled right triangles and supports configurable right-angle markers.
+Interactive HTML quiz for practicing sine, cosine, and tangent on right triangles. The triangle path generates random labeled right triangles, supports configurable right-angle markers, and currently compares five geometry rendering approaches.
 
 ## Live Version
 
@@ -13,7 +13,7 @@ The public version is intended to be available through GitHub Pages:
 - `index.html`: the main document structure and external file references
 - `css/styles.css`: the app styling
 - `js/mathjax-config.js`: MathJax configuration
-- `js/app.js`: the quiz logic, random task generation, answer checking, and triangle canvas rendering
+- `js/app.js`: the quiz logic, random task generation, answer checking, and geometry renderers
 
 ## Local Workflow
 

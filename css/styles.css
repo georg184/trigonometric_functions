@@ -154,22 +154,112 @@ p {
 
 .quiz-layout {
   display: grid;
-  grid-template-columns: minmax(520px, 1fr) minmax(360px, 430px);
+  grid-template-columns: minmax(640px, 1fr) minmax(330px, 400px);
   gap: 18px;
   align-items: start;
 }
 
-.triangle-panel {
+.render-comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.render-panel {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
   padding: 12px;
 }
 
-#triangleCanvas {
-  display: block;
+.render-panel-wide {
+  grid-column: 1 / -1;
+}
+
+.render-title {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.render-surface {
+  position: relative;
   width: 100%;
-  height: 620px;
+  min-height: 310px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: white;
+  overflow: hidden;
+}
+
+.render-surface svg {
+  display: block;
+  width: 100%;
+  height: 310px;
+}
+
+.svg-label {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  pointer-events: none;
+}
+
+.svg-label-side {
+  font-size: 18px;
+}
+
+.render-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  color: var(--text);
+  font-size: 0.98rem;
+  font-weight: 800;
+  line-height: 1;
+  text-shadow:
+    -2px -2px 0 #fff,
+    2px -2px 0 #fff,
+    -2px 2px 0 #fff,
+    2px 2px 0 #fff,
+    0 0 5px #fff;
+  pointer-events: none;
+}
+
+.render-label-angle {
+  color: #57606a;
+}
+
+.render-label-right {
+  color: var(--danger);
+}
+
+.render-label-side {
+  color: var(--accent);
+  font-size: 1.08rem;
+}
+
+.renderer-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 310px;
+  padding: 16px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.jsxgraph-surface .JXGtext {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  font-weight: 800;
+}
+
+.geogebra-surface iframe,
+.geogebra-surface > div {
+  border-radius: 10px;
 }
 
 .task-panel {
@@ -303,12 +393,22 @@ input:disabled {
   }
 
   .quiz-layout,
-  .intro-choice-list {
+  .intro-choice-list,
+  .render-comparison {
     grid-template-columns: 1fr;
   }
 
-  #triangleCanvas {
-    height: 460px;
+  .render-panel-wide {
+    grid-column: auto;
+  }
+
+  .render-surface,
+  .renderer-note {
+    min-height: 280px;
+  }
+
+  .render-surface svg {
+    height: 280px;
   }
 }
 
