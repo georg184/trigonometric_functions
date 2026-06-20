@@ -8,7 +8,7 @@
 (function(global) {
   'use strict';
 
-  const VERSION = '0.3.9';
+  const VERSION = '0.4.0';
 
   const DEFAULTS = Object.freeze({
     acuteAngleArcRadius: 44,
@@ -19,8 +19,6 @@
     narrowAngleThresholdDeg: 25,
     angleRayStrokeWidthPx: 3.25,
     angleArcStrokeWidthPx: 2.25,
-    strokeWidthRayRatioScale: 0.15,
-    strokeWidthArcRatioScale: 0.1,
     rightAngleArcRadius: 26,
     rightAngleDotEccentricity: 0.6,
     rightAngleDotRadius: 3.2,
@@ -415,7 +413,7 @@
   }
 
   function sampleRow(row) {
-    return {
+    const sample = {
       angleDeg: row[0],
       baseRayAngleDeg: row[1],
       label: {
@@ -431,6 +429,45 @@
       arcStrokeWidthPx: numericOr(row[10], DEFAULTS.angleArcStrokeWidthPx),
       strokeWidthConfidence: row[11] || 'estimated'
     };
+    return sample.strokeWidthConfidence === 'known'
+      ? Object.assign({ referenceLine: 'thin' }, sample)
+      : displaySampleToThinReference(sample);
+  }
+
+  function displaySampleToThinReference(sample) {
+    const correction = angleStrokeCorrection(sample.angleDeg, sample);
+    if (correction.arcRadiusOffset <= 0) {
+      return Object.assign({ referenceLine: 'thin-estimated' }, sample);
+    }
+
+    const displayArcRadius = sample.arcRadius;
+    const thinArcRadius = Math.max(12, displayArcRadius - correction.arcRadiusOffset);
+    const bisectorAngleDeg = normalizeDegrees(sample.angleDeg) / 2;
+    const displayLabelDistance = displayArcRadius * sample.labelPercent / 100;
+    const displayLabelAngleRad = (bisectorAngleDeg + sample.labelAngleOffsetDeg) * Math.PI / 180;
+    const bisectorAngleRad = bisectorAngleDeg * Math.PI / 180;
+    const displayVector = {
+      x: Math.cos(displayLabelAngleRad) * displayLabelDistance,
+      y: Math.sin(displayLabelAngleRad) * displayLabelDistance
+    };
+    const thinVector = {
+      x: displayVector.x - Math.cos(bisectorAngleRad) * correction.bisectorOffset,
+      y: displayVector.y - Math.sin(bisectorAngleRad) * correction.bisectorOffset
+    };
+    const thinLabelDistance = Math.hypot(thinVector.x, thinVector.y);
+    const thinLabelAngleDeg = Math.atan2(thinVector.y, thinVector.x) * 180 / Math.PI;
+
+    return Object.assign({}, sample, {
+      arcRadius: thinArcRadius,
+      labelPercent: thinArcRadius > 0
+        ? thinLabelDistance / thinArcRadius * 100
+        : sample.labelPercent,
+      labelAngleOffsetDeg: normalizeSignedDegrees(thinLabelAngleDeg - bisectorAngleDeg),
+      referenceLine: 'thin-converted-from-display',
+      originalDisplayArcRadius: sample.arcRadius,
+      originalDisplayLabelPercent: sample.labelPercent,
+      originalDisplayLabelAngleOffsetDeg: sample.labelAngleOffsetDeg
+    });
   }
 
   function unitVector(from, to) {
@@ -513,8 +550,6 @@
     const settings = mergeOptions(options);
     const labelClassId = settings.labelClassId || angleLabelClassFor(label);
     const fontSizePx = settings.fontSizePx || settings.angleLabelFontSizePx;
-    const rayStrokeWidthPx = numericOr(settings.rayStrokeWidthPx, settings.angleRayStrokeWidthPx);
-    const arcStrokeWidthPx = numericOr(settings.arcStrokeWidthPx, settings.angleArcStrokeWidthPx);
     const normalizedAngle = clamp(normalizeDegrees(angleDeg), 10, 350);
     const baseline = baselineAngleLabelStyle(normalizedAngle, labelClassId, fontSizePx, settings);
     const correction = angleLabelSampleCorrection({
@@ -522,9 +557,7 @@
       baseRayAngleDeg: settings.baseRayAngleDeg,
       label,
       labelClassId,
-      fontSizePx,
-      rayStrokeWidthPx,
-      arcStrokeWidthPx
+      fontSizePx
     }, settings);
     return {
       angleDeg: normalizedAngle,
@@ -534,8 +567,6 @@
       labelAngleOffsetDeg: clamp(correction.labelAngleOffsetDeg, -90, 90),
       sampleCorrectionWeight: correction.weight,
       fontSizePx,
-      rayStrokeWidthPx,
-      arcStrokeWidthPx,
       baselineFontSizePx: DEFAULTS.angleLabelFontSizePx
     };
   }
@@ -600,20 +631,8 @@
   function sampleWeight(sample, target, baseRayAngleDeg, labelClassId, targetLabel) {
     const angleDistance = Math.abs(sample.angleDeg - target.angleDeg);
     const baseRayDistance = circularDistance(sample.baseRayAngleDeg, baseRayAngleDeg);
-    const strokeConfidence = strokeWidthConfidenceWeight(sample.strokeWidthConfidence);
     let distanceSquared = square(angleDistance / 35)
       + square(baseRayDistance / 70);
-
-    if (strokeConfidence > 0) {
-      const sampleRayStrokeRatio = sample.rayStrokeWidthPx / sample.fontSizePx;
-      const targetRayStrokeRatio = target.rayStrokeWidthPx / target.fontSizePx;
-      const sampleArcStrokeRatio = sample.arcStrokeWidthPx / sample.fontSizePx;
-      const targetArcStrokeRatio = target.arcStrokeWidthPx / target.fontSizePx;
-      distanceSquared += strokeConfidence * (
-        square((sampleRayStrokeRatio - targetRayStrokeRatio) / DEFAULTS.strokeWidthRayRatioScale)
-        + square((sampleArcStrokeRatio - targetArcStrokeRatio) / DEFAULTS.strokeWidthArcRatioScale)
-      );
-    }
 
     if (sample.labelClassId !== labelClassId) {
       distanceSquared += 5;
@@ -658,6 +677,121 @@
     return radius * scale;
   }
 
+  function thinAngleLabelRelativePosition(angleDeg, style, options) {
+    const settings = mergeOptions(options);
+    const baseRayAngleDeg = numericOr(settings.baseRayAngleDeg, 0);
+    const normalizedAngle = normalizeDegrees(angleDeg);
+    const labelDistance = style.arcRadius * style.labelPercent / 100;
+    const bisectorAngleDeg = baseRayAngleDeg + normalizedAngle / 2;
+    const labelAngleDeg = bisectorAngleDeg + style.labelAngleOffsetDeg;
+    return Object.assign(relativeVector(labelAngleDeg, labelDistance, settings.coordinateSystem), {
+      distance: labelDistance,
+      eccentricity: style.labelPercent / 100,
+      angleDeg: normalizedAngle,
+      labelClassId: style.labelClassId,
+      labelAngleOffsetDeg: style.labelAngleOffsetDeg,
+      labelAngleDeg,
+      bisectorAngleDeg,
+      arcRadius: style.arcRadius,
+      thinArcRadius: style.arcRadius
+    });
+  }
+
+  function angleStrokeCorrection(angleDeg, options) {
+    const settings = mergeOptions(options);
+    const normalizedAngle = normalizeDegrees(angleDeg);
+    const rayStrokeWidthPx = Math.max(0, numericOr(
+      settings.rayStrokeWidthPx,
+      settings.angleRayStrokeWidthPx
+    ));
+    const arcStrokeWidthPx = Math.max(0, numericOr(
+      settings.arcStrokeWidthPx,
+      settings.angleArcStrokeWidthPx
+    ));
+    let bisectorOffset = 0;
+    let formula = 'none';
+
+    if (rayStrokeWidthPx > 0 && normalizedAngle > 0) {
+      if (normalizedAngle <= 180) {
+        const halfAngleSin = Math.sin(normalizedAngle * Math.PI / 360);
+        bisectorOffset = halfAngleSin > 0
+          ? (rayStrokeWidthPx / 2) / halfAngleSin
+          : 0;
+        formula = 'convex-inner-edge';
+      } else {
+        bisectorOffset = rayStrokeWidthPx / 2;
+        formula = 'reflex-bounded';
+      }
+    }
+
+    return {
+      angleDeg: normalizedAngle,
+      rayStrokeWidthPx,
+      arcStrokeWidthPx,
+      bisectorOffset,
+      arcRadiusOffset: bisectorOffset + arcStrokeWidthPx / 2,
+      formula
+    };
+  }
+
+  function strokeAdjustedAngleArcRadius(angleDeg, style, options) {
+    return style.arcRadius + angleStrokeCorrection(angleDeg, options).arcRadiusOffset;
+  }
+
+  function strokeAdjustedAngleLabelRelativePosition(angleDeg, style, options) {
+    const settings = mergeOptions(options);
+    const thinPosition = thinAngleLabelRelativePosition(angleDeg, style, settings);
+    const correction = angleStrokeCorrection(angleDeg, settings);
+    const shift = relativeVector(
+      thinPosition.bisectorAngleDeg,
+      correction.bisectorOffset,
+      settings.coordinateSystem
+    );
+    return Object.assign({}, thinPosition, {
+      x: thinPosition.x + shift.x,
+      y: thinPosition.y + shift.y,
+      distanceFromThinVertex: Math.hypot(thinPosition.x + shift.x, thinPosition.y + shift.y),
+      strokeShift: shift,
+      strokeCorrection: correction,
+      arcRadius: style.arcRadius + correction.arcRadiusOffset,
+      thinPosition
+    });
+  }
+
+  function thinAngleLabelPosition(vertex, geometry, style) {
+    const labelDistance = style.arcRadius * style.labelPercent / 100;
+    const labelAngle = geometry.middle - style.labelAngleOffsetDeg * Math.PI / 180;
+    return Object.assign(pointOnRay(vertex, labelAngle, labelDistance), {
+      distance: labelDistance,
+      eccentricity: style.labelPercent / 100,
+      angleDeg: geometry.angleDeg,
+      labelClassId: style.labelClassId,
+      labelAngleOffsetDeg: style.labelAngleOffsetDeg,
+      labelAngleRad: labelAngle,
+      bisectorAngleRad: geometry.middle,
+      arcRadius: style.arcRadius,
+      thinArcRadius: style.arcRadius
+    });
+  }
+
+  function strokeAdjustedAngleLabelPosition(vertex, geometry, style, options) {
+    const thinPosition = thinAngleLabelPosition(vertex, geometry, style);
+    const correction = angleStrokeCorrection(style.angleDeg || geometry.angleDeg, options);
+    const shift = pointOnRay({ x: 0, y: 0 }, geometry.middle, correction.bisectorOffset);
+    return Object.assign({}, thinPosition, {
+      x: thinPosition.x + shift.x,
+      y: thinPosition.y + shift.y,
+      distanceFromThinVertex: Math.hypot(
+        thinPosition.x + shift.x - vertex.x,
+        thinPosition.y + shift.y - vertex.y
+      ),
+      strokeShift: shift,
+      strokeCorrection: correction,
+      arcRadius: style.arcRadius + correction.arcRadiusOffset,
+      thinPosition
+    });
+  }
+
   function calibratedAngleMarker(vertex, first, second, label, options) {
     const geometry = angleGeometry(vertex, first, second);
     const style = angleLabelStyle(geometry.angleDeg, label, Object.assign({}, options || {}, {
@@ -665,19 +799,15 @@
         ? normalizeDegrees(-geometry.start * 180 / Math.PI)
         : options.baseRayAngleDeg
     }));
-    const labelDistance = style.arcRadius * style.labelPercent / 100;
-    const labelAngle = geometry.middle - style.labelAngleOffsetDeg * Math.PI / 180;
+    const strokeCorrection = angleStrokeCorrection(style.angleDeg, options);
+    const markerLabel = strokeAdjustedAngleLabelPosition(vertex, geometry, style, options);
     return {
       geometry,
       style,
-      arcRadius: style.arcRadius,
-      label: Object.assign(pointOnRay(vertex, labelAngle, labelDistance), {
-        distance: labelDistance,
-        eccentricity: style.labelPercent / 100,
-        angleDeg: geometry.angleDeg,
-        labelClassId: style.labelClassId,
-        labelAngleOffsetDeg: style.labelAngleOffsetDeg
-      })
+      thinArcRadius: style.arcRadius,
+      strokeCorrection,
+      arcRadius: style.arcRadius + strokeCorrection.arcRadiusOffset,
+      label: markerLabel
     };
   }
 
@@ -749,6 +879,14 @@
     return Number.isFinite(number) ? normalizeDegrees(number) : null;
   }
 
+  function normalizeSignedDegrees(angleDeg) {
+    let normalized = normalizeDegrees(angleDeg);
+    if (normalized > 180) {
+      normalized -= 360;
+    }
+    return normalized;
+  }
+
   function normalizeLabel(label) {
     return {
       text: label && typeof label === 'object' ? label.text : label,
@@ -779,22 +917,6 @@
     return Number.isFinite(number) ? number : fallback;
   }
 
-  function strokeWidthConfidenceWeight(confidence) {
-    if (confidence === 'known') {
-      return 1;
-    }
-    if (confidence === 'estimated-current-lab') {
-      return 0.55;
-    }
-    if (confidence === 'estimated-old-lab') {
-      return 0.45;
-    }
-    if (confidence === 'estimated-transition-lab') {
-      return 0.3;
-    }
-    return 0;
-  }
-
   function zeroSampleCorrection() {
     return {
       arcRadius: 0,
@@ -806,6 +928,15 @@
 
   function lerp(start, end, t) {
     return start + (end - start) * t;
+  }
+
+  function relativeVector(degrees, distance, coordinateSystem) {
+    const radians = degrees * Math.PI / 180;
+    const ySign = coordinateSystem === 'math' ? 1 : -1;
+    return {
+      x: Math.cos(radians) * distance,
+      y: ySign * Math.sin(radians) * distance
+    };
   }
 
   const api = Object.freeze({
@@ -824,6 +955,12 @@
     angleLabelStyle,
     angleLabelCalibrationAt,
     angleLabelSampleCorrection,
+    thinAngleLabelRelativePosition,
+    angleStrokeCorrection,
+    strokeAdjustedAngleArcRadius,
+    strokeAdjustedAngleLabelRelativePosition,
+    thinAngleLabelPosition,
+    strokeAdjustedAngleLabelPosition,
     calibratedAngleMarker,
     calibratedAngleLabelPosition,
     rightAngleArcDotMarker,
