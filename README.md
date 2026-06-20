@@ -22,11 +22,11 @@ The public version is intended to be available through GitHub Pages:
 
 `/mnt/data/sync/software/HTML/ggprojects/shared/geometry-angle-layout.js`
 
-Current vendored helper version: `0.3.7`.
+Current vendored helper version: `0.3.8`.
 
 When the shared helper changes, copy the updated file into `js/vendor/` and commit the project copy so GitHub Pages can serve it publicly.
 
-The current right-triangle angle arcs and angle-label positions use the calibrated helper data from `angle-label-tuning-v14`.
+The current right-triangle angle arcs and angle-label positions use the calibrated helper data from `angle-label-tuning-v15`. The app passes its current side and angle-arc stroke widths into the helper so label placement can account for line thickness.
 
 ## Cache And Version Safety
 

@@ -1,4 +1,4 @@
-const APP_VERSION = '20260620.2';
+const APP_VERSION = '20260620.3';
 if (window.GG_APP_VERSION && window.GG_APP_VERSION !== APP_VERSION) {
   document.body.innerHTML = [
     '<main style="max-width:720px;margin:40px auto;padding:20px;font-family:system-ui,sans-serif;line-height:1.45">',
@@ -45,6 +45,8 @@ if (!angleLayout) {
 const DEGREE = Math.PI / 180;
 const TASK_TYPES = ['sin', 'cos', 'tan'];
 const SIDE_COLORS = ['#bf8700', '#2ea043', '#0969da'];
+const TRIANGLE_SIDE_STROKE_WIDTH = 3.5;
+const TRIANGLE_ANGLE_ARC_STROKE_WIDTH = 2;
 const RIGHT_ANGLE_MARKERS = {
   arcDot: 'arcDot',
   square: 'square'
@@ -374,7 +376,11 @@ function getAcuteAngleMarker(task, points, index) {
     points[neighborIndices[0]],
     points[neighborIndices[1]],
     task.angleLabels[index],
-    { fontSizePx: ANGLE_LABEL_FONT_SIZE }
+    {
+      fontSizePx: ANGLE_LABEL_FONT_SIZE,
+      rayStrokeWidthPx: TRIANGLE_SIDE_STROKE_WIDTH,
+      arcStrokeWidthPx: TRIANGLE_ANGLE_ARC_STROKE_WIDTH
+    }
   );
   return Object.assign({ neighborIndices }, marker);
 }
@@ -474,7 +480,7 @@ function addSvgTrianglePrimitives(svg, task, points) {
       x2: points[pair[1]].x,
       y2: points[pair[1]].y,
       stroke: SIDE_COLORS[index],
-      'stroke-width': 3.5,
+      'stroke-width': TRIANGLE_SIDE_STROKE_WIDTH,
       'stroke-linecap': 'round'
     }));
   });
@@ -486,7 +492,7 @@ function addSvgTrianglePrimitives(svg, task, points) {
       d: angleLayout.arcSvgPath(points[index], points[marker.neighborIndices[0]], points[marker.neighborIndices[1]], marker.arcRadius),
       fill: 'none',
       stroke: '#57606a',
-      'stroke-width': 2,
+      'stroke-width': TRIANGLE_ANGLE_ARC_STROKE_WIDTH,
       'stroke-linecap': 'round'
     }));
   }
@@ -589,7 +595,7 @@ function renderD3Svg(surface, task) {
       .attr('x2', points[pair[1]].x)
       .attr('y2', points[pair[1]].y)
       .attr('stroke', SIDE_COLORS[index])
-      .attr('stroke-width', 3.5)
+      .attr('stroke-width', TRIANGLE_SIDE_STROKE_WIDTH)
       .attr('stroke-linecap', 'round');
   });
 
@@ -601,7 +607,7 @@ function renderD3Svg(surface, task) {
       .attr('d', angleLayout.arcSvgPath(points[index], points[marker.neighborIndices[0]], points[marker.neighborIndices[1]], marker.arcRadius))
       .attr('fill', 'none')
       .attr('stroke', '#57606a')
-      .attr('stroke-width', 2)
+      .attr('stroke-width', TRIANGLE_ANGLE_ARC_STROKE_WIDTH)
       .attr('stroke-linecap', 'round');
   }
 
@@ -662,7 +668,7 @@ function renderJsxGraph(surface, task) {
   [[1, 2], [0, 2], [0, 1]].forEach(function(pair, index) {
     jsxBoard.create('segment', [jPoints[pair[0]], jPoints[pair[1]]], {
       strokeColor: SIDE_COLORS[index],
-      strokeWidth: 3.5,
+      strokeWidth: TRIANGLE_SIDE_STROKE_WIDTH,
       fixed: true,
       highlight: false
     });
