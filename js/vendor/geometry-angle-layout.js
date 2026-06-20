@@ -8,7 +8,7 @@
 (function(global) {
   'use strict';
 
-  const VERSION = '0.3.8';
+  const VERSION = '0.3.9';
 
   const DEFAULTS = Object.freeze({
     acuteAngleArcRadius: 44,
@@ -19,8 +19,8 @@
     narrowAngleThresholdDeg: 25,
     angleRayStrokeWidthPx: 3.25,
     angleArcStrokeWidthPx: 2.25,
-    strokeWidthRayScalePx: 2.4,
-    strokeWidthArcScalePx: 1.6,
+    strokeWidthRayRatioScale: 0.15,
+    strokeWidthArcRatioScale: 0.1,
     rightAngleArcRadius: 26,
     rightAngleDotEccentricity: 0.6,
     rightAngleDotRadius: 3.2,
@@ -557,7 +557,7 @@
     }
 
     let totalWeight = 0;
-    let arcRadius = 0;
+    let arcRadiusRatio = 0;
     let labelPercent = 0;
     let labelAngleOffsetDeg = 0;
     const safeClassId = ANGLE_LABEL_CLASS_IDS.includes(target.labelClassId) ? target.labelClassId : 'medium';
@@ -575,7 +575,11 @@
         sample.fontSizePx,
         settings
       );
-      arcRadius += weight * clamp(sample.arcRadius - baseline.arcRadius, -40, 40);
+      arcRadiusRatio += weight * clamp(
+        sample.arcRadius / sample.fontSizePx - baseline.arcRadius / sample.fontSizePx,
+        -2.5,
+        2.5
+      );
       labelPercent += weight * clamp(sample.labelPercent - baseline.labelPercent, -30, 30);
       labelAngleOffsetDeg += weight * clamp(sample.labelAngleOffsetDeg, -20, 20);
       totalWeight += weight;
@@ -586,7 +590,7 @@
     }
 
     return {
-      arcRadius: arcRadius / totalWeight,
+      arcRadius: (arcRadiusRatio / totalWeight) * target.fontSizePx,
       labelPercent: labelPercent / totalWeight,
       labelAngleOffsetDeg: labelAngleOffsetDeg / totalWeight,
       weight: totalWeight
@@ -596,16 +600,18 @@
   function sampleWeight(sample, target, baseRayAngleDeg, labelClassId, targetLabel) {
     const angleDistance = Math.abs(sample.angleDeg - target.angleDeg);
     const baseRayDistance = circularDistance(sample.baseRayAngleDeg, baseRayAngleDeg);
-    const fontDistance = Math.abs(sample.fontSizePx - target.fontSizePx);
     const strokeConfidence = strokeWidthConfidenceWeight(sample.strokeWidthConfidence);
     let distanceSquared = square(angleDistance / 35)
-      + square(baseRayDistance / 70)
-      + square(fontDistance / 6);
+      + square(baseRayDistance / 70);
 
     if (strokeConfidence > 0) {
+      const sampleRayStrokeRatio = sample.rayStrokeWidthPx / sample.fontSizePx;
+      const targetRayStrokeRatio = target.rayStrokeWidthPx / target.fontSizePx;
+      const sampleArcStrokeRatio = sample.arcStrokeWidthPx / sample.fontSizePx;
+      const targetArcStrokeRatio = target.arcStrokeWidthPx / target.fontSizePx;
       distanceSquared += strokeConfidence * (
-        square((sample.rayStrokeWidthPx - target.rayStrokeWidthPx) / DEFAULTS.strokeWidthRayScalePx)
-        + square((sample.arcStrokeWidthPx - target.arcStrokeWidthPx) / DEFAULTS.strokeWidthArcScalePx)
+        square((sampleRayStrokeRatio - targetRayStrokeRatio) / DEFAULTS.strokeWidthRayRatioScale)
+        + square((sampleArcStrokeRatio - targetArcStrokeRatio) / DEFAULTS.strokeWidthArcRatioScale)
       );
     }
 
@@ -649,8 +655,7 @@
 
   function scaleRadiusForFont(radius, fontSizePx, settings) {
     const scale = fontSizePx / DEFAULTS.angleLabelFontSizePx;
-    const floor = settings.angleLabelRadiusFontFloor;
-    return floor + (radius - floor) * scale;
+    return radius * scale;
   }
 
   function calibratedAngleMarker(vertex, first, second, label, options) {
