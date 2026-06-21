@@ -26,6 +26,14 @@ The app intentionally uses a single geometry renderer:
 
 Older comparison renderers using JSXGraph, D3, and GeoGebra were removed. Do not reintroduce those dependencies unless the app explicitly needs a new rendering comparison mode. For the current quiz workflow, MathJax is the only external runtime dependency; local app assets remain cache-busted with `GG_APP_VERSION`.
 
+## Runtime Behavior Notes
+
+Dynamic MathJax content in `js/app.js` is intentionally routed through a small serialized render queue. Future changes that replace the task question, solution, or triangle label surface should keep using the existing queue helpers instead of calling `MathJax.typesetPromise()` directly. Clear MathJax state with `typesetClear` before removing or replacing dynamic DOM nodes; otherwise MathJax can retain detached internal math items during longer quiz sessions.
+
+The triangle quiz treats each task as an answered-before-next workflow. `Nächste Aufgabe` is disabled when a new task is created and is enabled only after the submitted answer has been checked. Keep that behavior unless the app deliberately changes from quiz mode to free practice mode.
+
+The `am Einheitskreis` entry is currently a placeholder by design. Do not add partial unit-circle behavior unless that path is implemented as a complete workflow.
+
 ## Vendored Shared Code
 
 `js/vendor/geometry-angle-layout.js` is copied from the local shared helper:
@@ -62,11 +70,33 @@ For browser checks, start a local static server and verify:
 
 - the intro screen opens
 - the right-triangle quiz starts
+- `Nächste Aufgabe` is disabled before an answer and enabled after answer checking
 - exactly one triangle rendering is visible
 - SVG geometry and five MathJax labels are present
 - both right-angle marker modes work
 - answer checking and the next-task flow work
+- rapid answer/next/resize interactions do not create duplicate SVGs, duplicate labels, overlapping MathJax render jobs, or detached MathJax items
 - no horizontal page overflow appears around desktop, tablet, and phone widths
+
+Useful MathJax leak probe for browser-console checks after many task changes:
+
+```js
+(() => {
+  const list = MathJax.startup.document.math.list;
+  let count = 0;
+  let detached = 0;
+  for (let item = list.next; item !== list; item = item.next) {
+    count += 1;
+    const start = item.data && item.data.start && item.data.start.node;
+    const end = item.data && item.data.end && item.data.end.node;
+    const attached = Boolean((start && start.isConnected) || (end && end.isConnected));
+    if (!attached) detached += 1;
+  }
+  return { count, detached };
+})()
+```
+
+The expected `detached` value is `0` after normal repeated task changes.
 
 ## Local Workflow
 
