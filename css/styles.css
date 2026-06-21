@@ -201,13 +201,12 @@ p {
   font-size: 0.98rem;
   font-weight: 800;
   line-height: 1;
-  text-shadow:
-    -2px -2px 0 #fff,
-    2px -2px 0 #fff,
-    -2px 2px 0 #fff,
-    2px 2px 0 #fff,
-    0 0 5px #fff;
+  background: transparent;
   pointer-events: none;
+}
+
+.render-label mjx-container {
+  background: transparent !important;
 }
 
 .render-label-angle {
