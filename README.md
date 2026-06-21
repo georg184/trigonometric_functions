@@ -32,11 +32,11 @@ Older comparison renderers using JSXGraph, D3, and GeoGebra were removed. Do not
 
 `/mnt/data/sync/software/HTML/ggprojects/shared/geometry-angle-layout.js`
 
-Current vendored helper version: `0.4.3`.
+Current vendored helper version: `0.4.4`.
 
 When the shared helper changes, copy the updated file into `js/vendor/` and commit the project copy so GitHub Pages can serve it publicly.
 
-The current right-triangle angle arcs and angle-label positions use the calibrated helper data from `angle-label-tuning-v20`. The app calls `calibratedAngleMarker()`, which first computes thin/reference-line angle-label values and then analytically adjusts the rendered arc radius and label position for the triangle side and angle-arc stroke widths.
+The current right-triangle angle arcs and angle-label positions use the calibrated helper data from `angle-label-tuning-v21`. The app calls `calibratedAngleMarker()`, which first computes thin/reference-line angle-label values and then analytically adjusts the rendered arc radius and label position for the triangle side and angle-arc stroke widths.
 
 ## Cache And Version Safety
 
