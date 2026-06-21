@@ -154,15 +154,13 @@ p {
 
 .quiz-layout {
   display: grid;
-  grid-template-columns: minmax(640px, 1fr) minmax(330px, 400px);
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 390px);
   gap: 18px;
   align-items: start;
 }
 
-.render-comparison {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+.triangle-stage {
+  min-width: 0;
 }
 
 .render-panel {
@@ -170,10 +168,6 @@ p {
   border-radius: 12px;
   background: var(--panel);
   padding: 12px;
-}
-
-.render-panel-wide {
-  grid-column: 1 / -1;
 }
 
 .render-title {
@@ -186,7 +180,7 @@ p {
 .render-surface {
   position: relative;
   width: 100%;
-  min-height: 310px;
+  min-height: 340px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: white;
@@ -196,18 +190,7 @@ p {
 .geometry-svg {
   display: block;
   width: 100%;
-  height: 310px;
-}
-
-.svg-label {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 16px;
-  font-weight: 800;
-  pointer-events: none;
-}
-
-.svg-label-side {
-  font-size: 18px;
+  height: 340px;
 }
 
 .render-label {
@@ -238,28 +221,6 @@ p {
 .render-label-side {
   color: var(--accent);
   font-size: 1.08rem;
-}
-
-.renderer-note {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 310px;
-  padding: 16px;
-  color: var(--muted);
-  font-size: 0.92rem;
-  font-weight: 700;
-  text-align: center;
-}
-
-.jsxgraph-surface .JXGtext {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
-  font-weight: 800;
-}
-
-.geogebra-surface iframe,
-.geogebra-surface > div {
-  border-radius: 10px;
 }
 
 .task-panel {
@@ -395,22 +356,16 @@ input:disabled {
   }
 
   .quiz-layout,
-  .intro-choice-list,
-  .render-comparison {
+  .intro-choice-list {
     grid-template-columns: 1fr;
   }
 
-  .render-panel-wide {
-    grid-column: auto;
-  }
-
-  .render-surface,
-  .renderer-note {
-    min-height: 280px;
+  .render-surface {
+    min-height: 320px;
   }
 
   .geometry-svg {
-    height: 280px;
+    height: 320px;
   }
 }
 
@@ -426,5 +381,13 @@ input:disabled {
 
   .answer-row button {
     grid-column: 1 / -1;
+  }
+
+  .render-surface {
+    min-height: 280px;
+  }
+
+  .geometry-svg {
+    height: 280px;
   }
 }

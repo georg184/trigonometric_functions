@@ -1,6 +1,6 @@
 # trigonometric_functions
 
-Interactive HTML quiz for practicing sine, cosine, and tangent on right triangles. The triangle path generates random labeled right triangles, supports configurable right-angle markers, and currently compares five geometry rendering approaches.
+Interactive HTML quiz for practicing sine, cosine, and tangent on right triangles. The triangle path generates random labeled right triangles, supports configurable right-angle markers, and renders the drawing with inline SVG plus HTML/MathJax labels.
 
 ## Live Version
 
@@ -14,7 +14,17 @@ The public version is intended to be available through GitHub Pages:
 - `css/styles.css`: the app styling
 - `js/mathjax-config.js`: MathJax configuration
 - `js/vendor/geometry-angle-layout.js`: vendored copy of `ggprojects/shared/geometry-angle-layout.js` for public GitHub Pages use
-- `js/app.js`: the quiz logic, random task generation, answer checking, and geometry renderers
+- `js/app.js`: the quiz logic, random task generation, answer checking, and the SVG/MathJax geometry renderer
+
+## Rendering Architecture
+
+The app intentionally uses a single geometry renderer:
+
+- triangle geometry and angle markers are drawn as inline SVG
+- side labels and angle labels are positioned as HTML overlays and rendered with MathJax
+- reusable angle arc, right-angle marker, and angle-label placement logic comes from `js/vendor/geometry-angle-layout.js`
+
+Older comparison renderers using JSXGraph, D3, and GeoGebra were removed. Do not reintroduce those dependencies unless the app explicitly needs a new rendering comparison mode. For the current quiz workflow, MathJax is the only external runtime dependency; local app assets remain cache-busted with `GG_APP_VERSION`.
 
 ## Vendored Shared Code
 
@@ -37,6 +47,26 @@ The page uses a shared app version in three places:
 - `APP_VERSION` at the top of `js/app.js`
 
 Whenever `index.html`, local CSS, local JavaScript, `js/mathjax-config.js`, or `js/vendor/geometry-angle-layout.js` changes, update all three places together and keep the visible version badge current. This prevents GitHub Pages or browser caches from mixing old JavaScript with new HTML.
+
+## Verification
+
+Useful local checks after runtime changes:
+
+```bash
+node --check js/app.js
+node --check js/mathjax-config.js
+node --check js/vendor/geometry-angle-layout.js
+```
+
+For browser checks, start a local static server and verify:
+
+- the intro screen opens
+- the right-triangle quiz starts
+- exactly one triangle rendering is visible
+- SVG geometry and five MathJax labels are present
+- both right-angle marker modes work
+- answer checking and the next-task flow work
+- no horizontal page overflow appears around desktop, tablet, and phone widths
 
 ## Local Workflow
 

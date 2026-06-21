@@ -1,12 +1,12 @@
-const APP_VERSION = '20260621.3';
-if (window.GG_APP_VERSION && window.GG_APP_VERSION !== APP_VERSION) {
+const APP_VERSION = '20260621.7';
+if (window.GG_APP_VERSION !== APP_VERSION) {
   document.body.innerHTML = [
     '<main style="max-width:720px;margin:40px auto;padding:20px;font-family:system-ui,sans-serif;line-height:1.45">',
     '<h1>Neue Version verfuegbar</h1>',
     '<p>Diese Seite hat HTML und JavaScript aus unterschiedlichen Versionen geladen. Bitte die Seite neu laden.</p>',
     '</main>'
   ].join('');
-  throw new Error(`Version mismatch: index ${window.GG_APP_VERSION}, app ${APP_VERSION}`);
+  throw new Error(`Version mismatch: index ${window.GG_APP_VERSION || 'missing'}, app ${APP_VERSION}`);
 }
 
 const screens = {
@@ -23,11 +23,7 @@ const controls = {
   nextButton: document.getElementById('nextButton'),
   rightAngleArcDot: document.getElementById('rightAngleArcDot'),
   rightAngleSquare: document.getElementById('rightAngleSquare'),
-  svgRenderer: document.getElementById('svgRenderer'),
-  svgHtmlRenderer: document.getElementById('svgHtmlRenderer'),
-  jsxGraphRenderer: document.getElementById('jsxGraphRenderer'),
-  geoGebraRenderer: document.getElementById('geoGebraRenderer'),
-  d3Renderer: document.getElementById('d3Renderer'),
+  triangleRenderer: document.getElementById('triangleRenderer'),
   taskCounter: document.getElementById('taskCounter'),
   taskQuestion: document.getElementById('taskQuestion'),
   answerForm: document.getElementById('answerForm'),
@@ -51,7 +47,6 @@ const RIGHT_ANGLE_MARKERS = {
   arcDot: 'arcDot',
   square: 'square'
 };
-const RIGHT_ANGLE_JSX_DOT_SIZE = 2.4;
 const ANGLE_LABEL_FONT_SIZE = 16;
 const VERTEX_SETS = [
   ['A', 'B', 'C'],
@@ -81,10 +76,6 @@ const ANGLE_SETS = [
 let currentTask = null;
 let taskNumber = 0;
 let rightAngleMarker = RIGHT_ANGLE_MARKERS.arcDot;
-let jsxBoard = null;
-let geoGebraApplet = null;
-let geoGebraReady = false;
-let geoGebraTask = null;
 
 function showScreen(name) {
   for (const [screenName, element] of Object.entries(screens)) {
@@ -297,7 +288,7 @@ function newTask() {
   clearSolvedState();
   controls.taskCounter.textContent = `Aufgabe ${taskNumber}`;
   renderMath(controls.taskQuestion, getQuestionLatex(currentTask));
-  renderAllTriangles(currentTask);
+  renderTriangle(currentTask);
   window.setTimeout(function() {
     controls.answerInput.focus();
   }, 0);
@@ -347,15 +338,6 @@ function transformPoints(task, width, height) {
     return {
       x: centerX + (point.x - rawCenterX) * scale,
       y: centerY + (point.y - rawCenterY) * scale
-    };
-  });
-}
-
-function toMathPlanePoints(points, height) {
-  return points.map(function(point) {
-    return {
-      x: point.x,
-      y: height - point.y
     };
   });
 }
@@ -431,36 +413,6 @@ function createSvgElement(name, attributes = {}) {
   return element;
 }
 
-function addSvgText(svg, label, options = {}) {
-  const text = createSvgElement('text', {
-    x: label.x,
-    y: label.y,
-    'text-anchor': 'middle',
-    'dominant-baseline': 'middle',
-    fill: options.color || label.color,
-    class: `svg-label svg-label-${label.type}`
-  });
-  text.textContent = label.text;
-  svg.appendChild(text);
-}
-
-function addSvgHaloText(svg, label) {
-  const halo = createSvgElement('text', {
-    x: label.x,
-    y: label.y,
-    'text-anchor': 'middle',
-    'dominant-baseline': 'middle',
-    fill: 'none',
-    stroke: '#fff',
-    'stroke-width': 5,
-    'stroke-linejoin': 'round',
-    class: `svg-label svg-label-${label.type}`
-  });
-  halo.textContent = label.text;
-  svg.appendChild(halo);
-  addSvgText(svg, label);
-}
-
 function addHtmlMathLabel(surface, label) {
   const element = document.createElement('span');
   element.className = `render-label render-label-${label.type}`;
@@ -532,25 +484,6 @@ function drawSvgRightAngleMarker(svg, task, points) {
   }));
 }
 
-function renderInlineSvg(surface, task) {
-  surface.innerHTML = '';
-  const size = getSurfaceSize(surface);
-  const points = transformPoints(task, size.width, size.height);
-  const labels = getTriangleLabels(task, points);
-  const svg = createSvgElement('svg', {
-    class: 'geometry-svg',
-    viewBox: `0 0 ${size.width} ${size.height}`,
-    role: 'img',
-    'aria-label': 'Dreieck als Inline-SVG'
-  });
-
-  addSvgTrianglePrimitives(svg, task, points);
-  labels.forEach(function(label) {
-    addSvgHaloText(svg, label);
-  });
-  surface.appendChild(svg);
-}
-
 function renderSvgWithHtmlLabels(surface, task) {
   surface.innerHTML = '';
   const size = getSurfaceSize(surface);
@@ -571,356 +504,8 @@ function renderSvgWithHtmlLabels(surface, task) {
   typesetElements([surface]);
 }
 
-function renderD3Svg(surface, task) {
-  surface.innerHTML = '';
-  if (!window.d3) {
-    renderUnavailable(surface, 'D3.js ist noch nicht geladen.');
-    return;
-  }
-
-  const size = getSurfaceSize(surface);
-  const points = transformPoints(task, size.width, size.height);
-  const labels = getTriangleLabels(task, points);
-  const svg = d3.select(surface)
-    .append('svg')
-    .attr('class', 'geometry-svg')
-    .attr('viewBox', `0 0 ${size.width} ${size.height}`)
-    .attr('role', 'img')
-    .attr('aria-label', 'Dreieck mit D3 und SVG');
-
-  [[1, 2], [0, 2], [0, 1]].forEach(function(pair, index) {
-    svg.append('line')
-      .attr('x1', points[pair[0]].x)
-      .attr('y1', points[pair[0]].y)
-      .attr('x2', points[pair[1]].x)
-      .attr('y2', points[pair[1]].y)
-      .attr('stroke', SIDE_COLORS[index])
-      .attr('stroke-width', TRIANGLE_SIDE_STROKE_WIDTH)
-      .attr('stroke-linecap', 'round');
-  });
-
-  const tempSvg = svg.node();
-  drawSvgRightAngleMarker(tempSvg, task, points);
-  for (const index of task.acuteIndices) {
-    const marker = getAcuteAngleMarker(task, points, index);
-    svg.append('path')
-      .attr('d', angleLayout.arcSvgPath(points[index], points[marker.neighborIndices[0]], points[marker.neighborIndices[1]], marker.arcRadius))
-      .attr('fill', 'none')
-      .attr('stroke', '#57606a')
-      .attr('stroke-width', TRIANGLE_ANGLE_ARC_STROKE_WIDTH)
-      .attr('stroke-linecap', 'round');
-  }
-
-  labels.forEach(function(label) {
-    svg.append('text')
-      .attr('x', label.x)
-      .attr('y', label.y)
-      .attr('text-anchor', 'middle')
-      .attr('dominant-baseline', 'middle')
-      .attr('class', `svg-label svg-label-${label.type}`)
-      .attr('fill', 'none')
-      .attr('stroke', '#fff')
-      .attr('stroke-width', 5)
-      .attr('stroke-linejoin', 'round')
-      .text(label.text);
-    svg.append('text')
-      .attr('x', label.x)
-      .attr('y', label.y)
-      .attr('text-anchor', 'middle')
-      .attr('dominant-baseline', 'middle')
-      .attr('class', `svg-label svg-label-${label.type}`)
-      .attr('fill', label.color)
-      .text(label.text);
-  });
-}
-
-function renderJsxGraph(surface, task) {
-  if (jsxBoard && window.JXG) {
-    JXG.JSXGraph.freeBoard(jsxBoard);
-    jsxBoard = null;
-  }
-  surface.innerHTML = '';
-  if (!window.JXG) {
-    renderUnavailable(surface, 'JSXGraph ist noch nicht geladen.');
-    return;
-  }
-
-  const size = getSurfaceSize(surface);
-  const points = toMathPlanePoints(transformPoints(task, size.width, size.height), size.height);
-  const labels = getTriangleLabels(task, points);
-  jsxBoard = JXG.JSXGraph.initBoard(surface.id, {
-    boundingbox: [0, size.height, size.width, 0],
-    axis: false,
-    showCopyright: false,
-    showNavigation: false,
-    pan: { enabled: false },
-    zoom: { enabled: false }
-  });
-  jsxBoard.suspendUpdate();
-  const jPoints = points.map(function(point) {
-    return jsxBoard.create('point', [point.x, point.y], {
-      visible: false,
-      fixed: true,
-      showInfobox: false
-    });
-  });
-
-  [[1, 2], [0, 2], [0, 1]].forEach(function(pair, index) {
-    jsxBoard.create('segment', [jPoints[pair[0]], jPoints[pair[1]]], {
-      strokeColor: SIDE_COLORS[index],
-      strokeWidth: TRIANGLE_SIDE_STROKE_WIDTH,
-      fixed: true,
-      highlight: false
-    });
-  });
-
-  drawJsxGraphAngleMarkers(jsxBoard, task, points);
-  labels.forEach(function(label) {
-    jsxBoard.create('text', [label.x, label.y, label.text], {
-      fixed: true,
-      highlight: false,
-      anchorX: 'middle',
-      anchorY: 'middle',
-      fontSize: label.type === 'side' ? 18 : 16,
-      cssStyle: `color:${label.color};font-weight:800;text-shadow:0 0 5px #fff;`
-    });
-  });
-  jsxBoard.unsuspendUpdate();
-}
-
-function drawJsxGraphAngleMarkers(board, task, points) {
-  drawJsxGraphRightAngleMarker(board, task, points);
-  for (const index of task.acuteIndices) {
-    const marker = getAcuteAngleMarker(task, points, index);
-    drawJsxGraphArc(board, points[index], points[marker.neighborIndices[0]], points[marker.neighborIndices[1]], marker.arcRadius, '#57606a');
-  }
-}
-
-function drawJsxGraphRightAngleMarker(board, task, points) {
-  const vertex = points[task.rightIndex];
-  const first = points[task.acuteIndices[0]];
-  const second = points[task.acuteIndices[1]];
-  if (rightAngleMarker === RIGHT_ANGLE_MARKERS.square) {
-    const marker = angleLayout.rightAngleSquareMarker(vertex, first, second);
-    const [p1, p2, p3] = marker.points;
-    board.create('curve', [[p1.x, p2.x, p3.x], [p1.y, p2.y, p3.y]], {
-      strokeColor: '#b42318',
-      strokeWidth: 2,
-      fixed: true,
-      highlight: false
-    });
-    return;
-  }
-  const marker = angleLayout.rightAngleArcDotMarker(vertex, first, second);
-  drawJsxGraphCurve(board, marker.arc.points, '#b42318');
-  board.create('point', [
-    marker.dot.x,
-    marker.dot.y
-  ], {
-    size: RIGHT_ANGLE_JSX_DOT_SIZE,
-    fillColor: '#b42318',
-    strokeColor: '#b42318',
-    fixed: true,
-    name: '',
-    showInfobox: false,
-    highlight: false
-  });
-}
-
-function drawJsxGraphArc(board, vertex, first, second, radius, color) {
-  drawJsxGraphCurve(board, angleLayout.arcPoints(vertex, first, second, radius, 18), color);
-}
-
-function drawJsxGraphCurve(board, samples, color) {
-  board.create('curve', [
-    samples.map(function(point) { return point.x; }),
-    samples.map(function(point) { return point.y; })
-  ], {
-    strokeColor: color,
-    strokeWidth: 2,
-    fixed: true,
-    highlight: false
-  });
-}
-
-function renderGeoGebra(surface, task) {
-  geoGebraTask = task;
-  if (!window.GGBApplet) {
-    renderUnavailable(surface, 'GeoGebra ist noch nicht geladen.');
-    return;
-  }
-  if (!geoGebraApplet) {
-    surface.innerHTML = '';
-    const size = getSurfaceSize(surface);
-    const applet = new GGBApplet({
-      appName: 'classic',
-      perspective: 'G',
-      width: size.width,
-      height: size.height,
-      showToolBar: false,
-      showToolBarHelp: false,
-      showMenuBar: false,
-      showAlgebraInput: false,
-      showResetIcon: false,
-      enableShiftDragZoom: false,
-      showZoomButtons: false,
-      borderRadius: 10,
-      errorDialogsActive: false,
-      useBrowserForJS: true,
-      appletOnLoad: function(api) {
-        geoGebraApplet = api;
-        geoGebraReady = true;
-        updateGeoGebraConstruction(geoGebraTask);
-      }
-    }, true);
-    applet.inject(surface.id);
-    return;
-  }
-  if (geoGebraReady) {
-    updateGeoGebraConstruction(task);
-  }
-}
-
-function updateGeoGebraConstruction(task) {
-  if (!geoGebraApplet || !task) {
-    return;
-  }
-  const surface = controls.geoGebraRenderer;
-  const size = getSurfaceSize(surface);
-
-  try {
-    geoGebraApplet.setRepaintingActive(false);
-    geoGebraApplet.setWidth(size.width);
-    geoGebraApplet.setHeight(size.height);
-    geoGebraApplet.reset();
-    geoGebraApplet.setAxesVisible(false, false);
-    geoGebraApplet.setGridVisible(false);
-
-    const viewSize = getGeoGebraViewSize(size);
-    const points = toMathPlanePoints(transformPoints(task, viewSize.width, viewSize.height), viewSize.height);
-    const labels = getTriangleLabels(task, points);
-
-    geoGebraApplet.setCoordSystem(0, viewSize.width, 0, viewSize.height);
-
-    points.forEach(function(point, index) {
-      geoGebraApplet.evalCommand(`${task.vertexLabels[index]}=(${num(point.x)},${num(point.y)})`);
-      geoGebraApplet.setPointSize(task.vertexLabels[index], 2);
-      geoGebraApplet.setLabelVisible(task.vertexLabels[index], false);
-    });
-
-    [[1, 2], [0, 2], [0, 1]].forEach(function(pair, index) {
-      const name = `s${index}`;
-      geoGebraApplet.evalCommand(`${name}=Segment(${task.vertexLabels[pair[0]]},${task.vertexLabels[pair[1]]})`);
-      geoGebraApplet.setColor(name, ...hexToRgb(SIDE_COLORS[index]));
-      geoGebraApplet.setLineThickness(name, 5);
-      geoGebraApplet.setLabelVisible(name, false);
-    });
-
-    addGeoGebraAngleMarkers(task, points);
-    labels.forEach(function(label, index) {
-      const name = `t${index}`;
-      geoGebraApplet.evalCommand(`${name}=Text("${label.text}",(${num(label.x)},${num(label.y)}))`);
-      geoGebraApplet.setColor(name, ...hexToRgb(label.color));
-      geoGebraApplet.setLabelVisible(name, false);
-    });
-  } catch (error) {
-    console.error('GeoGebra rendering failed:', error);
-  } finally {
-    geoGebraApplet.setRepaintingActive(true);
-  }
-}
-
-function getGeoGebraViewSize(fallbackSize) {
-  const fallback = {
-    width: Math.max(320, fallbackSize.width),
-    height: Math.max(260, fallbackSize.height)
-  };
-  if (!geoGebraApplet || typeof geoGebraApplet.getViewProperties !== 'function') {
-    return fallback;
-  }
-
-  try {
-    const properties = JSON.parse(geoGebraApplet.getViewProperties() || '{}');
-    if (properties.width > 0 && properties.height > 0) {
-      return {
-        width: Math.round(properties.width),
-        height: Math.round(properties.height)
-      };
-    }
-    return fallback;
-  } catch (error) {
-    console.error('GeoGebra view size could not be read:', error);
-    return fallback;
-  }
-}
-
-function addGeoGebraAngleMarkers(task, points) {
-  addGeoGebraRightAngleMarker(task, points);
-  for (const index of task.acuteIndices) {
-    const marker = getAcuteAngleMarker(task, points, index);
-    addGeoGebraPolyline(
-      `arc${index}`,
-      angleLayout.arcPoints(points[index], points[marker.neighborIndices[0]], points[marker.neighborIndices[1]], marker.arcRadius, 18),
-      '#57606a'
-    );
-  }
-}
-
-function addGeoGebraRightAngleMarker(task, points) {
-  const vertex = points[task.rightIndex];
-  const first = points[task.acuteIndices[0]];
-  const second = points[task.acuteIndices[1]];
-  if (rightAngleMarker === RIGHT_ANGLE_MARKERS.square) {
-    const marker = angleLayout.rightAngleSquareMarker(vertex, first, second);
-    addGeoGebraPolyline('rightAngle', marker.points, '#b42318');
-    return;
-  }
-
-  const marker = angleLayout.rightAngleArcDotMarker(vertex, first, second);
-  addGeoGebraPolyline(
-    'rightAngle',
-    marker.arc.points,
-    '#b42318'
-  );
-  geoGebraApplet.evalCommand(`RightDot=(${num(marker.dot.x)},${num(marker.dot.y)})`);
-  geoGebraApplet.setColor('RightDot', ...hexToRgb('#b42318'));
-  geoGebraApplet.setPointSize('RightDot', marker.dot.radius);
-  geoGebraApplet.setLabelVisible('RightDot', false);
-}
-
-function addGeoGebraPolyline(name, points, color) {
-  const commandPoints = points.map(function(point) {
-    return `(${num(point.x)},${num(point.y)})`;
-  }).join(',');
-  geoGebraApplet.evalCommand(`${name}=Polyline(${commandPoints})`);
-  geoGebraApplet.setColor(name, ...hexToRgb(color));
-  geoGebraApplet.setLineThickness(name, 4);
-  geoGebraApplet.setLabelVisible(name, false);
-}
-
-function hexToRgb(hex) {
-  const normalized = hex.replace('#', '');
-  return [
-    parseInt(normalized.slice(0, 2), 16),
-    parseInt(normalized.slice(2, 4), 16),
-    parseInt(normalized.slice(4, 6), 16)
-  ];
-}
-
-function num(value) {
-  return String(Math.round(value * 1000) / 1000);
-}
-
-function renderUnavailable(surface, message) {
-  surface.innerHTML = `<div class="renderer-note">${message}</div>`;
-}
-
-function renderAllTriangles(task) {
-  renderInlineSvg(controls.svgRenderer, task);
-  renderSvgWithHtmlLabels(controls.svgHtmlRenderer, task);
-  renderJsxGraph(controls.jsxGraphRenderer, task);
-  renderGeoGebra(controls.geoGebraRenderer, task);
-  renderD3Svg(controls.d3Renderer, task);
+function renderTriangle(task) {
+  renderSvgWithHtmlLabels(controls.triangleRenderer, task);
 }
 
 function startTriangleQuiz() {
@@ -957,7 +542,7 @@ controls.rightAngleSquare.addEventListener('change', function() {
 
 window.addEventListener('resize', function() {
   if (currentTask && !screens.quiz.classList.contains('hidden')) {
-    renderAllTriangles(currentTask);
+    renderTriangle(currentTask);
   }
 });
 
