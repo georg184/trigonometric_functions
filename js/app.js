@@ -1,4 +1,4 @@
-const APP_VERSION = '20260621.9';
+const APP_VERSION = '20260621.12';
 if (window.GG_APP_VERSION !== APP_VERSION) {
   document.body.innerHTML = [
     '<main style="max-width:720px;margin:40px auto;padding:20px;font-family:system-ui,sans-serif;line-height:1.45">',
@@ -76,6 +76,8 @@ const ANGLE_SETS = [
 let currentTask = null;
 let taskNumber = 0;
 let rightAngleMarker = RIGHT_ANGLE_MARKERS.arcDot;
+let mathRenderQueue = Promise.resolve();
+const mathRenderTokens = new WeakMap();
 
 function showScreen(name) {
   for (const [screenName, element] of Object.entries(screens)) {
@@ -100,27 +102,70 @@ function shuffle(items) {
   return result;
 }
 
-function renderMath(element, latex) {
+function clearMath(elements) {
+  const targets = Array.isArray(elements) ? elements : [elements];
   if (window.MathJax && typeof MathJax.typesetClear === 'function') {
-    MathJax.typesetClear([element]);
-  }
-  element.innerHTML = latex;
-  if (window.MathJax && typeof MathJax.typesetPromise === 'function') {
-    MathJax.typesetPromise([element]).catch(function(error) {
-      console.error('MathJax rendering failed:', error);
-    });
+    MathJax.typesetClear(targets);
   }
 }
 
-function typesetElements(elements) {
-  if (window.MathJax && typeof MathJax.typesetClear === 'function') {
-    MathJax.typesetClear(elements);
-  }
+function typesetMath(elements) {
   if (window.MathJax && typeof MathJax.typesetPromise === 'function') {
-    MathJax.typesetPromise(elements).catch(function(error) {
+    return MathJax.typesetPromise(elements);
+  }
+  return Promise.resolve();
+}
+
+function bumpMathRenderToken(element) {
+  const nextToken = (mathRenderTokens.get(element) || 0) + 1;
+  mathRenderTokens.set(element, nextToken);
+  return nextToken;
+}
+
+function isCurrentMathRender(element, token) {
+  return mathRenderTokens.get(element) === token;
+}
+
+function enqueueMathRender(renderJob) {
+  mathRenderQueue = mathRenderQueue
+    .catch(function() {
+      return null;
+    })
+    .then(renderJob)
+    .catch(function(error) {
       console.error('MathJax rendering failed:', error);
     });
-  }
+  return mathRenderQueue;
+}
+
+function replaceMathContent(element, updateContent) {
+  const token = bumpMathRenderToken(element);
+  return enqueueMathRender(function() {
+    if (!isCurrentMathRender(element, token)) {
+      return null;
+    }
+    clearMath(element);
+    updateContent();
+    return typesetMath([element]);
+  });
+}
+
+function clearMathContent(element) {
+  const token = bumpMathRenderToken(element);
+  return enqueueMathRender(function() {
+    if (!isCurrentMathRender(element, token)) {
+      return null;
+    }
+    clearMath(element);
+    element.innerHTML = '';
+    return null;
+  });
+}
+
+function renderMath(element, latex) {
+  replaceMathContent(element, function() {
+    element.innerHTML = latex;
+  });
 }
 
 function sideLabelForVertex(vertexLabel) {
@@ -268,6 +313,7 @@ function setSolvedState(isCorrect) {
   controls.solution.classList.remove('hidden');
   controls.answerInput.disabled = true;
   controls.checkButton.disabled = true;
+  controls.nextButton.disabled = false;
   controls.nextButton.focus();
 }
 
@@ -276,7 +322,7 @@ function clearSolvedState() {
   controls.feedback.classList.remove('correct', 'incorrect');
   controls.feedback.textContent = '';
   controls.solution.classList.add('hidden');
-  controls.solution.innerHTML = '';
+  clearMathContent(controls.solution);
   controls.answerInput.disabled = false;
   controls.checkButton.disabled = false;
   controls.answerInput.value = '';
@@ -286,6 +332,7 @@ function newTask() {
   taskNumber += 1;
   currentTask = buildTask();
   clearSolvedState();
+  controls.nextButton.disabled = true;
   controls.taskCounter.textContent = `Aufgabe ${taskNumber}`;
   renderMath(controls.taskQuestion, getQuestionLatex(currentTask));
   renderTriangle(currentTask);
@@ -485,23 +532,24 @@ function drawSvgRightAngleMarker(svg, task, points) {
 }
 
 function renderSvgWithHtmlLabels(surface, task) {
-  surface.innerHTML = '';
-  const size = getSurfaceSize(surface);
-  const points = transformPoints(task, size.width, size.height);
-  const labels = getTriangleLabels(task, points);
-  const svg = createSvgElement('svg', {
-    class: 'geometry-svg',
-    viewBox: `0 0 ${size.width} ${size.height}`,
-    role: 'img',
-    'aria-label': 'Dreieck als SVG mit HTML Labels'
-  });
+  replaceMathContent(surface, function() {
+    surface.innerHTML = '';
+    const size = getSurfaceSize(surface);
+    const points = transformPoints(task, size.width, size.height);
+    const labels = getTriangleLabels(task, points);
+    const svg = createSvgElement('svg', {
+      class: 'geometry-svg',
+      viewBox: `0 0 ${size.width} ${size.height}`,
+      role: 'img',
+      'aria-label': 'Dreieck als SVG mit HTML Labels'
+    });
 
-  addSvgTrianglePrimitives(svg, task, points);
-  surface.appendChild(svg);
-  labels.forEach(function(label) {
-    addHtmlMathLabel(surface, label);
+    addSvgTrianglePrimitives(svg, task, points);
+    surface.appendChild(svg);
+    labels.forEach(function(label) {
+      addHtmlMathLabel(surface, label);
+    });
   });
-  typesetElements([surface]);
 }
 
 function renderTriangle(task) {
