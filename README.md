@@ -35,7 +35,7 @@ Answer checking is client-side. `js/app.js` starts `js/sympy-worker.js` as a mod
 
 The triangle quiz currently generates side-ratio-to-function questions with 50% probability. For those questions, 20% use a ratio that is the reciprocal of one of the generated `sin`, `cos`, or `tan` expressions. The app shows the two acute angle names and insertion buttons for trig-expression answers; keep that helper tied to side-ratio-to-function tasks so ordinary side-ratio answers stay uncluttered.
 
-The triangle quiz treats each task as an answered-before-next workflow. `Nächste Aufgabe` is disabled when a new task is created and is enabled only after the submitted answer has been checked. Keep that behavior unless the app deliberately changes from quiz mode to free practice mode.
+The triangle quiz treats each task as a one-score workflow. `Nächste Aufgabe` is available immediately. If the current task has not been checked yet, moving on scores that task as incorrect and advances to the next task. While an answer check is running, `Nächste Aufgabe` is temporarily disabled to avoid racing the in-flight worker result.
 
 The quiz can be left through `Zur Startseite` without resetting the current task or score. Returning to `am rechtwinkligen Dreieck` resumes the in-memory quiz state; a full page reload starts fresh.
 
@@ -78,7 +78,7 @@ For browser checks, start a local static server and verify:
 
 - the intro screen opens
 - the right-triangle quiz starts
-- `Nächste Aufgabe` is disabled before an answer and enabled after answer checking
+- `Nächste Aufgabe` is available before an answer, and skipping an unanswered task adds one answered question with no point
 - exactly one triangle rendering is visible
 - SVG geometry and five MathJax labels are present
 - both right-angle marker modes work

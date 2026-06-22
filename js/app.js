@@ -1,4 +1,4 @@
-const APP_VERSION = '20260622.7';
+const APP_VERSION = '20260622.8';
 if (window.GG_APP_VERSION !== APP_VERSION) {
   document.body.innerHTML = [
     '<main style="max-width:720px;margin:40px auto;padding:20px;font-family:system-ui,sans-serif;line-height:1.45">',
@@ -83,6 +83,7 @@ const ANGLE_SETS = [
 ];
 
 let currentTask = null;
+let currentTaskScored = false;
 let taskNumber = 0;
 let correctAnswers = 0;
 let answeredQuestions = 0;
@@ -563,12 +564,20 @@ function normalizeAnswer(value) {
     .replace(/[{}()]/g, '');
 }
 
-function setSolvedState(isCorrect) {
+function scoreCurrentTask(isCorrect) {
+  if (currentTaskScored) {
+    return;
+  }
+  currentTaskScored = true;
   answeredQuestions += 1;
   if (isCorrect) {
     correctAnswers += 1;
   }
   updateScoreCounter();
+}
+
+function setSolvedState(isCorrect) {
+  scoreCurrentTask(isCorrect);
   controls.feedback.classList.remove('hidden', 'correct', 'incorrect');
   controls.feedback.classList.add(isCorrect ? 'correct' : 'incorrect');
   controls.feedback.textContent = isCorrect ? 'Richtig.' : 'Falsch.';
@@ -692,8 +701,9 @@ function renderAnswerHelpers(task) {
 function newTask() {
   taskNumber += 1;
   currentTask = buildTask();
+  currentTaskScored = false;
   clearSolvedState();
-  controls.nextButton.disabled = true;
+  controls.nextButton.disabled = false;
   controls.taskCounter.textContent = `Aufgabe ${taskNumber}`;
   setAnswerInputMode(currentTask);
   renderMath(controls.taskQuestion, getQuestionLatex(currentTask));
@@ -708,6 +718,7 @@ function setCheckingState() {
   controls.answerInput.disabled = true;
   controls.checkButton.disabled = true;
   controls.checkButton.textContent = 'Prüfe...';
+  controls.nextButton.disabled = true;
 }
 
 async function submitAnswer(event) {
@@ -725,6 +736,13 @@ async function submitAnswer(event) {
   }
   renderMath(controls.solution, getSolutionLatex(task));
   setSolvedState(Boolean(result.correct));
+}
+
+function goToNextTask() {
+  if (currentTask && !currentTaskScored) {
+    scoreCurrentTask(false);
+  }
+  newTask();
 }
 
 function getSurfaceSize(surface) {
@@ -990,7 +1008,7 @@ controls.backButton.addEventListener('click', function() {
   showScreen('intro');
 });
 
-controls.nextButton.addEventListener('click', newTask);
+controls.nextButton.addEventListener('click', goToNextTask);
 controls.answerForm.addEventListener('submit', submitAnswer);
 
 controls.rightAngleArcDot.addEventListener('change', function() {
