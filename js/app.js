@@ -1,4 +1,4 @@
-const APP_VERSION = '20260622.4';
+const APP_VERSION = '20260622.5';
 if (window.GG_APP_VERSION !== APP_VERSION) {
   document.body.innerHTML = [
     '<main style="max-width:720px;margin:40px auto;padding:20px;font-family:system-ui,sans-serif;line-height:1.45">',
@@ -25,6 +25,7 @@ const controls = {
   rightAngleSquare: document.getElementById('rightAngleSquare'),
   triangleRenderer: document.getElementById('triangleRenderer'),
   taskCounter: document.getElementById('taskCounter'),
+  scoreCounter: document.getElementById('scoreCounter'),
   taskQuestion: document.getElementById('taskQuestion'),
   answerForm: document.getElementById('answerForm'),
   answerInput: document.getElementById('answerInput'),
@@ -76,6 +77,8 @@ const ANGLE_SETS = [
 
 let currentTask = null;
 let taskNumber = 0;
+let correctAnswers = 0;
+let answeredQuestions = 0;
 let rightAngleMarker = RIGHT_ANGLE_MARKERS.arcDot;
 let mathRenderQueue = Promise.resolve();
 const mathRenderTokens = new WeakMap();
@@ -420,6 +423,11 @@ function normalizeAnswer(value) {
 }
 
 function setSolvedState(isCorrect) {
+  answeredQuestions += 1;
+  if (isCorrect) {
+    correctAnswers += 1;
+  }
+  updateScoreCounter();
   controls.feedback.classList.remove('hidden', 'correct', 'incorrect');
   controls.feedback.classList.add(isCorrect ? 'correct' : 'incorrect');
   controls.feedback.textContent = isCorrect ? 'Richtig.' : 'Falsch.';
@@ -441,6 +449,10 @@ function clearSolvedState() {
   controls.checkButton.disabled = false;
   controls.checkButton.textContent = 'Prüfen';
   controls.answerInput.value = '';
+}
+
+function updateScoreCounter() {
+  controls.scoreCounter.textContent = `Punkte: ${correctAnswers}/${answeredQuestions}`;
 }
 
 function newTask() {
@@ -703,8 +715,11 @@ function renderTriangle(task) {
 
 function startTriangleQuiz() {
   taskNumber = 0;
+  correctAnswers = 0;
+  answeredQuestions = 0;
   rightAngleMarker = readRightAngleMarkerSetting();
   showScreen('quiz');
+  updateScoreCounter();
   newTask();
 }
 

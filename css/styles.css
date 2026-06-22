@@ -227,7 +227,16 @@ p {
   gap: 16px;
 }
 
-.task-counter {
+.task-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 14px;
+}
+
+.task-counter,
+.score-counter {
   color: var(--muted);
   font-weight: 700;
 }
