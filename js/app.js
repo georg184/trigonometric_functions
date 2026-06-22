@@ -1,4 +1,4 @@
-const APP_VERSION = '20260622.3';
+const APP_VERSION = '20260622.4';
 if (window.GG_APP_VERSION !== APP_VERSION) {
   document.body.innerHTML = [
     '<main style="max-width:720px;margin:40px auto;padding:20px;font-family:system-ui,sans-serif;line-height:1.45">',
@@ -542,6 +542,27 @@ function getAcuteAngleMarker(task, points, index) {
   return Object.assign({ neighborIndices }, marker);
 }
 
+function sideLabelPosition(points, sidePoints, centroid) {
+  const first = points[sidePoints[0]];
+  const second = points[sidePoints[1]];
+  const midpoint = {
+    x: (first.x + second.x) / 2,
+    y: (first.y + second.y) / 2
+  };
+  const sideVector = angleLayout.unitVector(first, second);
+  const normals = [
+    { x: -sideVector.y, y: sideVector.x },
+    { x: sideVector.y, y: -sideVector.x }
+  ];
+  const inward = angleLayout.unitVector(midpoint, centroid);
+  const outwardNormal = normals[0].x * inward.x + normals[0].y * inward.y < 0 ? normals[0] : normals[1];
+
+  return {
+    x: midpoint.x + outwardNormal.x * 26,
+    y: midpoint.y + outwardNormal.y * 26
+  };
+}
+
 function getTriangleLabels(task, points) {
   const centroid = centroidOf(points);
   const labels = [];
@@ -550,17 +571,13 @@ function getTriangleLabels(task, points) {
     const sidePoints = [0, 1, 2].filter(function(index) {
       return index !== vertexIndex;
     });
-    const midpoint = {
-      x: (points[sidePoints[0]].x + points[sidePoints[1]].x) / 2,
-      y: (points[sidePoints[0]].y + points[sidePoints[1]].y) / 2
-    };
-    const direction = angleLayout.unitVector(centroid, midpoint);
+    const position = sideLabelPosition(points, sidePoints, centroid);
     labels.push({
       type: 'side',
       text: getSideName(task, vertexIndex),
       latex: getSideName(task, vertexIndex),
-      x: midpoint.x + direction.x * 26,
-      y: midpoint.y + direction.y * 26,
+      x: position.x,
+      y: position.y,
       color: '#0969da'
     });
   }
