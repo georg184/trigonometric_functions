@@ -1,6 +1,6 @@
 # trigonometric_functions
 
-Interactive HTML quiz for practicing sine, cosine, and tangent on right triangles. The triangle path generates random labeled right triangles, supports configurable right-angle markers, and renders the drawing with inline SVG plus HTML/MathJax labels.
+Interactive HTML quiz for practicing sine, cosine, and tangent on right triangles. The triangle path generates random labeled right triangles, asks both function-to-side-ratio and side-ratio-to-function questions, supports configurable right-angle markers, and renders the drawing with inline SVG plus HTML/MathJax labels.
 
 ## Live Version
 
@@ -25,13 +25,15 @@ The app intentionally uses a single geometry renderer:
 - side labels and angle labels are positioned as HTML overlays and rendered with MathJax
 - reusable angle arc, right-angle marker, and angle-label placement logic comes from `js/vendor/geometry-angle-layout.js`
 
-Older comparison renderers using JSXGraph, D3, and GeoGebra were removed. Do not reintroduce those dependencies unless the app explicitly needs a new rendering comparison mode. For the current quiz workflow, MathJax is the only external runtime dependency; local app assets remain cache-busted with `GG_APP_VERSION`.
+Older comparison renderers using JSXGraph, D3, and GeoGebra were removed. Do not reintroduce those dependencies unless the app explicitly needs a new rendering comparison mode. For the current quiz workflow, MathJax and the pinned Pyodide/SymPy worker load are the external runtime dependencies; local app assets remain cache-busted with `GG_APP_VERSION`.
 
 ## Runtime Behavior Notes
 
 Dynamic MathJax content in `js/app.js` is intentionally routed through a small serialized render queue. Future changes that replace the task question, solution, or triangle label surface should keep using the existing queue helpers instead of calling `MathJax.typesetPromise()` directly. Clear MathJax state with `typesetClear` before removing or replacing dynamic DOM nodes; otherwise MathJax can retain detached internal math items during longer quiz sessions.
 
-Answer checking is client-side. `js/app.js` starts `js/sympy-worker.js` as a module worker with a versioned local URL, and the worker loads pinned Pyodide/SymPy assets from jsDelivr. Keep symbolic checking inside the worker so Pyodide and SymPy do not block the UI thread. The worker validates input before parsing: accepted answers are restricted to the current side symbols, numbers, arithmetic operators, parentheses, division variants, and simple LaTeX fractions.
+Answer checking is client-side. `js/app.js` starts `js/sympy-worker.js` as a module worker with a versioned local URL, and the worker loads pinned Pyodide/SymPy assets from jsDelivr. Keep symbolic checking inside the worker so Pyodide and SymPy do not block the UI thread. The worker validates input before parsing: side-ratio answers are restricted to the current side symbols, numbers, arithmetic operators, parentheses, division variants, and simple LaTeX fractions. Side-ratio-to-function answers accept `sin`, `cos`, `tan`, reciprocals such as `1/tan(alpha)`, and the generated angle names and aliases. The worker converts valid trig expressions back to side ratios before comparing them symbolically.
+
+The triangle quiz currently generates side-ratio-to-function questions with 50% probability. For those questions, 20% use a ratio that is the reciprocal of one of the generated `sin`, `cos`, or `tan` expressions. The app shows the two acute angle names and insertion buttons for trig-expression answers; keep that helper tied to side-ratio-to-function tasks so ordinary side-ratio answers stay uncluttered.
 
 The triangle quiz treats each task as an answered-before-next workflow. `Nächste Aufgabe` is disabled when a new task is created and is enabled only after the submitted answer has been checked. Keep that behavior unless the app deliberately changes from quiz mode to free practice mode.
 
@@ -80,6 +82,8 @@ For browser checks, start a local static server and verify:
 - both right-angle marker modes work
 - answer checking and the next-task flow work
 - equivalent symbolic answers such as `a:c`, `\frac{a}{c}`, `2*a/(2*c)`, and `a*c/c^2` are accepted when they match the expected ratio
+- side-ratio-to-function tasks accept equivalent trig expressions such as `sin(alpha)`, `cos(beta)`, or `1/tan(alpha)` when they match the displayed ratio
+- side-ratio-to-function tasks show the two acute angle names and clicking an angle helper inserts the typed angle name
 - wrong answers show the red feedback text `Falsch.`
 - rapid answer/next/resize interactions do not create duplicate SVGs, duplicate labels, overlapping MathJax render jobs, or detached MathJax items
 - no horizontal page overflow appears around desktop, tablet, and phone widths

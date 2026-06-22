@@ -1,4 +1,4 @@
-const APP_VERSION = '20260622.5';
+const APP_VERSION = '20260622.6';
 if (window.GG_APP_VERSION !== APP_VERSION) {
   document.body.innerHTML = [
     '<main style="max-width:720px;margin:40px auto;padding:20px;font-family:system-ui,sans-serif;line-height:1.45">',
@@ -29,6 +29,7 @@ const controls = {
   taskQuestion: document.getElementById('taskQuestion'),
   answerForm: document.getElementById('answerForm'),
   answerInput: document.getElementById('answerInput'),
+  answerHelpers: document.getElementById('answerHelpers'),
   checkButton: document.getElementById('checkButton'),
   feedback: document.getElementById('feedback'),
   solution: document.getElementById('solution')
@@ -41,6 +42,12 @@ if (!angleLayout) {
 }
 const DEGREE = Math.PI / 180;
 const TASK_TYPES = ['sin', 'cos', 'tan'];
+const QUESTION_KINDS = {
+  functionToRatio: 'function-to-ratio',
+  ratioToFunction: 'ratio-to-function'
+};
+const RATIO_TO_FUNCTION_TASK_PROBABILITY = 0.5;
+const RECIPROCAL_RATIO_TASK_PROBABILITY = 0.2;
 const SIDE_COLORS = ['#bf8700', '#2ea043', '#0969da'];
 const TRIANGLE_SIDE_STROKE_WIDTH = 3.5;
 const TRIANGLE_ANGLE_ARC_STROKE_WIDTH = 2;
@@ -59,19 +66,19 @@ const VERTEX_SETS = [
 ];
 const ANGLE_SETS = [
   [
-    { text: 'α', latex: '\\alpha' },
-    { text: 'β', latex: '\\beta' },
-    { text: 'γ', latex: '\\gamma' }
+    { text: 'α', latex: '\\alpha', name: 'alpha' },
+    { text: 'β', latex: '\\beta', name: 'beta' },
+    { text: 'γ', latex: '\\gamma', name: 'gamma' }
   ],
   [
-    { text: 'φ', latex: '\\varphi' },
-    { text: 'ψ', latex: '\\psi' },
-    { text: 'ω', latex: '\\omega' }
+    { text: 'φ', latex: '\\varphi', name: 'phi', aliases: ['varphi'] },
+    { text: 'ψ', latex: '\\psi', name: 'psi' },
+    { text: 'ω', latex: '\\omega', name: 'omega' }
   ],
   [
-    { text: 'δ', latex: '\\delta' },
-    { text: 'ε', latex: '\\varepsilon' },
-    { text: 'η', latex: '\\eta' }
+    { text: 'δ', latex: '\\delta', name: 'delta' },
+    { text: 'ε', latex: '\\varepsilon', name: 'epsilon', aliases: ['varepsilon'] },
+    { text: 'η', latex: '\\eta', name: 'eta' }
   ]
 ];
 
@@ -176,16 +183,112 @@ function renderMath(element, latex) {
   });
 }
 
+function ratioToInput(ratio) {
+  return `${ratio.numerator}/${ratio.denominator}`;
+}
+
+function invertRatio(ratio) {
+  return {
+    numerator: ratio.denominator,
+    denominator: ratio.numerator
+  };
+}
+
+function sameRatio(first, second) {
+  return first.numerator === second.numerator && first.denominator === second.denominator;
+}
+
+function getTrigRatio(task, angleIndex, taskType) {
+  const otherAcuteIndex = task.acuteIndices.find(function(index) {
+    return index !== angleIndex;
+  });
+  const hypotenuseIndex = task.rightIndex;
+  const oppositeIndex = angleIndex;
+  const adjacentIndex = otherAcuteIndex;
+  const numeratorIndex = taskType === 'cos' ? adjacentIndex : oppositeIndex;
+  const denominatorIndex = taskType === 'tan' ? adjacentIndex : hypotenuseIndex;
+
+  return {
+    numerator: sideLabelForVertex(task.vertexLabels[numeratorIndex]),
+    denominator: sideLabelForVertex(task.vertexLabels[denominatorIndex])
+  };
+}
+
+function trigExpressionInput(taskType, angleLabel, reciprocal) {
+  const expression = `${taskType}(${angleLabel.name})`;
+  return reciprocal ? `1/${expression}` : expression;
+}
+
+function trigExpressionLatex(taskType, angleLabel, reciprocal) {
+  const expression = `\\${taskType}\\!\\left(${angleLabel.latex}\\right)`;
+  return reciprocal ? `\\frac{1}{${expression}}` : expression;
+}
+
+function getTrigCandidatesForTask(task) {
+  const candidates = [];
+  for (const angleIndex of task.acuteIndices) {
+    for (const taskType of TASK_TYPES) {
+      const ratio = getTrigRatio(task, angleIndex, taskType);
+      const angleLabel = task.angleLabels[angleIndex];
+      candidates.push({
+        ratio,
+        answer: trigExpressionInput(taskType, angleLabel, false)
+      });
+      candidates.push({
+        ratio: invertRatio(ratio),
+        answer: trigExpressionInput(taskType, angleLabel, true)
+      });
+    }
+  }
+  return candidates;
+}
+
+function getAcceptedTrigAnswersForRatio(task, ratio) {
+  const answers = getTrigCandidatesForTask(task)
+    .filter(function(candidate) {
+      return sameRatio(candidate.ratio, ratio);
+    })
+    .map(function(candidate) {
+      return candidate.answer;
+    });
+  return Array.from(new Set(answers));
+}
+
 function getExpectedAnswer(task) {
-  return `${task.answer.numerator}/${task.answer.denominator}`;
+  if (task.questionKind === QUESTION_KINDS.ratioToFunction) {
+    return task.expectedExpression;
+  }
+  return ratioToInput(task.targetRatio);
 }
 
 function getAllowedSideSymbols(task) {
   return task.vertexLabels.map(sideLabelForVertex);
 }
 
+function getAngleDefinitions(task) {
+  return task.acuteIndices.map(function(angleIndex) {
+    const angleLabel = task.angleLabels[angleIndex];
+    return {
+      name: angleLabel.name,
+      aliases: angleLabel.aliases || [],
+      ratios: {
+        sin: ratioToInput(getTrigRatio(task, angleIndex, 'sin')),
+        cos: ratioToInput(getTrigRatio(task, angleIndex, 'cos')),
+        tan: ratioToInput(getTrigRatio(task, angleIndex, 'tan'))
+      }
+    };
+  });
+}
+
+function getCheckerMode(task) {
+  return task.questionKind === QUESTION_KINDS.ratioToFunction ? 'trig-expression' : 'side-ratio';
+}
+
 function exactAnswerCheck(rawValue, task) {
-  return normalizeAnswer(rawValue) === getExpectedAnswer(task);
+  const normalizedAnswer = normalizeAnswer(rawValue);
+  return task.acceptedAnswers.some(function(acceptedAnswer) {
+    return normalizedAnswer === normalizeAnswer(acceptedAnswer);
+  });
 }
 
 function fallbackAnswerCheck(rawValue, task, error) {
@@ -263,9 +366,12 @@ function checkAnswer(rawValue, task) {
   const id = answerCheckerRequestId + 1;
   answerCheckerRequestId = id;
   const payload = {
+    mode: getCheckerMode(task),
     userAnswer: rawValue,
     expectedAnswer: getExpectedAnswer(task),
-    allowedSymbols: getAllowedSideSymbols(task)
+    targetRatio: ratioToInput(task.targetRatio),
+    allowedSymbols: getAllowedSideSymbols(task),
+    angleDefinitions: getAngleDefinitions(task)
   };
 
   return new Promise(function(resolve) {
@@ -332,27 +438,14 @@ function buildTask() {
   angleDegrees[acuteIndices[1]] = secondAcuteAngle;
 
   const targetIndex = randomChoice(acuteIndices);
-  const otherAcuteIndex = acuteIndices.find(function(index) {
-    return index !== targetIndex;
-  });
   const taskType = randomChoice(TASK_TYPES);
-  const hypotenuseIndex = rightIndex;
-  const oppositeIndex = targetIndex;
-  const adjacentIndex = otherAcuteIndex;
-  const numeratorIndex = taskType === 'cos' ? adjacentIndex : oppositeIndex;
-  const denominatorIndex = taskType === 'tan' ? adjacentIndex : hypotenuseIndex;
-
-  return {
+  const task = {
     vertexLabels,
     angleLabels,
     rightIndex,
     acuteIndices,
     targetIndex,
     taskType,
-    answer: {
-      numerator: sideLabelForVertex(vertexLabels[numeratorIndex]),
-      denominator: sideLabelForVertex(vertexLabels[denominatorIndex])
-    },
     angleDegrees,
     localLegs: makeLocalTriangle(angleDegrees, acuteIndices, rightIndex),
     rotation: Math.random() * Math.PI * 2,
@@ -361,6 +454,34 @@ function buildTask() {
     centerOffsetX: (Math.random() - 0.5) * 0.08,
     centerOffsetY: (Math.random() - 0.5) * 0.08
   };
+
+  const baseRatio = getTrigRatio(task, targetIndex, taskType);
+  const isRatioToFunction = Math.random() < RATIO_TO_FUNCTION_TASK_PROBABILITY;
+  if (isRatioToFunction) {
+    const reciprocal = Math.random() < RECIPROCAL_RATIO_TASK_PROBABILITY;
+    const targetRatio = reciprocal ? invertRatio(baseRatio) : baseRatio;
+    const expectedExpression = trigExpressionInput(taskType, angleLabels[targetIndex], reciprocal);
+    const acceptedAnswers = getAcceptedTrigAnswersForRatio(task, targetRatio);
+    if (!acceptedAnswers.includes(expectedExpression)) {
+      acceptedAnswers.unshift(expectedExpression);
+    }
+
+    return Object.assign(task, {
+      questionKind: QUESTION_KINDS.ratioToFunction,
+      reciprocal,
+      targetRatio,
+      expectedExpression,
+      acceptedAnswers
+    });
+  }
+
+  return Object.assign(task, {
+    questionKind: QUESTION_KINDS.functionToRatio,
+    reciprocal: false,
+    targetRatio: baseRatio,
+    expectedExpression: trigExpressionInput(taskType, angleLabels[targetIndex], false),
+    acceptedAnswers: [ratioToInput(baseRatio)]
+  });
 }
 
 function makeLocalTriangle(angleDegrees, acuteIndices, rightIndex) {
@@ -387,6 +508,9 @@ function trigFunctionLatex(taskType) {
 }
 
 function getQuestionLatex(task) {
+  if (task.questionKind === QUESTION_KINDS.ratioToFunction) {
+    return `\\(\\frac{${task.targetRatio.numerator}}{${task.targetRatio.denominator}}=\\)`;
+  }
   const angle = task.angleLabels[task.targetIndex].latex;
   const functionName = trigFunctionLatex(task.taskType);
   return `\\(${functionName}\\!\\left(${angle}\\right)=\\)`;
@@ -395,8 +519,14 @@ function getQuestionLatex(task) {
 function getSolutionLatex(task) {
   const angle = task.angleLabels[task.targetIndex].latex;
   const functionName = trigFunctionLatex(task.taskType);
-  const numerator = task.answer.numerator;
-  const denominator = task.answer.denominator;
+  const numerator = task.targetRatio.numerator;
+  const denominator = task.targetRatio.denominator;
+  if (task.questionKind === QUESTION_KINDS.ratioToFunction) {
+    const expression = trigExpressionLatex(task.taskType, task.angleLabels[task.targetIndex], task.reciprocal);
+    return `\\[
+      \\frac{${numerator}}{${denominator}} = ${expression}
+    \\]`;
+  }
   const ratioText = {
     sin: '\\frac{\\text{Gegenkathete}}{\\text{Hypotenuse}}',
     cos: '\\frac{\\text{Ankathete}}{\\text{Hypotenuse}}',
@@ -416,9 +546,20 @@ function normalizeAnswer(value) {
   return value
     .trim()
     .toLowerCase()
+    .replace(/\\left|\\right/g, '')
+    .replace(/\\(sin|cos|tan)/g, '$1')
+    .replace(/\\alpha/g, 'alpha')
+    .replace(/\\beta/g, 'beta')
+    .replace(/\\gamma/g, 'gamma')
+    .replace(/\\varphi|\\phi/g, 'phi')
+    .replace(/\\psi/g, 'psi')
+    .replace(/\\omega/g, 'omega')
+    .replace(/\\delta/g, 'delta')
+    .replace(/\\varepsilon|\\epsilon/g, 'epsilon')
+    .replace(/\\eta/g, 'eta')
     .replace(/\s+/g, '')
     .replace(/÷|:/g, '/')
-    .replace(/\\frac\{?([a-z])\}?\{?([a-z])\}?/g, '$1/$2')
+    .replace(/\\(?:dfrac|tfrac|frac)\{([^{}]+)\}\{([^{}]+)\}/g, '($1)/($2)')
     .replace(/[{}()]/g, '');
 }
 
@@ -455,13 +596,108 @@ function updateScoreCounter() {
   controls.scoreCounter.textContent = `Punkte: ${correctAnswers}/${answeredQuestions}`;
 }
 
+function setAnswerInputMode(task) {
+  if (task.questionKind === QUESTION_KINDS.ratioToFunction) {
+    controls.answerInput.placeholder = 'z. B. sin(alpha)';
+    controls.answerInput.setAttribute('aria-label', 'Antwort als trigonometrischer Ausdruck');
+    return;
+  }
+  controls.answerInput.placeholder = 'z. B. a/c';
+  controls.answerInput.setAttribute('aria-label', 'Antwort als Seitenverhältnis');
+}
+
+function insertAnswerText(text, cursorOffset) {
+  if (controls.answerInput.disabled) {
+    return;
+  }
+  const input = controls.answerInput;
+  const start = typeof input.selectionStart === 'number' ? input.selectionStart : input.value.length;
+  const end = typeof input.selectionEnd === 'number' ? input.selectionEnd : input.value.length;
+  input.value = `${input.value.slice(0, start)}${text}${input.value.slice(end)}`;
+  const cursor = start + text.length + (cursorOffset || 0);
+  input.focus();
+  input.setSelectionRange(cursor, cursor);
+}
+
+function addAnswerHelperButton(container, options) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'answer-helper-button';
+  button.setAttribute('aria-label', options.ariaLabel);
+  if (options.html) {
+    button.innerHTML = options.label;
+  } else {
+    button.textContent = options.label;
+  }
+  button.addEventListener('click', options.onClick);
+  container.appendChild(button);
+}
+
+function renderAnswerHelpers(task) {
+  if (task.questionKind !== QUESTION_KINDS.ratioToFunction) {
+    controls.answerHelpers.classList.add('hidden');
+    clearMathContent(controls.answerHelpers);
+    return;
+  }
+
+  controls.answerHelpers.classList.remove('hidden');
+  const angleLabels = task.acuteIndices.map(function(angleIndex) {
+    return task.angleLabels[angleIndex];
+  });
+
+  replaceMathContent(controls.answerHelpers, function() {
+    controls.answerHelpers.innerHTML = '';
+    const angleNameList = document.createElement('div');
+    angleNameList.className = 'angle-name-list';
+    angleLabels.forEach(function(angleLabel) {
+      const item = document.createElement('span');
+      item.className = 'angle-name-item';
+      item.innerHTML = `\\(${angleLabel.latex}\\) = ${angleLabel.name}`;
+      angleNameList.appendChild(item);
+    });
+    controls.answerHelpers.appendChild(angleNameList);
+
+    const buttonRow = document.createElement('div');
+    buttonRow.className = 'answer-helper-buttons';
+    ['sin', 'cos', 'tan'].forEach(function(functionName) {
+      addAnswerHelperButton(buttonRow, {
+        label: `${functionName}( )`,
+        ariaLabel: `${functionName} einfügen`,
+        onClick: function() {
+          insertAnswerText(`${functionName}()`, -1);
+        }
+      });
+    });
+    addAnswerHelperButton(buttonRow, {
+      label: '1/',
+      ariaLabel: 'Kehrwert einfügen',
+      onClick: function() {
+        insertAnswerText('1/', 0);
+      }
+    });
+    angleLabels.forEach(function(angleLabel) {
+      addAnswerHelperButton(buttonRow, {
+        label: `\\(${angleLabel.latex}\\) ${angleLabel.name}`,
+        html: true,
+        ariaLabel: `${angleLabel.name} einfügen`,
+        onClick: function() {
+          insertAnswerText(angleLabel.name, 0);
+        }
+      });
+    });
+    controls.answerHelpers.appendChild(buttonRow);
+  });
+}
+
 function newTask() {
   taskNumber += 1;
   currentTask = buildTask();
   clearSolvedState();
   controls.nextButton.disabled = true;
   controls.taskCounter.textContent = `Aufgabe ${taskNumber}`;
+  setAnswerInputMode(currentTask);
   renderMath(controls.taskQuestion, getQuestionLatex(currentTask));
+  renderAnswerHelpers(currentTask);
   renderTriangle(currentTask);
   window.setTimeout(function() {
     controls.answerInput.focus();

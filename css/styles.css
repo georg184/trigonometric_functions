@@ -256,6 +256,37 @@ p {
   gap: 8px;
 }
 
+.answer-helpers {
+  display: grid;
+  gap: 10px;
+}
+
+.angle-name-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.angle-name-item {
+  white-space: nowrap;
+}
+
+.answer-helper-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.answer-helper-button {
+  min-height: 36px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: white;
+  font-size: 0.94rem;
+}
+
 label {
   font-weight: 700;
 }
