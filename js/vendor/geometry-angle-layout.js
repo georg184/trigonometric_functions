@@ -8,7 +8,7 @@
 (function(global) {
   'use strict';
 
-  const VERSION = '0.4.5';
+  const VERSION = '0.4.6';
 
   const DEFAULTS = Object.freeze({
     acuteAngleArcRadius: 44,
@@ -17,6 +17,10 @@
     labelEccentricity: 0.6,
     narrowAngleLabelEccentricity: 0.85,
     narrowAngleThresholdDeg: 25,
+    angleLabelSampleMinWeight: 0.08,
+    angleLabelResidualMinWeight: 0.35,
+    angleLabelResidualFullWeight: 8,
+    angleLabelResidualMaxBlend: 0.85,
     angleRayStrokeWidthPx: 3.25,
     angleArcStrokeWidthPx: 2.25,
     rightAngleArcRadius: 26,
@@ -872,6 +876,9 @@
       labelPercent: clamp(baseline.labelPercent + correction.labelPercent, 25, 130),
       labelAngleOffsetDeg: clamp(correction.labelAngleOffsetDeg, -90, 90),
       sampleCorrectionWeight: correction.weight,
+      classCorrectionWeight: correction.classWeight,
+      labelResidualWeight: correction.labelResidualWeight,
+      labelResidualBlend: correction.labelResidualBlend,
       fontSizePx,
       baselineFontSizePx: DEFAULTS.angleLabelFontSizePx
     };
@@ -894,59 +901,175 @@
     }
 
     let totalWeight = 0;
+    const safeClassId = ANGLE_LABEL_CLASS_IDS.includes(target.labelClassId) ? target.labelClassId : 'medium';
+    const targetLabel = normalizeLabel(target.label);
+    let classCorrection = classSampleCorrection(
+      target,
+      settings,
+      baseRayAngleDeg,
+      safeClassId,
+      targetLabel
+    );
+
+    if (classCorrection.weight < settings.angleLabelSampleMinWeight) {
+      classCorrection = classSampleCorrection(
+        target,
+        settings,
+        baseRayAngleDeg,
+        safeClassId,
+        null
+      );
+    }
+
+    const labelResidual = labelSpecificResidualCorrection(
+      target,
+      settings,
+      baseRayAngleDeg,
+      safeClassId,
+      targetLabel
+    );
+    const residualBlend = labelResidualBlend(labelResidual.weight, settings);
+    totalWeight = classCorrection.weight + labelResidual.weight * residualBlend;
+
+    return {
+      arcRadius: (classCorrection.arcRadiusRatio + labelResidual.arcRadiusRatio * residualBlend) * target.fontSizePx,
+      labelPercent: classCorrection.labelPercent + labelResidual.labelPercent * residualBlend,
+      labelAngleOffsetDeg: classCorrection.labelAngleOffsetDeg + labelResidual.labelAngleOffsetDeg * residualBlend,
+      weight: totalWeight,
+      classWeight: classCorrection.weight,
+      labelResidualWeight: labelResidual.weight,
+      labelResidualBlend: residualBlend
+    };
+  }
+
+  function classSampleCorrection(target, settings, baseRayAngleDeg, labelClassId, excludedLabel) {
+    let totalWeight = 0;
     let arcRadiusRatio = 0;
     let labelPercent = 0;
     let labelAngleOffsetDeg = 0;
-    const safeClassId = ANGLE_LABEL_CLASS_IDS.includes(target.labelClassId) ? target.labelClassId : 'medium';
-    const targetLabel = normalizeLabel(target.label);
 
     ANGLE_LABEL_SAMPLE_DATA.forEach(function(sample) {
-      const weight = sampleWeight(sample, target, baseRayAngleDeg, safeClassId, targetLabel);
+      const weight = classSampleWeight(sample, target, baseRayAngleDeg, labelClassId, excludedLabel);
       if (weight < 0.01) {
         return;
       }
 
-      const baseline = baselineAngleLabelStyle(
-        sample.angleDeg,
-        sample.labelClassId,
-        sample.fontSizePx,
-        settings
-      );
-      arcRadiusRatio += weight * clamp(
-        sample.arcRadius / sample.fontSizePx - baseline.arcRadius / sample.fontSizePx,
-        -2.5,
-        2.5
-      );
-      labelPercent += weight * clamp(sample.labelPercent - baseline.labelPercent, -30, 30);
-      labelAngleOffsetDeg += weight * clamp(sample.labelAngleOffsetDeg, -20, 20);
+      const residual = sampleBaselineResidual(sample, settings);
+      arcRadiusRatio += weight * residual.arcRadiusRatio;
+      labelPercent += weight * residual.labelPercent;
+      labelAngleOffsetDeg += weight * residual.labelAngleOffsetDeg;
       totalWeight += weight;
     });
 
-    if (totalWeight < 0.08) {
-      return zeroSampleCorrection();
+    if (totalWeight < settings.angleLabelSampleMinWeight) {
+      return zeroRawCorrection();
     }
 
     return {
-      arcRadius: (arcRadiusRatio / totalWeight) * target.fontSizePx,
+      arcRadiusRatio: arcRadiusRatio / totalWeight,
       labelPercent: labelPercent / totalWeight,
       labelAngleOffsetDeg: labelAngleOffsetDeg / totalWeight,
       weight: totalWeight
     };
   }
 
-  function sampleWeight(sample, target, baseRayAngleDeg, labelClassId, targetLabel) {
-    const angleDistance = Math.abs(sample.angleDeg - target.angleDeg);
-    const baseRayDistance = circularDistance(sample.baseRayAngleDeg, baseRayAngleDeg);
-    let distanceSquared = square(angleDistance / 35)
-      + square(baseRayDistance / 70);
-
-    if (sample.labelClassId !== labelClassId) {
-      distanceSquared += 5;
-    } else if (!labelsMatch(sample.label, targetLabel)) {
-      distanceSquared += 0.35;
+  function labelSpecificResidualCorrection(target, settings, baseRayAngleDeg, labelClassId, targetLabel) {
+    if (!targetLabel || (!targetLabel.text && !targetLabel.latex)) {
+      return zeroRawCorrection();
     }
 
+    let totalWeight = 0;
+    let arcRadiusRatio = 0;
+    let labelPercent = 0;
+    let labelAngleOffsetDeg = 0;
+
+    ANGLE_LABEL_SAMPLE_DATA.forEach(function(sample) {
+      const weight = labelResidualSampleWeight(sample, target, baseRayAngleDeg, labelClassId, targetLabel);
+      if (weight < 0.01) {
+        return;
+      }
+
+      const sampleBaseRayAngleDeg = normalizeOptionalDegrees(sample.baseRayAngleDeg);
+      const genericClassCorrection = classSampleCorrection(
+        sample,
+        settings,
+        sampleBaseRayAngleDeg,
+        labelClassId,
+        targetLabel
+      );
+      const residual = sampleBaselineResidual(sample, settings);
+
+      arcRadiusRatio += weight * (residual.arcRadiusRatio - genericClassCorrection.arcRadiusRatio);
+      labelPercent += weight * (residual.labelPercent - genericClassCorrection.labelPercent);
+      labelAngleOffsetDeg += weight * (
+        residual.labelAngleOffsetDeg - genericClassCorrection.labelAngleOffsetDeg
+      );
+      totalWeight += weight;
+    });
+
+    if (totalWeight < settings.angleLabelResidualMinWeight) {
+      return zeroRawCorrection();
+    }
+
+    return {
+      arcRadiusRatio: arcRadiusRatio / totalWeight,
+      labelPercent: labelPercent / totalWeight,
+      labelAngleOffsetDeg: labelAngleOffsetDeg / totalWeight,
+      weight: totalWeight
+    };
+  }
+
+  function sampleBaselineResidual(sample, settings) {
+    const baseline = baselineAngleLabelStyle(
+      sample.angleDeg,
+      sample.labelClassId,
+      sample.fontSizePx,
+      settings
+    );
+    return {
+      arcRadiusRatio: clamp(
+        sample.arcRadius / sample.fontSizePx - baseline.arcRadius / sample.fontSizePx,
+        -2.5,
+        2.5
+      ),
+      labelPercent: clamp(sample.labelPercent - baseline.labelPercent, -30, 30),
+      labelAngleOffsetDeg: clamp(sample.labelAngleOffsetDeg, -20, 20)
+    };
+  }
+
+  function classSampleWeight(sample, target, baseRayAngleDeg, labelClassId, excludedLabel) {
+    if (sample.labelClassId !== labelClassId) {
+      return 0;
+    }
+    if (excludedLabel && labelsMatch(sample.label, excludedLabel)) {
+      return 0;
+    }
+    return neighborhoodSampleWeight(sample, target, baseRayAngleDeg);
+  }
+
+  function labelResidualSampleWeight(sample, target, baseRayAngleDeg, labelClassId, targetLabel) {
+    if (sample.labelClassId !== labelClassId || !labelsMatch(sample.label, targetLabel)) {
+      return 0;
+    }
+    return neighborhoodSampleWeight(sample, target, baseRayAngleDeg);
+  }
+
+  function neighborhoodSampleWeight(sample, target, baseRayAngleDeg) {
+    const angleDistance = Math.abs(sample.angleDeg - target.angleDeg);
+    const baseRayDistance = circularDistance(sample.baseRayAngleDeg, baseRayAngleDeg);
+    const distanceSquared = square(angleDistance / 35)
+      + square(baseRayDistance / 70);
+
     return Math.exp(-0.5 * distanceSquared) / (0.05 + distanceSquared);
+  }
+
+  function labelResidualBlend(weight, settings) {
+    if (weight <= settings.angleLabelResidualMinWeight) {
+      return 0;
+    }
+    const t = (weight - settings.angleLabelResidualMinWeight)
+      / Math.max(0.001, settings.angleLabelResidualFullWeight - settings.angleLabelResidualMinWeight);
+    return clamp(t, 0, 1) * settings.angleLabelResidualMaxBlend;
   }
 
   function angleLabelCalibrationAt(angleDeg, labelClassId) {
@@ -1226,6 +1349,18 @@
   function zeroSampleCorrection() {
     return {
       arcRadius: 0,
+      labelPercent: 0,
+      labelAngleOffsetDeg: 0,
+      weight: 0,
+      classWeight: 0,
+      labelResidualWeight: 0,
+      labelResidualBlend: 0
+    };
+  }
+
+  function zeroRawCorrection() {
+    return {
+      arcRadiusRatio: 0,
       labelPercent: 0,
       labelAngleOffsetDeg: 0,
       weight: 0
