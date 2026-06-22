@@ -37,6 +37,8 @@ The triangle quiz currently generates side-ratio-to-function questions with 50% 
 
 The triangle quiz treats each task as an answered-before-next workflow. `Nächste Aufgabe` is disabled when a new task is created and is enabled only after the submitted answer has been checked. Keep that behavior unless the app deliberately changes from quiz mode to free practice mode.
 
+The quiz can be left through `Zur Startseite` without resetting the current task or score. Returning to `am rechtwinkligen Dreieck` resumes the in-memory quiz state; a full page reload starts fresh.
+
 The `am Einheitskreis` entry is currently a placeholder by design. Do not add partial unit-circle behavior unless that path is implemented as a complete workflow.
 
 ## Vendored Shared Code
@@ -81,6 +83,7 @@ For browser checks, start a local static server and verify:
 - SVG geometry and five MathJax labels are present
 - both right-angle marker modes work
 - answer checking and the next-task flow work
+- `Zur Startseite` returns to the intro screen without clearing the current score, and reopening the right-triangle quiz resumes the same in-memory round
 - equivalent symbolic answers such as `a:c`, `\frac{a}{c}`, `2*a/(2*c)`, and `a*c/c^2` are accepted when they match the expected ratio
 - side-ratio-to-function tasks accept equivalent trig expressions such as `sin(alpha)`, `cos(beta)`, or `1/tan(alpha)` when they match the displayed ratio
 - side-ratio-to-function tasks show the two acute angle names and clicking an angle helper inserts the typed angle name

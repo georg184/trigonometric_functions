@@ -1,4 +1,4 @@
-const APP_VERSION = '20260622.6';
+const APP_VERSION = '20260622.7';
 if (window.GG_APP_VERSION !== APP_VERSION) {
   document.body.innerHTML = [
     '<main style="max-width:720px;margin:40px auto;padding:20px;font-family:system-ui,sans-serif;line-height:1.45">',
@@ -949,12 +949,29 @@ function renderTriangle(task) {
   renderSvgWithHtmlLabels(controls.triangleRenderer, task);
 }
 
+function focusActiveQuizControl() {
+  window.setTimeout(function() {
+    if (controls.answerInput.disabled) {
+      controls.nextButton.focus();
+      return;
+    }
+    controls.answerInput.focus();
+  }, 0);
+}
+
 function startTriangleQuiz() {
+  rightAngleMarker = readRightAngleMarkerSetting();
+  showScreen('quiz');
+  if (currentTask) {
+    updateScoreCounter();
+    renderTriangle(currentTask);
+    focusActiveQuizControl();
+    return;
+  }
+
   taskNumber = 0;
   correctAnswers = 0;
   answeredQuestions = 0;
-  rightAngleMarker = readRightAngleMarkerSetting();
-  showScreen('quiz');
   updateScoreCounter();
   newTask();
 }
