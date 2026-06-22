@@ -1,4 +1,4 @@
-const APP_VERSION = '20260621.12';
+const APP_VERSION = '20260622.1';
 if (window.GG_APP_VERSION !== APP_VERSION) {
   document.body.innerHTML = [
     '<main style="max-width:720px;margin:40px auto;padding:20px;font-family:system-ui,sans-serif;line-height:1.45">',
