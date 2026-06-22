@@ -313,9 +313,9 @@ input:disabled {
 }
 
 .feedback.incorrect {
-  color: var(--warning);
-  border-color: rgba(154, 103, 0, 0.35);
-  background: rgba(154, 103, 0, 0.08);
+  color: var(--danger);
+  border-color: rgba(180, 35, 24, 0.35);
+  background: rgba(180, 35, 24, 0.08);
 }
 
 .solution {

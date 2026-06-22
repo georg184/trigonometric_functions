@@ -1,4 +1,4 @@
-const APP_VERSION = '20260622.2';
+const APP_VERSION = '20260622.3';
 if (window.GG_APP_VERSION !== APP_VERSION) {
   document.body.innerHTML = [
     '<main style="max-width:720px;margin:40px auto;padding:20px;font-family:system-ui,sans-serif;line-height:1.45">',
@@ -43,6 +43,7 @@ const TASK_TYPES = ['sin', 'cos', 'tan'];
 const SIDE_COLORS = ['#bf8700', '#2ea043', '#0969da'];
 const TRIANGLE_SIDE_STROKE_WIDTH = 3.5;
 const TRIANGLE_ANGLE_ARC_STROKE_WIDTH = 2;
+const ANSWER_CHECK_TIMEOUT_MS = 45000;
 const RIGHT_ANGLE_MARKERS = {
   arcDot: 'arcDot',
   square: 'square'
@@ -78,6 +79,10 @@ let taskNumber = 0;
 let rightAngleMarker = RIGHT_ANGLE_MARKERS.arcDot;
 let mathRenderQueue = Promise.resolve();
 const mathRenderTokens = new WeakMap();
+let answerCheckerWorker = null;
+let answerCheckerRequestId = 0;
+let answerCheckerFailed = false;
+const pendingAnswerChecks = new Map();
 
 function showScreen(name) {
   for (const [screenName, element] of Object.entries(screens)) {
@@ -165,6 +170,118 @@ function clearMathContent(element) {
 function renderMath(element, latex) {
   replaceMathContent(element, function() {
     element.innerHTML = latex;
+  });
+}
+
+function getExpectedAnswer(task) {
+  return `${task.answer.numerator}/${task.answer.denominator}`;
+}
+
+function getAllowedSideSymbols(task) {
+  return task.vertexLabels.map(sideLabelForVertex);
+}
+
+function exactAnswerCheck(rawValue, task) {
+  return normalizeAnswer(rawValue) === getExpectedAnswer(task);
+}
+
+function fallbackAnswerCheck(rawValue, task, error) {
+  if (error) {
+    console.warn('Falling back to exact answer check:', error);
+  }
+  return {
+    correct: exactAnswerCheck(rawValue, task),
+    checker: 'exact-fallback'
+  };
+}
+
+function resolvePendingAnswerChecksWithFallback(error) {
+  for (const [id, pending] of pendingAnswerChecks.entries()) {
+    window.clearTimeout(pending.timeoutId);
+    pendingAnswerChecks.delete(id);
+    pending.resolve(fallbackAnswerCheck(pending.rawValue, pending.task, error));
+  }
+}
+
+function handleAnswerCheckerMessage(event) {
+  const message = event.data || {};
+  if (message.type === 'ready') {
+    answerCheckerFailed = false;
+    return;
+  }
+  if (message.type === 'ready-error') {
+    answerCheckerFailed = true;
+    resolvePendingAnswerChecksWithFallback(message.error || 'answer checker failed to load');
+    return;
+  }
+  if (message.type !== 'check-result') {
+    return;
+  }
+
+  const pending = pendingAnswerChecks.get(message.id);
+  if (!pending) {
+    return;
+  }
+  window.clearTimeout(pending.timeoutId);
+  pendingAnswerChecks.delete(message.id);
+  if (message.error) {
+    pending.resolve(fallbackAnswerCheck(pending.rawValue, pending.task, message.error));
+    return;
+  }
+  pending.resolve(message.result);
+}
+
+function initializeAnswerChecker() {
+  if (!window.Worker) {
+    answerCheckerFailed = true;
+    return;
+  }
+
+  try {
+    answerCheckerWorker = new Worker(`js/sympy-worker.js?v=${APP_VERSION}`, { type: 'module' });
+  } catch (error) {
+    answerCheckerFailed = true;
+    console.warn('Could not start answer checker worker:', error);
+    return;
+  }
+
+  answerCheckerWorker.addEventListener('message', handleAnswerCheckerMessage);
+  answerCheckerWorker.addEventListener('error', function(event) {
+    answerCheckerFailed = true;
+    resolvePendingAnswerChecksWithFallback(event.message || 'answer checker worker error');
+  });
+}
+
+function checkAnswer(rawValue, task) {
+  if (!answerCheckerWorker || answerCheckerFailed) {
+    return Promise.resolve(fallbackAnswerCheck(rawValue, task));
+  }
+
+  const id = answerCheckerRequestId + 1;
+  answerCheckerRequestId = id;
+  const payload = {
+    userAnswer: rawValue,
+    expectedAnswer: getExpectedAnswer(task),
+    allowedSymbols: getAllowedSideSymbols(task)
+  };
+
+  return new Promise(function(resolve) {
+    const timeoutId = window.setTimeout(function() {
+      pendingAnswerChecks.delete(id);
+      resolve(fallbackAnswerCheck(rawValue, task, 'answer checker timed out'));
+    }, ANSWER_CHECK_TIMEOUT_MS);
+
+    pendingAnswerChecks.set(id, {
+      rawValue,
+      task,
+      resolve,
+      timeoutId
+    });
+    answerCheckerWorker.postMessage({
+      type: 'check-answer',
+      id,
+      payload
+    });
   });
 }
 
@@ -302,17 +419,14 @@ function normalizeAnswer(value) {
     .replace(/[{}()]/g, '');
 }
 
-function isCorrectAnswer(rawValue, task) {
-  return normalizeAnswer(rawValue) === `${task.answer.numerator}/${task.answer.denominator}`;
-}
-
 function setSolvedState(isCorrect) {
   controls.feedback.classList.remove('hidden', 'correct', 'incorrect');
   controls.feedback.classList.add(isCorrect ? 'correct' : 'incorrect');
-  controls.feedback.textContent = isCorrect ? 'Richtig.' : 'Nicht ganz. Die Auflösung steht unten.';
+  controls.feedback.textContent = isCorrect ? 'Richtig.' : 'Falsch.';
   controls.solution.classList.remove('hidden');
   controls.answerInput.disabled = true;
   controls.checkButton.disabled = true;
+  controls.checkButton.textContent = 'Prüfen';
   controls.nextButton.disabled = false;
   controls.nextButton.focus();
 }
@@ -325,6 +439,7 @@ function clearSolvedState() {
   clearMathContent(controls.solution);
   controls.answerInput.disabled = false;
   controls.checkButton.disabled = false;
+  controls.checkButton.textContent = 'Prüfen';
   controls.answerInput.value = '';
 }
 
@@ -341,14 +456,27 @@ function newTask() {
   }, 0);
 }
 
-function submitAnswer(event) {
+function setCheckingState() {
+  controls.answerInput.disabled = true;
+  controls.checkButton.disabled = true;
+  controls.checkButton.textContent = 'Prüfe...';
+}
+
+async function submitAnswer(event) {
   event.preventDefault();
-  if (!currentTask || controls.answerInput.disabled) {
+  if (!currentTask || controls.answerInput.disabled || controls.checkButton.disabled) {
     return;
   }
-  const isCorrect = isCorrectAnswer(controls.answerInput.value, currentTask);
-  renderMath(controls.solution, getSolutionLatex(currentTask));
-  setSolvedState(isCorrect);
+  const task = currentTask;
+  const rawValue = controls.answerInput.value;
+  setCheckingState();
+  const result = await checkAnswer(rawValue, task);
+  if (currentTask !== task) {
+    controls.checkButton.textContent = 'Prüfen';
+    return;
+  }
+  renderMath(controls.solution, getSolutionLatex(task));
+  setSolvedState(Boolean(result.correct));
 }
 
 function getSurfaceSize(surface) {
@@ -594,4 +722,5 @@ window.addEventListener('resize', function() {
   }
 });
 
+initializeAnswerChecker();
 showScreen('intro');

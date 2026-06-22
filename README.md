@@ -14,6 +14,7 @@ The public version is intended to be available through GitHub Pages:
 - `css/styles.css`: the app styling
 - `js/mathjax-config.js`: MathJax configuration
 - `js/vendor/geometry-angle-layout.js`: vendored copy of `ggprojects/shared/geometry-angle-layout.js` for public GitHub Pages use
+- `js/sympy-worker.js`: module web worker that loads Pyodide/SymPy from a pinned CDN URL and checks answers in the browser
 - `js/app.js`: the quiz logic, random task generation, answer checking, and the SVG/MathJax geometry renderer
 
 ## Rendering Architecture
@@ -29,6 +30,8 @@ Older comparison renderers using JSXGraph, D3, and GeoGebra were removed. Do not
 ## Runtime Behavior Notes
 
 Dynamic MathJax content in `js/app.js` is intentionally routed through a small serialized render queue. Future changes that replace the task question, solution, or triangle label surface should keep using the existing queue helpers instead of calling `MathJax.typesetPromise()` directly. Clear MathJax state with `typesetClear` before removing or replacing dynamic DOM nodes; otherwise MathJax can retain detached internal math items during longer quiz sessions.
+
+Answer checking is client-side. `js/app.js` starts `js/sympy-worker.js` as a module worker with a versioned local URL, and the worker loads pinned Pyodide/SymPy assets from jsDelivr. Keep symbolic checking inside the worker so Pyodide and SymPy do not block the UI thread. The worker validates input before parsing: accepted answers are restricted to the current side symbols, numbers, arithmetic operators, parentheses, division variants, and simple LaTeX fractions.
 
 The triangle quiz treats each task as an answered-before-next workflow. `Nächste Aufgabe` is disabled when a new task is created and is enabled only after the submitted answer has been checked. Keep that behavior unless the app deliberately changes from quiz mode to free practice mode.
 
@@ -54,7 +57,7 @@ The page uses a shared app version in three places:
 - `?v=...` query strings on every local CSS/JS/vendor asset
 - `APP_VERSION` at the top of `js/app.js`
 
-Whenever `index.html`, local CSS, local JavaScript, `js/mathjax-config.js`, or `js/vendor/geometry-angle-layout.js` changes, update all three places together and keep the visible version badge current. This prevents GitHub Pages or browser caches from mixing old JavaScript with new HTML.
+Whenever `index.html`, local CSS, local JavaScript, `js/mathjax-config.js`, `js/sympy-worker.js`, or `js/vendor/geometry-angle-layout.js` changes, update all three places together and keep the visible version badge current. This prevents GitHub Pages or browser caches from mixing old JavaScript with new HTML. The worker is not loaded from `index.html`, but `js/app.js` must create it with the same `?v=${APP_VERSION}` token.
 
 ## Verification
 
@@ -63,6 +66,7 @@ Useful local checks after runtime changes:
 ```bash
 node --check js/app.js
 node --check js/mathjax-config.js
+node --check js/sympy-worker.js
 node --check js/vendor/geometry-angle-layout.js
 ```
 
@@ -75,6 +79,8 @@ For browser checks, start a local static server and verify:
 - SVG geometry and five MathJax labels are present
 - both right-angle marker modes work
 - answer checking and the next-task flow work
+- equivalent symbolic answers such as `a:c`, `\frac{a}{c}`, `2*a/(2*c)`, and `a*c/c^2` are accepted when they match the expected ratio
+- wrong answers show the red feedback text `Falsch.`
 - rapid answer/next/resize interactions do not create duplicate SVGs, duplicate labels, overlapping MathJax render jobs, or detached MathJax items
 - no horizontal page overflow appears around desktop, tablet, and phone widths
 
