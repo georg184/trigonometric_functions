@@ -4,11 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Trigonometrische Funktionen</title>
-  <script>window.GG_APP_VERSION = '20260623.2';</script>
-  <link rel="stylesheet" href="css/styles.css?v=20260623.2" />
-  <script src="js/mathjax-config.js?v=20260623.2"></script>
+  <script>window.GG_APP_VERSION = '20260623.3';</script>
+  <link rel="stylesheet" href="css/styles.css?v=20260623.3" />
+  <script src="js/mathjax-config.js?v=20260623.3"></script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
-  <script src="js/vendor/geometry-angle-layout.js?v=20260623.2"></script>
+  <script src="js/vendor/geometry-angle-layout.js?v=20260623.3"></script>
 </head>
 <body>
   <main>
@@ -64,6 +64,11 @@
           <div class="task-status-row">
             <div id="taskCounter" class="task-counter"></div>
             <div id="scoreCounter" class="score-counter" aria-live="polite"></div>
+            <div id="timeCounter" class="time-counter" aria-live="off"></div>
+          </div>
+
+          <div id="roundStartPanel" class="round-start-panel">
+            <button id="beginRoundButton" type="button">Start</button>
           </div>
 
           <form id="answerForm" class="answer-form">
@@ -94,6 +99,7 @@
         <div class="result-title">Runde abgeschlossen</div>
         <div id="resultScore" class="result-score" aria-live="polite"></div>
         <p id="resultDetail" class="result-detail"></p>
+        <div id="resultTime" class="result-time"></div>
         <div class="result-actions">
           <button id="newRoundButton" type="button">Neues Spiel starten</button>
           <button id="resultHomeButton" class="secondary-button" type="button">Zur Startseite</button>
@@ -102,8 +108,8 @@
     </section>
   </main>
 
-  <div class="version-badge" aria-label="Version">v2026.06.23.2</div>
+  <div class="version-badge" aria-label="Version">v2026.06.23.3</div>
 
-  <script src="js/app.js?v=20260623.2"></script>
+  <script src="js/app.js?v=20260623.3"></script>
 </body>
 </html>

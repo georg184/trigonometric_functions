@@ -7,7 +7,8 @@ highscore lists to the static trigonometry app. The implementation is deferred.
 
 - Keep hosting the app on GitHub Pages.
 - Keep SymPy answer checking in the browser through Pyodide/SymPy.
-- The app already uses 10 questions per scored local round.
+- The app already uses 10 questions per scored local round and measures elapsed
+  round time locally.
 - After 10 questions, the round is finished and can be submitted to a
   leaderboard when Supabase is configured and reachable.
 - If Supabase is missing or unavailable, the app should remain playable in

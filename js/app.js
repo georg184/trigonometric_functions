@@ -1,4 +1,4 @@
-const APP_VERSION = '20260623.2';
+const APP_VERSION = '20260623.3';
 if (window.GG_APP_VERSION !== APP_VERSION) {
   document.body.innerHTML = [
     '<main style="max-width:720px;margin:40px auto;padding:20px;font-family:system-ui,sans-serif;line-height:1.45">',
@@ -29,6 +29,9 @@ const controls = {
   triangleRenderer: document.getElementById('triangleRenderer'),
   taskCounter: document.getElementById('taskCounter'),
   scoreCounter: document.getElementById('scoreCounter'),
+  timeCounter: document.getElementById('timeCounter'),
+  roundStartPanel: document.getElementById('roundStartPanel'),
+  beginRoundButton: document.getElementById('beginRoundButton'),
   taskQuestion: document.getElementById('taskQuestion'),
   answerForm: document.getElementById('answerForm'),
   answerInput: document.getElementById('answerInput'),
@@ -37,7 +40,8 @@ const controls = {
   feedback: document.getElementById('feedback'),
   solution: document.getElementById('solution'),
   resultScore: document.getElementById('resultScore'),
-  resultDetail: document.getElementById('resultDetail')
+  resultDetail: document.getElementById('resultDetail'),
+  resultTime: document.getElementById('resultTime')
 };
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -54,6 +58,7 @@ const QUESTION_KINDS = {
 const RATIO_TO_FUNCTION_TASK_PROBABILITY = 0.5;
 const RECIPROCAL_RATIO_TASK_PROBABILITY = 0.2;
 const QUESTIONS_PER_ROUND = 10;
+const TIMER_UPDATE_INTERVAL_MS = 250;
 const SIDE_COLORS = ['#bf8700', '#2ea043', '#0969da'];
 const TRIANGLE_SIDE_STROKE_WIDTH = 3.5;
 const TRIANGLE_ANGLE_ARC_STROKE_WIDTH = 2;
@@ -94,6 +99,10 @@ let taskNumber = 0;
 let correctAnswers = 0;
 let answeredQuestions = 0;
 let roundFinished = false;
+let roundStarted = false;
+let roundStartTimestamp = 0;
+let roundElapsedMs = 0;
+let timerIntervalId = null;
 let rightAngleMarker = RIGHT_ANGLE_MARKERS.arcDot;
 let mathRenderQueue = Promise.resolve();
 const mathRenderTokens = new WeakMap();
@@ -183,6 +192,12 @@ function clearMathContent(element) {
     element.innerHTML = '';
     return null;
   });
+}
+
+function clearMathContentNow(element) {
+  bumpMathRenderToken(element);
+  clearMath(element);
+  element.innerHTML = '';
 }
 
 function renderMath(element, latex) {
@@ -612,6 +627,49 @@ function updateScoreCounter() {
   controls.scoreCounter.textContent = `Punkte: ${correctAnswers}/${answeredQuestions}`;
 }
 
+function formatElapsedTime(milliseconds) {
+  const totalSeconds = Math.floor(milliseconds / 1000);
+  const seconds = totalSeconds % 60;
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const minutes = totalMinutes % 60;
+  const hours = Math.floor(totalMinutes / 60);
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function getCurrentRoundElapsedMs() {
+  if (roundStarted && !roundFinished) {
+    return performance.now() - roundStartTimestamp;
+  }
+  return roundElapsedMs;
+}
+
+function updateTimeCounter() {
+  controls.timeCounter.textContent = `Zeit: ${formatElapsedTime(getCurrentRoundElapsedMs())}`;
+}
+
+function startRoundTimer() {
+  roundStarted = true;
+  roundFinished = false;
+  roundStartTimestamp = performance.now();
+  roundElapsedMs = 0;
+  updateTimeCounter();
+  window.clearInterval(timerIntervalId);
+  timerIntervalId = window.setInterval(updateTimeCounter, TIMER_UPDATE_INTERVAL_MS);
+}
+
+function stopRoundTimer() {
+  if (roundStarted) {
+    roundElapsedMs = performance.now() - roundStartTimestamp;
+  }
+  roundStarted = false;
+  window.clearInterval(timerIntervalId);
+  timerIntervalId = null;
+  updateTimeCounter();
+}
+
 function updateNextButtonForTask() {
   if (taskNumber >= QUESTIONS_PER_ROUND) {
     controls.nextButton.textContent = 'Ergebnis anzeigen';
@@ -715,6 +773,29 @@ function renderAnswerHelpers(task) {
   });
 }
 
+function hideQuestionUntilRoundStart() {
+  controls.roundStartPanel.classList.remove('hidden');
+  controls.answerForm.classList.add('hidden');
+  controls.answerHelpers.classList.add('hidden');
+  controls.nextButton.disabled = true;
+  clearMathContentNow(controls.taskQuestion);
+  window.setTimeout(function() {
+    controls.beginRoundButton.focus();
+  }, 0);
+}
+
+function showCurrentQuestion() {
+  controls.roundStartPanel.classList.add('hidden');
+  controls.answerForm.classList.remove('hidden');
+  setAnswerInputMode(currentTask);
+  renderMath(controls.taskQuestion, getQuestionLatex(currentTask));
+  renderAnswerHelpers(currentTask);
+  controls.nextButton.disabled = false;
+  window.setTimeout(function() {
+    controls.answerInput.focus();
+  }, 0);
+}
+
 function newTask() {
   if (taskNumber >= QUESTIONS_PER_ROUND) {
     showRoundResult();
@@ -727,13 +808,12 @@ function newTask() {
   controls.nextButton.disabled = false;
   controls.taskCounter.textContent = `Aufgabe ${taskNumber}/${QUESTIONS_PER_ROUND}`;
   updateNextButtonForTask();
-  setAnswerInputMode(currentTask);
-  renderMath(controls.taskQuestion, getQuestionLatex(currentTask));
-  renderAnswerHelpers(currentTask);
   renderTriangle(currentTask);
-  window.setTimeout(function() {
-    controls.answerInput.focus();
-  }, 0);
+  if (roundStarted) {
+    showCurrentQuestion();
+    return;
+  }
+  hideQuestionUntilRoundStart();
 }
 
 function setCheckingState() {
@@ -745,7 +825,7 @@ function setCheckingState() {
 
 async function submitAnswer(event) {
   event.preventDefault();
-  if (!currentTask || controls.answerInput.disabled || controls.checkButton.disabled) {
+  if (!roundStarted || !currentTask || controls.answerInput.disabled || controls.checkButton.disabled) {
     return;
   }
   const task = currentTask;
@@ -761,6 +841,9 @@ async function submitAnswer(event) {
 }
 
 function goToNextTask() {
+  if (!roundStarted) {
+    return;
+  }
   if (currentTask && !currentTaskScored) {
     scoreCurrentTask(false);
   }
@@ -994,11 +1077,13 @@ function renderTriangle(task) {
 }
 
 function showRoundResult() {
+  stopRoundTimer();
   roundFinished = true;
   currentTask = null;
   currentTaskScored = false;
   controls.resultScore.textContent = `${correctAnswers}/${QUESTIONS_PER_ROUND} Punkte`;
   controls.resultDetail.textContent = `Du hast ${correctAnswers} von ${QUESTIONS_PER_ROUND} Fragen richtig beantwortet.`;
+  controls.resultTime.textContent = `Zeit: ${formatElapsedTime(roundElapsedMs)}`;
   showScreen('result');
   window.setTimeout(function() {
     controls.newRoundButton.focus();
@@ -1007,6 +1092,10 @@ function showRoundResult() {
 
 function focusActiveQuizControl() {
   window.setTimeout(function() {
+    if (!roundStarted) {
+      controls.beginRoundButton.focus();
+      return;
+    }
     if (controls.answerInput.disabled) {
       controls.nextButton.focus();
       return;
@@ -1015,16 +1104,29 @@ function focusActiveQuizControl() {
   }, 0);
 }
 
+function beginRound() {
+  if (!currentTask || roundStarted || roundFinished) {
+    return;
+  }
+  startRoundTimer();
+  showCurrentQuestion();
+}
+
 function startNewRound() {
+  stopRoundTimer();
   taskNumber = 0;
   correctAnswers = 0;
   answeredQuestions = 0;
   currentTask = null;
   currentTaskScored = false;
   roundFinished = false;
+  roundStarted = false;
+  roundStartTimestamp = 0;
+  roundElapsedMs = 0;
   rightAngleMarker = readRightAngleMarkerSetting();
   showScreen('quiz');
   updateScoreCounter();
+  updateTimeCounter();
   newTask();
 }
 
@@ -1033,6 +1135,7 @@ function startTriangleQuiz() {
   showScreen('quiz');
   if (currentTask && !roundFinished) {
     updateScoreCounter();
+    updateTimeCounter();
     renderTriangle(currentTask);
     focusActiveQuizControl();
     return;
@@ -1041,6 +1144,7 @@ function startTriangleQuiz() {
 }
 
 controls.startTriangleButton.addEventListener('click', startTriangleQuiz);
+controls.beginRoundButton.addEventListener('click', beginRound);
 
 controls.startUnitCircleButton.addEventListener('click', function() {
   showScreen('placeholder');

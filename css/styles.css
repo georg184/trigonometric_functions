@@ -236,9 +236,15 @@ p {
 }
 
 .task-counter,
-.score-counter {
+.score-counter,
+.time-counter {
   color: var(--muted);
   font-weight: 700;
+}
+
+.round-start-panel {
+  display: flex;
+  justify-content: flex-start;
 }
 
 .task-question {
