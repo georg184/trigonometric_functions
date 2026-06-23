@@ -16,6 +16,7 @@ The public version is intended to be available through GitHub Pages:
 - `js/vendor/geometry-angle-layout.js`: vendored copy of `ggprojects/shared/geometry-angle-layout.js` for public GitHub Pages use
 - `js/sympy-worker.js`: module web worker that loads Pyodide/SymPy from a pinned CDN URL and checks answers in the browser
 - `js/app.js`: the quiz logic, random task generation, answer checking, and the SVG/MathJax geometry renderer
+- `SUPABASE_VARIANTS.md`: deferred architecture notes for optional login, registration, and online highscores
 
 ## Rendering Architecture
 
