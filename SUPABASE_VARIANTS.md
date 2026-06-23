@@ -7,7 +7,7 @@ highscore lists to the static trigonometry app. The implementation is deferred.
 
 - Keep hosting the app on GitHub Pages.
 - Keep SymPy answer checking in the browser through Pyodide/SymPy.
-- Use 10 questions per scored round.
+- The app already uses 10 questions per scored local round.
 - After 10 questions, the round is finished and can be submitted to a
   leaderboard when Supabase is configured and reachable.
 - If Supabase is missing or unavailable, the app should remain playable in
@@ -205,12 +205,9 @@ Possible later additions:
 
 ## Implementation Order
 
-1. Convert the local quiz to explicit 10-question rounds.
-2. Add a local round summary screen after question 10.
-3. Add Supabase configuration detection and guest mode.
-4. Add registration/login/logout UI.
-5. Add profile creation with username.
-6. Add highscore submission after a completed round.
-7. Add leaderboard view.
-8. Consider Edge Functions only if stronger anti-cheat becomes necessary.
-
+1. Add Supabase configuration detection and guest mode.
+2. Add registration/login/logout UI.
+3. Add profile creation with username.
+4. Add highscore submission after a completed round.
+5. Add leaderboard view.
+6. Consider Edge Functions only if stronger anti-cheat becomes necessary.

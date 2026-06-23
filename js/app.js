@@ -1,4 +1,4 @@
-const APP_VERSION = '20260622.9';
+const APP_VERSION = '20260623.1';
 if (window.GG_APP_VERSION !== APP_VERSION) {
   document.body.innerHTML = [
     '<main style="max-width:720px;margin:40px auto;padding:20px;font-family:system-ui,sans-serif;line-height:1.45">',
@@ -12,6 +12,7 @@ if (window.GG_APP_VERSION !== APP_VERSION) {
 const screens = {
   intro: document.getElementById('introScreen'),
   quiz: document.getElementById('quizScreen'),
+  result: document.getElementById('resultScreen'),
   placeholder: document.getElementById('placeholderScreen')
 };
 
@@ -19,6 +20,8 @@ const controls = {
   startTriangleButton: document.getElementById('startTriangleButton'),
   startUnitCircleButton: document.getElementById('startUnitCircleButton'),
   placeholderBackButton: document.getElementById('placeholderBackButton'),
+  resultHomeButton: document.getElementById('resultHomeButton'),
+  newRoundButton: document.getElementById('newRoundButton'),
   backButton: document.getElementById('backButton'),
   nextButton: document.getElementById('nextButton'),
   rightAngleArcDot: document.getElementById('rightAngleArcDot'),
@@ -32,7 +35,9 @@ const controls = {
   answerHelpers: document.getElementById('answerHelpers'),
   checkButton: document.getElementById('checkButton'),
   feedback: document.getElementById('feedback'),
-  solution: document.getElementById('solution')
+  solution: document.getElementById('solution'),
+  resultScore: document.getElementById('resultScore'),
+  resultDetail: document.getElementById('resultDetail')
 };
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -48,6 +53,7 @@ const QUESTION_KINDS = {
 };
 const RATIO_TO_FUNCTION_TASK_PROBABILITY = 0.5;
 const RECIPROCAL_RATIO_TASK_PROBABILITY = 0.2;
+const QUESTIONS_PER_ROUND = 10;
 const SIDE_COLORS = ['#bf8700', '#2ea043', '#0969da'];
 const TRIANGLE_SIDE_STROKE_WIDTH = 3.5;
 const TRIANGLE_ANGLE_ARC_STROKE_WIDTH = 2;
@@ -87,6 +93,7 @@ let currentTaskScored = false;
 let taskNumber = 0;
 let correctAnswers = 0;
 let answeredQuestions = 0;
+let roundFinished = false;
 let rightAngleMarker = RIGHT_ANGLE_MARKERS.arcDot;
 let mathRenderQueue = Promise.resolve();
 const mathRenderTokens = new WeakMap();
@@ -605,6 +612,16 @@ function updateScoreCounter() {
   controls.scoreCounter.textContent = `Punkte: ${correctAnswers}/${answeredQuestions}`;
 }
 
+function updateNextButtonForTask() {
+  if (taskNumber >= QUESTIONS_PER_ROUND) {
+    controls.nextButton.textContent = 'Ergebnis anzeigen';
+    controls.nextButton.title = 'Runde beenden. Eine unbeantwortete Aufgabe wird mit 0 Punkten gewertet.';
+    return;
+  }
+  controls.nextButton.textContent = 'Nächste Aufgabe';
+  controls.nextButton.title = 'Unbeantwortete Aufgabe überspringen und mit 0 Punkten werten.';
+}
+
 function setAnswerInputMode(task) {
   if (task.questionKind === QUESTION_KINDS.ratioToFunction) {
     controls.answerInput.placeholder = 'z. B. sin(alpha)';
@@ -699,12 +716,17 @@ function renderAnswerHelpers(task) {
 }
 
 function newTask() {
+  if (taskNumber >= QUESTIONS_PER_ROUND) {
+    showRoundResult();
+    return;
+  }
   taskNumber += 1;
   currentTask = buildTask();
   currentTaskScored = false;
   clearSolvedState();
   controls.nextButton.disabled = false;
-  controls.taskCounter.textContent = `Aufgabe ${taskNumber}`;
+  controls.taskCounter.textContent = `Aufgabe ${taskNumber}/${QUESTIONS_PER_ROUND}`;
+  updateNextButtonForTask();
   setAnswerInputMode(currentTask);
   renderMath(controls.taskQuestion, getQuestionLatex(currentTask));
   renderAnswerHelpers(currentTask);
@@ -741,6 +763,10 @@ async function submitAnswer(event) {
 function goToNextTask() {
   if (currentTask && !currentTaskScored) {
     scoreCurrentTask(false);
+  }
+  if (taskNumber >= QUESTIONS_PER_ROUND) {
+    showRoundResult();
+    return;
   }
   newTask();
 }
@@ -967,6 +993,18 @@ function renderTriangle(task) {
   renderSvgWithHtmlLabels(controls.triangleRenderer, task);
 }
 
+function showRoundResult() {
+  roundFinished = true;
+  currentTask = null;
+  currentTaskScored = false;
+  controls.resultScore.textContent = `${correctAnswers}/${QUESTIONS_PER_ROUND} Punkte`;
+  controls.resultDetail.textContent = `Du hast ${correctAnswers} von ${QUESTIONS_PER_ROUND} Fragen richtig beantwortet.`;
+  showScreen('result');
+  window.setTimeout(function() {
+    controls.newRoundButton.focus();
+  }, 0);
+}
+
 function focusActiveQuizControl() {
   window.setTimeout(function() {
     if (controls.answerInput.disabled) {
@@ -977,21 +1015,29 @@ function focusActiveQuizControl() {
   }, 0);
 }
 
+function startNewRound() {
+  taskNumber = 0;
+  correctAnswers = 0;
+  answeredQuestions = 0;
+  currentTask = null;
+  currentTaskScored = false;
+  roundFinished = false;
+  rightAngleMarker = readRightAngleMarkerSetting();
+  showScreen('quiz');
+  updateScoreCounter();
+  newTask();
+}
+
 function startTriangleQuiz() {
   rightAngleMarker = readRightAngleMarkerSetting();
   showScreen('quiz');
-  if (currentTask) {
+  if (currentTask && !roundFinished) {
     updateScoreCounter();
     renderTriangle(currentTask);
     focusActiveQuizControl();
     return;
   }
-
-  taskNumber = 0;
-  correctAnswers = 0;
-  answeredQuestions = 0;
-  updateScoreCounter();
-  newTask();
+  startNewRound();
 }
 
 controls.startTriangleButton.addEventListener('click', startTriangleQuiz);
@@ -1003,6 +1049,12 @@ controls.startUnitCircleButton.addEventListener('click', function() {
 controls.placeholderBackButton.addEventListener('click', function() {
   showScreen('intro');
 });
+
+controls.resultHomeButton.addEventListener('click', function() {
+  showScreen('intro');
+});
+
+controls.newRoundButton.addEventListener('click', startNewRound);
 
 controls.backButton.addEventListener('click', function() {
   showScreen('intro');

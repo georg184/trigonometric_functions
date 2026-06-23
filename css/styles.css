@@ -338,6 +338,33 @@ input:disabled {
   background: white;
 }
 
+.result-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.result-title {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.result-score {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.result-detail {
+  margin: 0;
+  color: var(--muted);
+}
+
+.result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .feedback {
   padding: 10px 12px;
   border-radius: 10px;

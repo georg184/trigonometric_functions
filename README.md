@@ -36,7 +36,7 @@ Answer checking is client-side. `js/app.js` starts `js/sympy-worker.js` as a mod
 
 The triangle quiz currently generates side-ratio-to-function questions with 50% probability. For those questions, 20% use a ratio that is the reciprocal of one of the generated `sin`, `cos`, or `tan` expressions. The app shows the two acute angle names and insertion buttons for trig-expression answers; keep that helper tied to side-ratio-to-function tasks so ordinary side-ratio answers stay uncluttered.
 
-The triangle quiz treats each task as a one-score workflow. `Nächste Aufgabe` is available immediately. If the current task has not been checked yet, moving on scores that task as incorrect and advances to the next task. While an answer check is running, `Nächste Aufgabe` is temporarily disabled to avoid racing the in-flight worker result.
+The triangle quiz runs in fixed rounds of 10 questions. Each task is a one-score workflow. `Nächste Aufgabe` is available immediately. If the current task has not been checked yet, moving on scores that task as incorrect and advances to the next task. While an answer check is running, `Nächste Aufgabe` is temporarily disabled to avoid racing the in-flight worker result. After question 10, the app shows a local round result with points out of 10 and offers either `Neues Spiel starten` or `Zur Startseite`. No round results are persisted yet.
 
 The quiz can be left through `Zur Startseite` without resetting the current task or score. Returning to `am rechtwinkligen Dreieck` resumes the in-memory quiz state; a full page reload starts fresh.
 
@@ -80,6 +80,8 @@ For browser checks, start a local static server and verify:
 - the intro screen opens
 - the right-triangle quiz starts
 - `Nächste Aufgabe` is available before an answer, and skipping an unanswered task adds one answered question with no point
+- a round ends after 10 scored questions and shows the local result as points out of 10
+- the result screen offers both `Neues Spiel starten` and `Zur Startseite`
 - exactly one triangle rendering is visible
 - SVG geometry and five MathJax labels are present
 - both right-angle marker modes work
