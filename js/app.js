@@ -1,9 +1,25 @@
-const APP_VERSION = '20260623.3';
+const APP_VERSION = '20260625.1';
+const VERSION_MISMATCH_TEXT = {
+  de: {
+    title: 'Neue Version verfuegbar',
+    body: 'Diese Seite hat HTML und JavaScript aus unterschiedlichen Versionen geladen. Bitte die Seite neu laden.'
+  },
+  en: {
+    title: 'New version available',
+    body: 'This page loaded HTML and JavaScript from different versions. Please reload the page.'
+  },
+  fr: {
+    title: 'Nouvelle version disponible',
+    body: 'Cette page a charge le HTML et le JavaScript de versions differentes. Veuillez recharger la page.'
+  }
+};
+const initialMismatchLanguage = VERSION_MISMATCH_TEXT[document.documentElement.lang] ? document.documentElement.lang : 'de';
 if (window.GG_APP_VERSION !== APP_VERSION) {
+  const mismatchText = VERSION_MISMATCH_TEXT[initialMismatchLanguage];
   document.body.innerHTML = [
     '<main style="max-width:720px;margin:40px auto;padding:20px;font-family:system-ui,sans-serif;line-height:1.45">',
-    '<h1>Neue Version verfuegbar</h1>',
-    '<p>Diese Seite hat HTML und JavaScript aus unterschiedlichen Versionen geladen. Bitte die Seite neu laden.</p>',
+    `<h1>${mismatchText.title}</h1>`,
+    `<p>${mismatchText.body}</p>`,
     '</main>'
   ].join('');
   throw new Error(`Version mismatch: index ${window.GG_APP_VERSION || 'missing'}, app ${APP_VERSION}`);
@@ -17,15 +33,33 @@ const screens = {
 };
 
 const controls = {
+  languageSwitcher: document.querySelector('.language-switcher'),
+  mainHeading: document.getElementById('mainHeading'),
+  langDeButton: document.getElementById('langDeButton'),
+  langEnButton: document.getElementById('langEnButton'),
+  langFrButton: document.getElementById('langFrButton'),
+  introAccessTitle: document.getElementById('introAccessTitle'),
+  introChoiceList: document.getElementById('introChoiceList'),
   startTriangleButton: document.getElementById('startTriangleButton'),
+  startTriangleTitle: document.getElementById('startTriangleTitle'),
+  startTriangleDescription: document.getElementById('startTriangleDescription'),
   startUnitCircleButton: document.getElementById('startUnitCircleButton'),
+  startUnitCircleTitle: document.getElementById('startUnitCircleTitle'),
+  startUnitCircleDescription: document.getElementById('startUnitCircleDescription'),
+  introDisplayTitle: document.getElementById('introDisplayTitle'),
+  rightAngleLegend: document.getElementById('rightAngleLegend'),
+  rightAngleArcDotLabel: document.getElementById('rightAngleArcDotLabel'),
+  rightAngleSquareLabel: document.getElementById('rightAngleSquareLabel'),
   placeholderBackButton: document.getElementById('placeholderBackButton'),
+  placeholderText: document.getElementById('placeholderText'),
   resultHomeButton: document.getElementById('resultHomeButton'),
   newRoundButton: document.getElementById('newRoundButton'),
   backButton: document.getElementById('backButton'),
   nextButton: document.getElementById('nextButton'),
   rightAngleArcDot: document.getElementById('rightAngleArcDot'),
   rightAngleSquare: document.getElementById('rightAngleSquare'),
+  triangleStage: document.getElementById('triangleStage'),
+  renderTitle: document.getElementById('renderTitle'),
   triangleRenderer: document.getElementById('triangleRenderer'),
   taskCounter: document.getElementById('taskCounter'),
   scoreCounter: document.getElementById('scoreCounter'),
@@ -39,9 +73,204 @@ const controls = {
   checkButton: document.getElementById('checkButton'),
   feedback: document.getElementById('feedback'),
   solution: document.getElementById('solution'),
+  resultTitle: document.getElementById('resultTitle'),
   resultScore: document.getElementById('resultScore'),
   resultDetail: document.getElementById('resultDetail'),
   resultTime: document.getElementById('resultTime')
+};
+
+let currentLanguage = 'de';
+const SUPPORTED_LANGUAGES = ['de', 'en', 'fr'];
+const LANGUAGE_STORAGE_KEY = 'trigonometric-functions-language';
+const LANGUAGE_BUTTONS = {
+  de: controls.langDeButton,
+  en: controls.langEnButton,
+  fr: controls.langFrButton
+};
+const TEXT = {
+  de: {
+    pageTitle: 'Trigonometrische Funktionen',
+    heading: 'Trigonometrische Funktionen',
+    languageSelectorAria: 'Sprachauswahl',
+    intro: {
+      accessTitle: 'Wähle den Zugang',
+      choiceListAria: 'Zugang auswählen',
+      triangleTitle: 'am rechtwinkligen Dreieck',
+      triangleDescription: 'Quiz über die Seitenverhältnisse bei Sinus, Kosinus und Tangens',
+      unitCircleTitle: 'am Einheitskreis',
+      unitCircleDescription: 'Dieser Zugang wird als nächstes ergänzt.',
+      displayTitle: 'Darstellung',
+      rightAngleLegend: 'Rechter Winkel',
+      rightAngleArcDot: 'Viertelkreis mit Punkt',
+      rightAngleSquare: 'Quadrat'
+    },
+    quiz: {
+      backButton: 'Zur Startseite',
+      backTitle: 'Zur Startseite wechseln. Der Score bleibt bis zum Neuladen der Seite erhalten.',
+      nextTask: 'Nächste Aufgabe',
+      nextTaskTitle: 'Unbeantwortete Aufgabe überspringen und mit 0 Punkten werten.',
+      showResult: 'Ergebnis anzeigen',
+      showResultTitle: 'Runde beenden. Eine unbeantwortete Aufgabe wird mit 0 Punkten gewertet.',
+      renderTitle: 'Dreieck',
+      beginRound: 'Start',
+      check: 'Prüfen',
+      checking: 'Prüfe...',
+      correct: 'Richtig.',
+      incorrect: 'Falsch.',
+      taskCounter: function(current, total) { return `Aufgabe ${current}/${total}`; },
+      scoreCounter: function(correct, answered) { return `Punkte: ${correct}/${answered}`; },
+      timeCounter: function(timeText) { return `Zeit: ${timeText}`; },
+      answerRatioPlaceholder: 'z. B. a/c',
+      answerTrigPlaceholder: 'z. B. sin(alpha)',
+      answerRatioAria: 'Antwort als Seitenverhältnis',
+      answerTrigAria: 'Antwort als trigonometrischer Ausdruck',
+      helpersAria: 'Eingabehilfen',
+      insertFunctionAria: function(functionName) { return `${functionName} einfügen`; },
+      insertReciprocalAria: 'Kehrwert einfügen',
+      insertAngleAria: function(angleName) { return `${angleName} einfügen`; },
+      triangleStageAria: 'Dreiecksdarstellung',
+      svgAria: 'Dreieck als SVG mit HTML Labels'
+    },
+    placeholder: {
+      text: 'Der Zugang am Einheitskreis wird später ergänzt.',
+      backButton: 'Zurück'
+    },
+    result: {
+      title: 'Runde abgeschlossen',
+      score: function(correct, total) { return `${correct}/${total} Punkte`; },
+      detail: function(correct, total) { return `Du hast ${correct} von ${total} Fragen richtig beantwortet.`; },
+      time: function(timeText) { return `Zeit: ${timeText}`; },
+      newRound: 'Neues Spiel starten',
+      home: 'Zur Startseite'
+    },
+    solutionTerms: {
+      sin: '\\frac{\\text{Gegenkathete}}{\\text{Hypotenuse}}',
+      cos: '\\frac{\\text{Ankathete}}{\\text{Hypotenuse}}',
+      tan: '\\frac{\\text{Gegenkathete}}{\\text{Ankathete}}'
+    }
+  },
+  en: {
+    pageTitle: 'Trigonometric Functions',
+    heading: 'Trigonometric Functions',
+    languageSelectorAria: 'Language selector',
+    intro: {
+      accessTitle: 'Choose an approach',
+      choiceListAria: 'Choose an approach',
+      triangleTitle: 'at the right triangle',
+      triangleDescription: 'Quiz about side ratios for sine, cosine, and tangent',
+      unitCircleTitle: 'at the unit circle',
+      unitCircleDescription: 'This approach will be added next.',
+      displayTitle: 'Display',
+      rightAngleLegend: 'Right angle',
+      rightAngleArcDot: 'Quarter circle with dot',
+      rightAngleSquare: 'Square'
+    },
+    quiz: {
+      backButton: 'Home',
+      backTitle: 'Go to the home screen. The score is kept until the page is reloaded.',
+      nextTask: 'Next Question',
+      nextTaskTitle: 'Skip an unanswered question and score 0 points.',
+      showResult: 'Show Result',
+      showResultTitle: 'End the round. An unanswered question is scored as 0 points.',
+      renderTitle: 'Triangle',
+      beginRound: 'Start',
+      check: 'Check',
+      checking: 'Checking...',
+      correct: 'Correct.',
+      incorrect: 'Wrong.',
+      taskCounter: function(current, total) { return `Question ${current}/${total}`; },
+      scoreCounter: function(correct, answered) { return `Points: ${correct}/${answered}`; },
+      timeCounter: function(timeText) { return `Time: ${timeText}`; },
+      answerRatioPlaceholder: 'e.g. a/c',
+      answerTrigPlaceholder: 'e.g. sin(alpha)',
+      answerRatioAria: 'Answer as a side ratio',
+      answerTrigAria: 'Answer as a trigonometric expression',
+      helpersAria: 'Input helpers',
+      insertFunctionAria: function(functionName) { return `Insert ${functionName}`; },
+      insertReciprocalAria: 'Insert reciprocal',
+      insertAngleAria: function(angleName) { return `Insert ${angleName}`; },
+      triangleStageAria: 'Triangle diagram',
+      svgAria: 'Triangle as SVG with HTML labels'
+    },
+    placeholder: {
+      text: 'The unit circle approach will be added later.',
+      backButton: 'Back'
+    },
+    result: {
+      title: 'Round Complete',
+      score: function(correct, total) { return `${correct}/${total} points`; },
+      detail: function(correct, total) { return `You answered ${correct} of ${total} questions correctly.`; },
+      time: function(timeText) { return `Time: ${timeText}`; },
+      newRound: 'Start New Game',
+      home: 'Home'
+    },
+    solutionTerms: {
+      sin: '\\frac{\\text{opposite side}}{\\text{hypotenuse}}',
+      cos: '\\frac{\\text{adjacent side}}{\\text{hypotenuse}}',
+      tan: '\\frac{\\text{opposite side}}{\\text{adjacent side}}'
+    }
+  },
+  fr: {
+    pageTitle: 'Fonctions trigonométriques',
+    heading: 'Fonctions trigonométriques',
+    languageSelectorAria: 'Sélecteur de langue',
+    intro: {
+      accessTitle: 'Choisis une approche',
+      choiceListAria: 'Choisir une approche',
+      triangleTitle: 'dans le triangle rectangle',
+      triangleDescription: 'Quiz sur les rapports de côtés pour sinus, cosinus et tangente',
+      unitCircleTitle: 'sur le cercle trigonométrique',
+      unitCircleDescription: 'Cette approche sera ajoutée ensuite.',
+      displayTitle: 'Affichage',
+      rightAngleLegend: 'Angle droit',
+      rightAngleArcDot: 'Quart de cercle avec point',
+      rightAngleSquare: 'Carré'
+    },
+    quiz: {
+      backButton: 'Accueil',
+      backTitle: 'Retourner à l’accueil. Le score est conservé jusqu’au rechargement de la page.',
+      nextTask: 'Question suivante',
+      nextTaskTitle: 'Passer une question sans réponse et compter 0 point.',
+      showResult: 'Afficher le résultat',
+      showResultTitle: 'Terminer la manche. Une question sans réponse compte pour 0 point.',
+      renderTitle: 'Triangle',
+      beginRound: 'Démarrer',
+      check: 'Vérifier',
+      checking: 'Vérification...',
+      correct: 'Correct.',
+      incorrect: 'Faux.',
+      taskCounter: function(current, total) { return `Question ${current}/${total}`; },
+      scoreCounter: function(correct, answered) { return `Points : ${correct}/${answered}`; },
+      timeCounter: function(timeText) { return `Temps : ${timeText}`; },
+      answerRatioPlaceholder: 'p. ex. a/c',
+      answerTrigPlaceholder: 'p. ex. sin(alpha)',
+      answerRatioAria: 'Réponse sous forme de rapport de côtés',
+      answerTrigAria: 'Réponse sous forme d’expression trigonométrique',
+      helpersAria: 'Aides de saisie',
+      insertFunctionAria: function(functionName) { return `Insérer ${functionName}`; },
+      insertReciprocalAria: 'Insérer l’inverse',
+      insertAngleAria: function(angleName) { return `Insérer ${angleName}`; },
+      triangleStageAria: 'Représentation du triangle',
+      svgAria: 'Triangle en SVG avec labels HTML'
+    },
+    placeholder: {
+      text: 'L’approche par le cercle trigonométrique sera ajoutée plus tard.',
+      backButton: 'Retour'
+    },
+    result: {
+      title: 'Manche terminée',
+      score: function(correct, total) { return `${correct}/${total} points`; },
+      detail: function(correct, total) { return `Tu as répondu correctement à ${correct} questions sur ${total}.`; },
+      time: function(timeText) { return `Temps : ${timeText}`; },
+      newRound: 'Nouvelle partie',
+      home: 'Accueil'
+    },
+    solutionTerms: {
+      sin: '\\frac{\\text{côté opposé}}{\\text{hypoténuse}}',
+      cos: '\\frac{\\text{côté adjacent}}{\\text{hypoténuse}}',
+      tan: '\\frac{\\text{côté opposé}}{\\text{côté adjacent}}'
+    }
+  }
 };
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -104,6 +333,7 @@ let roundStartTimestamp = 0;
 let roundElapsedMs = 0;
 let timerIntervalId = null;
 let rightAngleMarker = RIGHT_ANGLE_MARKERS.arcDot;
+let answerCheckInProgress = false;
 let mathRenderQueue = Promise.resolve();
 const mathRenderTokens = new WeakMap();
 let answerCheckerWorker = null;
@@ -115,6 +345,147 @@ function showScreen(name) {
   for (const [screenName, element] of Object.entries(screens)) {
     element.classList.toggle('hidden', screenName !== name);
   }
+}
+
+function getTextBundle() {
+  return TEXT[currentLanguage] || TEXT.de;
+}
+
+function isSupportedLanguage(language) {
+  return SUPPORTED_LANGUAGES.includes(language);
+}
+
+function readStoredLanguage() {
+  try {
+    const storedLanguage = window.sessionStorage.getItem(LANGUAGE_STORAGE_KEY);
+    return isSupportedLanguage(storedLanguage) ? storedLanguage : null;
+  } catch (error) {
+    console.warn('Could not read stored language:', error);
+  }
+  return null;
+}
+
+function persistLanguage() {
+  try {
+    window.sessionStorage.setItem(LANGUAGE_STORAGE_KEY, currentLanguage);
+  } catch (error) {
+    console.warn('Could not persist language:', error);
+  }
+}
+
+function updateLanguageButtons() {
+  for (const language of SUPPORTED_LANGUAGES) {
+    const button = LANGUAGE_BUTTONS[language];
+    const isActive = language === currentLanguage;
+    button.classList.toggle('is-active', isActive);
+    button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  }
+}
+
+function updateTaskCounter() {
+  if (taskNumber <= 0) {
+    controls.taskCounter.textContent = '';
+    return;
+  }
+  controls.taskCounter.textContent = getTextBundle().quiz.taskCounter(taskNumber, QUESTIONS_PER_ROUND);
+}
+
+function updateFeedbackText() {
+  const texts = getTextBundle();
+  if (controls.feedback.classList.contains('correct')) {
+    controls.feedback.textContent = texts.quiz.correct;
+    return;
+  }
+  if (controls.feedback.classList.contains('incorrect')) {
+    controls.feedback.textContent = texts.quiz.incorrect;
+  }
+}
+
+function updateCheckButtonText() {
+  const texts = getTextBundle();
+  controls.checkButton.textContent = answerCheckInProgress ? texts.quiz.checking : texts.quiz.check;
+}
+
+function updateResultText() {
+  const texts = getTextBundle();
+  controls.resultScore.textContent = texts.result.score(correctAnswers, QUESTIONS_PER_ROUND);
+  controls.resultDetail.textContent = texts.result.detail(correctAnswers, QUESTIONS_PER_ROUND);
+  controls.resultTime.textContent = texts.result.time(formatElapsedTime(roundElapsedMs));
+}
+
+function refreshCurrentMathAfterLanguageChange() {
+  if (!currentTask) {
+    return;
+  }
+  if (!controls.taskQuestion.innerHTML.trim() && controls.answerForm.classList.contains('hidden')) {
+    return;
+  }
+  setAnswerInputMode(currentTask);
+  renderMath(controls.taskQuestion, getQuestionLatex(currentTask));
+  renderAnswerHelpers(currentTask);
+  if (!controls.solution.classList.contains('hidden')) {
+    renderMath(controls.solution, getSolutionLatex(currentTask));
+  }
+}
+
+function applyLanguage() {
+  const texts = getTextBundle();
+  document.documentElement.lang = currentLanguage;
+  document.title = texts.pageTitle;
+
+  controls.languageSwitcher.setAttribute('aria-label', texts.languageSelectorAria);
+  controls.mainHeading.textContent = texts.heading;
+  controls.introAccessTitle.textContent = texts.intro.accessTitle;
+  controls.introChoiceList.setAttribute('aria-label', texts.intro.choiceListAria);
+  controls.startTriangleTitle.textContent = texts.intro.triangleTitle;
+  controls.startTriangleDescription.textContent = texts.intro.triangleDescription;
+  controls.startUnitCircleTitle.textContent = texts.intro.unitCircleTitle;
+  controls.startUnitCircleDescription.textContent = texts.intro.unitCircleDescription;
+  controls.introDisplayTitle.textContent = texts.intro.displayTitle;
+  controls.rightAngleLegend.textContent = texts.intro.rightAngleLegend;
+  controls.rightAngleArcDotLabel.textContent = texts.intro.rightAngleArcDot;
+  controls.rightAngleSquareLabel.textContent = texts.intro.rightAngleSquare;
+  controls.rightAngleArcDot.setAttribute('aria-label', texts.intro.rightAngleArcDot);
+  controls.rightAngleSquare.setAttribute('aria-label', texts.intro.rightAngleSquare);
+
+  controls.backButton.textContent = texts.quiz.backButton;
+  controls.backButton.title = texts.quiz.backTitle;
+  controls.renderTitle.textContent = texts.quiz.renderTitle;
+  controls.triangleStage.setAttribute('aria-label', texts.quiz.triangleStageAria);
+  controls.beginRoundButton.textContent = texts.quiz.beginRound;
+  controls.answerHelpers.setAttribute('aria-label', texts.quiz.helpersAria);
+  controls.placeholderText.textContent = texts.placeholder.text;
+  controls.placeholderBackButton.textContent = texts.placeholder.backButton;
+  controls.resultTitle.textContent = texts.result.title;
+  controls.newRoundButton.textContent = texts.result.newRound;
+  controls.resultHomeButton.textContent = texts.result.home;
+
+  updateLanguageButtons();
+  updateTaskCounter();
+  updateScoreCounter();
+  updateTimeCounter();
+  updateNextButtonForTask();
+  updateCheckButtonText();
+  updateFeedbackText();
+
+  if (currentTask) {
+    renderTriangle(currentTask);
+    refreshCurrentMathAfterLanguageChange();
+  } else {
+    setAnswerInputMode({ questionKind: QUESTION_KINDS.functionToRatio });
+  }
+  if (!screens.result.classList.contains('hidden')) {
+    updateResultText();
+  }
+}
+
+function setLanguage(language) {
+  if (!isSupportedLanguage(language)) {
+    return;
+  }
+  currentLanguage = language;
+  persistLanguage();
+  applyLanguage();
 }
 
 function randomInt(min, max) {
@@ -550,11 +921,7 @@ function getSolutionLatex(task) {
       \\frac{${numerator}}{${denominator}} = ${expression}
     \\]`;
   }
-  const ratioText = {
-    sin: '\\frac{\\text{Gegenkathete}}{\\text{Hypotenuse}}',
-    cos: '\\frac{\\text{Ankathete}}{\\text{Hypotenuse}}',
-    tan: '\\frac{\\text{Gegenkathete}}{\\text{Ankathete}}'
-  }[task.taskType];
+  const ratioText = getTextBundle().solutionTerms[task.taskType];
 
   return `\\[
     \\begin{aligned}
@@ -599,19 +966,21 @@ function scoreCurrentTask(isCorrect) {
 }
 
 function setSolvedState(isCorrect) {
+  answerCheckInProgress = false;
   scoreCurrentTask(isCorrect);
   controls.feedback.classList.remove('hidden', 'correct', 'incorrect');
   controls.feedback.classList.add(isCorrect ? 'correct' : 'incorrect');
-  controls.feedback.textContent = isCorrect ? 'Richtig.' : 'Falsch.';
+  controls.feedback.textContent = isCorrect ? getTextBundle().quiz.correct : getTextBundle().quiz.incorrect;
   controls.solution.classList.remove('hidden');
   controls.answerInput.disabled = true;
   controls.checkButton.disabled = true;
-  controls.checkButton.textContent = 'Prüfen';
+  updateCheckButtonText();
   controls.nextButton.disabled = false;
   controls.nextButton.focus();
 }
 
 function clearSolvedState() {
+  answerCheckInProgress = false;
   controls.feedback.classList.add('hidden');
   controls.feedback.classList.remove('correct', 'incorrect');
   controls.feedback.textContent = '';
@@ -619,12 +988,12 @@ function clearSolvedState() {
   clearMathContent(controls.solution);
   controls.answerInput.disabled = false;
   controls.checkButton.disabled = false;
-  controls.checkButton.textContent = 'Prüfen';
+  updateCheckButtonText();
   controls.answerInput.value = '';
 }
 
 function updateScoreCounter() {
-  controls.scoreCounter.textContent = `Punkte: ${correctAnswers}/${answeredQuestions}`;
+  controls.scoreCounter.textContent = getTextBundle().quiz.scoreCounter(correctAnswers, answeredQuestions);
 }
 
 function formatElapsedTime(milliseconds) {
@@ -647,7 +1016,7 @@ function getCurrentRoundElapsedMs() {
 }
 
 function updateTimeCounter() {
-  controls.timeCounter.textContent = `Zeit: ${formatElapsedTime(getCurrentRoundElapsedMs())}`;
+  controls.timeCounter.textContent = getTextBundle().quiz.timeCounter(formatElapsedTime(getCurrentRoundElapsedMs()));
 }
 
 function startRoundTimer() {
@@ -671,23 +1040,25 @@ function stopRoundTimer() {
 }
 
 function updateNextButtonForTask() {
+  const texts = getTextBundle();
   if (taskNumber >= QUESTIONS_PER_ROUND) {
-    controls.nextButton.textContent = 'Ergebnis anzeigen';
-    controls.nextButton.title = 'Runde beenden. Eine unbeantwortete Aufgabe wird mit 0 Punkten gewertet.';
+    controls.nextButton.textContent = texts.quiz.showResult;
+    controls.nextButton.title = texts.quiz.showResultTitle;
     return;
   }
-  controls.nextButton.textContent = 'Nächste Aufgabe';
-  controls.nextButton.title = 'Unbeantwortete Aufgabe überspringen und mit 0 Punkten werten.';
+  controls.nextButton.textContent = texts.quiz.nextTask;
+  controls.nextButton.title = texts.quiz.nextTaskTitle;
 }
 
 function setAnswerInputMode(task) {
+  const texts = getTextBundle();
   if (task.questionKind === QUESTION_KINDS.ratioToFunction) {
-    controls.answerInput.placeholder = 'z. B. sin(alpha)';
-    controls.answerInput.setAttribute('aria-label', 'Antwort als trigonometrischer Ausdruck');
+    controls.answerInput.placeholder = texts.quiz.answerTrigPlaceholder;
+    controls.answerInput.setAttribute('aria-label', texts.quiz.answerTrigAria);
     return;
   }
-  controls.answerInput.placeholder = 'z. B. a/c';
-  controls.answerInput.setAttribute('aria-label', 'Antwort als Seitenverhältnis');
+  controls.answerInput.placeholder = texts.quiz.answerRatioPlaceholder;
+  controls.answerInput.setAttribute('aria-label', texts.quiz.answerRatioAria);
 }
 
 function insertAnswerText(text, cursorOffset) {
@@ -718,6 +1089,7 @@ function addAnswerHelperButton(container, options) {
 }
 
 function renderAnswerHelpers(task) {
+  const texts = getTextBundle();
   if (task.questionKind !== QUESTION_KINDS.ratioToFunction) {
     controls.answerHelpers.classList.add('hidden');
     clearMathContent(controls.answerHelpers);
@@ -746,7 +1118,7 @@ function renderAnswerHelpers(task) {
     ['sin', 'cos', 'tan'].forEach(function(functionName) {
       addAnswerHelperButton(buttonRow, {
         label: `${functionName}( )`,
-        ariaLabel: `${functionName} einfügen`,
+        ariaLabel: texts.quiz.insertFunctionAria(functionName),
         onClick: function() {
           insertAnswerText(`${functionName}()`, -1);
         }
@@ -754,7 +1126,7 @@ function renderAnswerHelpers(task) {
     });
     addAnswerHelperButton(buttonRow, {
       label: '1/',
-      ariaLabel: 'Kehrwert einfügen',
+      ariaLabel: texts.quiz.insertReciprocalAria,
       onClick: function() {
         insertAnswerText('1/', 0);
       }
@@ -763,7 +1135,7 @@ function renderAnswerHelpers(task) {
       addAnswerHelperButton(buttonRow, {
         label: `\\(${angleLabel.latex}\\) ${angleLabel.name}`,
         html: true,
-        ariaLabel: `${angleLabel.name} einfügen`,
+        ariaLabel: texts.quiz.insertAngleAria(angleLabel.name),
         onClick: function() {
           insertAnswerText(angleLabel.name, 0);
         }
@@ -806,7 +1178,7 @@ function newTask() {
   currentTaskScored = false;
   clearSolvedState();
   controls.nextButton.disabled = false;
-  controls.taskCounter.textContent = `Aufgabe ${taskNumber}/${QUESTIONS_PER_ROUND}`;
+  updateTaskCounter();
   updateNextButtonForTask();
   renderTriangle(currentTask);
   if (roundStarted) {
@@ -817,9 +1189,10 @@ function newTask() {
 }
 
 function setCheckingState() {
+  answerCheckInProgress = true;
   controls.answerInput.disabled = true;
   controls.checkButton.disabled = true;
-  controls.checkButton.textContent = 'Prüfe...';
+  updateCheckButtonText();
   controls.nextButton.disabled = true;
 }
 
@@ -832,8 +1205,9 @@ async function submitAnswer(event) {
   const rawValue = controls.answerInput.value;
   setCheckingState();
   const result = await checkAnswer(rawValue, task);
+  answerCheckInProgress = false;
   if (currentTask !== task) {
-    controls.checkButton.textContent = 'Prüfen';
+    updateCheckButtonText();
     return;
   }
   renderMath(controls.solution, getSolutionLatex(task));
@@ -1061,7 +1435,7 @@ function renderSvgWithHtmlLabels(surface, task) {
       class: 'geometry-svg',
       viewBox: `0 0 ${size.width} ${size.height}`,
       role: 'img',
-      'aria-label': 'Dreieck als SVG mit HTML Labels'
+      'aria-label': getTextBundle().quiz.svgAria
     });
 
     addSvgTrianglePrimitives(svg, task, points);
@@ -1081,9 +1455,7 @@ function showRoundResult() {
   roundFinished = true;
   currentTask = null;
   currentTaskScored = false;
-  controls.resultScore.textContent = `${correctAnswers}/${QUESTIONS_PER_ROUND} Punkte`;
-  controls.resultDetail.textContent = `Du hast ${correctAnswers} von ${QUESTIONS_PER_ROUND} Fragen richtig beantwortet.`;
-  controls.resultTime.textContent = `Zeit: ${formatElapsedTime(roundElapsedMs)}`;
+  updateResultText();
   showScreen('result');
   window.setTimeout(function() {
     controls.newRoundButton.focus();
@@ -1119,6 +1491,7 @@ function startNewRound() {
   answeredQuestions = 0;
   currentTask = null;
   currentTaskScored = false;
+  answerCheckInProgress = false;
   roundFinished = false;
   roundStarted = false;
   roundStartTimestamp = 0;
@@ -1142,6 +1515,18 @@ function startTriangleQuiz() {
   }
   startNewRound();
 }
+
+controls.langDeButton.addEventListener('click', function() {
+  setLanguage('de');
+});
+
+controls.langEnButton.addEventListener('click', function() {
+  setLanguage('en');
+});
+
+controls.langFrButton.addEventListener('click', function() {
+  setLanguage('fr');
+});
 
 controls.startTriangleButton.addEventListener('click', startTriangleQuiz);
 controls.beginRoundButton.addEventListener('click', beginRound);
@@ -1181,5 +1566,11 @@ window.addEventListener('resize', function() {
   }
 });
 
+const storedLanguage = readStoredLanguage();
+if (storedLanguage) {
+  currentLanguage = storedLanguage;
+}
+persistLanguage();
+applyLanguage();
 initializeAnswerChecker();
 showScreen('intro');

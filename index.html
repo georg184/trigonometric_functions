@@ -4,42 +4,63 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Trigonometrische Funktionen</title>
-  <script>window.GG_APP_VERSION = '20260623.3';</script>
-  <link rel="stylesheet" href="css/styles.css?v=20260623.3" />
-  <script src="js/mathjax-config.js?v=20260623.3"></script>
+  <script>window.GG_APP_VERSION = '20260625.1';</script>
+  <link rel="stylesheet" href="css/styles.css?v=20260625.1" />
+  <script src="js/mathjax-config.js?v=20260625.1"></script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
-  <script src="js/vendor/geometry-angle-layout.js?v=20260623.3"></script>
+  <script src="js/vendor/geometry-angle-layout.js?v=20260625.1"></script>
 </head>
 <body>
+  <div class="language-switcher" role="group" aria-label="Language selector">
+    <button id="langDeButton" class="language-option is-active" type="button" aria-pressed="true" aria-label="Deutsch" title="Deutsch">
+      <span class="language-flag" aria-hidden="true">🇩🇪</span>
+      <span class="language-copy sr-only">
+        <span class="language-name">Deutsch</span>
+      </span>
+    </button>
+    <button id="langEnButton" class="language-option" type="button" aria-pressed="false" aria-label="English" title="English">
+      <span class="language-flag" aria-hidden="true">🇬🇧</span>
+      <span class="language-copy sr-only">
+        <span class="language-name">English</span>
+      </span>
+    </button>
+    <button id="langFrButton" class="language-option" type="button" aria-pressed="false" aria-label="Français" title="Français">
+      <span class="language-flag" aria-hidden="true">🇫🇷</span>
+      <span class="language-copy sr-only">
+        <span class="language-name">Français</span>
+      </span>
+    </button>
+  </div>
+
   <main>
-    <h1>Trigonometrische Funktionen</h1>
+    <h1 id="mainHeading">Trigonometrische Funktionen</h1>
 
     <section id="introScreen" class="screen intro-screen">
       <div class="panel">
-        <div class="intro-field-title">Wähle den Zugang</div>
-        <div class="intro-choice-list" aria-label="Zugang auswählen">
+        <div id="introAccessTitle" class="intro-field-title">Wähle den Zugang</div>
+        <div id="introChoiceList" class="intro-choice-list" aria-label="Zugang auswählen">
           <button id="startTriangleButton" class="intro-choice" type="button">
-            <span class="intro-choice-title">am rechtwinkligen Dreieck</span>
-            <span class="intro-choice-description">Quiz über die Seitenverhältnisse bei Sinus, Kosinus und Tangens</span>
+            <span id="startTriangleTitle" class="intro-choice-title">am rechtwinkligen Dreieck</span>
+            <span id="startTriangleDescription" class="intro-choice-description">Quiz über die Seitenverhältnisse bei Sinus, Kosinus und Tangens</span>
           </button>
 
           <button id="startUnitCircleButton" class="intro-choice" type="button">
-            <span class="intro-choice-title">am Einheitskreis</span>
-            <span class="intro-choice-description">Dieser Zugang wird als nächstes ergänzt.</span>
+            <span id="startUnitCircleTitle" class="intro-choice-title">am Einheitskreis</span>
+            <span id="startUnitCircleDescription" class="intro-choice-description">Dieser Zugang wird als nächstes ergänzt.</span>
           </button>
         </div>
 
         <div class="intro-config">
-          <div class="intro-field-title">Darstellung</div>
+          <div id="introDisplayTitle" class="intro-field-title">Darstellung</div>
           <fieldset class="config-fieldset">
-            <legend>Rechter Winkel</legend>
+            <legend id="rightAngleLegend">Rechter Winkel</legend>
             <label class="config-option" for="rightAngleArcDot">
               <input id="rightAngleArcDot" type="radio" name="rightAngleMarker" value="arcDot" checked />
-              <span>Viertelkreis mit Punkt</span>
+              <span id="rightAngleArcDotLabel">Viertelkreis mit Punkt</span>
             </label>
             <label class="config-option" for="rightAngleSquare">
               <input id="rightAngleSquare" type="radio" name="rightAngleMarker" value="square" />
-              <span>Quadrat</span>
+              <span id="rightAngleSquareLabel">Quadrat</span>
             </label>
           </fieldset>
         </div>
@@ -53,9 +74,9 @@
       </div>
 
       <div class="quiz-layout">
-        <div class="triangle-stage" aria-label="Dreiecksdarstellung">
+        <div id="triangleStage" class="triangle-stage" aria-label="Dreiecksdarstellung">
           <div class="render-panel">
-            <div class="render-title">Dreieck</div>
+            <div id="renderTitle" class="render-title">Dreieck</div>
             <div id="triangleRenderer" class="render-surface"></div>
           </div>
         </div>
@@ -89,14 +110,14 @@
 
     <section id="placeholderScreen" class="screen intro-screen hidden">
       <div class="panel">
-        <p>Der Zugang am Einheitskreis wird später ergänzt.</p>
+        <p id="placeholderText">Der Zugang am Einheitskreis wird später ergänzt.</p>
         <button id="placeholderBackButton" class="secondary-button" type="button">Zurück</button>
       </div>
     </section>
 
     <section id="resultScreen" class="screen intro-screen hidden">
       <div class="panel result-panel">
-        <div class="result-title">Runde abgeschlossen</div>
+        <div id="resultTitle" class="result-title">Runde abgeschlossen</div>
         <div id="resultScore" class="result-score" aria-live="polite"></div>
         <p id="resultDetail" class="result-detail"></p>
         <div id="resultTime" class="result-time"></div>
@@ -108,8 +129,8 @@
     </section>
   </main>
 
-  <div class="version-badge" aria-label="Version">v2026.06.23.3</div>
+  <div class="version-badge" aria-label="Version">v2026.06.25.1</div>
 
-  <script src="js/app.js?v=20260623.3"></script>
+  <script src="js/app.js?v=20260625.1"></script>
 </body>
 </html>
