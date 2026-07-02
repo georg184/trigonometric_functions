@@ -36,11 +36,17 @@ Answer checking is client-side. `js/app.js` starts `js/sympy-worker.js` as a mod
 
 The triangle quiz currently generates side-ratio-to-function questions with 50% probability. For those questions, 20% use a ratio that is the reciprocal of one of the generated `sin`, `cos`, or `tan` expressions. The app shows the two acute angle names and insertion buttons for trig-expression answers; keep that helper tied to side-ratio-to-function tasks so ordinary side-ratio answers stay uncluttered.
 
-The triangle quiz runs in fixed rounds of 10 questions. A new round first shows the first triangle and a visible `Zeit: 00:00` counter, but the question and answer input stay hidden until the user presses `Start`. The timer starts only at that point and stops on the result screen. Each task is a one-score workflow. `Nächste Aufgabe` is available immediately after `Start`. If the current task has not been checked yet, moving on scores that task as incorrect and advances to the next task. While an answer check is running, `Nächste Aufgabe` is temporarily disabled to avoid racing the in-flight worker result. After question 10, the app shows a local round result with points and elapsed time and offers either `Neues Spiel starten` or `Zur Startseite`. No round results are persisted yet.
+The triangle quiz runs in fixed rounds of 10 questions. A new round first shows the first triangle and a visible `Zeit: 00:00` counter, but the question and answer input stay hidden until the user presses `Start`. The timer starts only at that point and stops on the result screen. Each task is a one-score workflow. `Nächste Aufgabe` is available immediately after `Start`. If the current task has not been checked yet, moving on scores that task as incorrect and advances to the next task. While an answer check is running, `Nächste Aufgabe` is temporarily disabled to avoid racing the in-flight worker result. After question 10, the app shows a local round result with points and elapsed time and offers either `Neues Quiz starten` or `Zur Startseite`. No round results are persisted yet.
 
 The quiz can be left through `Zur Startseite` without resetting the current task or score. Returning to `am rechtwinkligen Dreieck` resumes the in-memory quiz state; a full page reload starts fresh.
 
 The `am Einheitskreis` entry is currently a placeholder by design. Do not add partial unit-circle behavior unless that path is implemented as a complete workflow.
+
+## Language Maintenance
+
+The app is trilingual (`de`, `en`, `fr`). Unless a request explicitly limits a change to one language, every user-visible text change must be made synchronously in all three languages. Keep static HTML fallback text and the corresponding entries in the `TEXT` object in `js/app.js` aligned.
+
+When changing labels, button text, titles, placeholders, ARIA labels, feedback, result text, or MathJax explanation text, update all language variants in the same commit. Verification should include switching the language selector and checking the affected UI in each language.
 
 ## Vendored Shared Code
 
@@ -83,7 +89,8 @@ For browser checks, start a local static server and verify:
 - pressing `Start` reveals the first question and starts the visible timer
 - `Nächste Aufgabe` is available before an answer, and skipping an unanswered task adds one answered question with no point
 - a round ends after 10 scored questions and shows the local result as points out of 10 plus elapsed time
-- the result screen offers both `Neues Spiel starten` and `Zur Startseite`
+- the result screen offers both `Neues Quiz starten` and `Zur Startseite`
+- the language selector updates the affected UI consistently in German, English, and French
 - exactly one triangle rendering is visible
 - SVG geometry and five MathJax labels are present
 - both right-angle marker modes work
