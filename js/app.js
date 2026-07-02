@@ -1,4 +1,4 @@
-const APP_VERSION = '20260702.1';
+const APP_VERSION = '20260702.2';
 const VERSION_MISMATCH_TEXT = {
   de: {
     title: 'Neue Version verfuegbar',
@@ -140,7 +140,7 @@ const TEXT = {
       score: function(correct, total) { return `${correct}/${total} Punkte`; },
       detail: function(correct, total) { return `Du hast ${correct} von ${total} Fragen richtig beantwortet.`; },
       time: function(timeText) { return `Zeit: ${timeText}`; },
-      newRound: 'Neues Spiel starten',
+      newRound: 'Neues Quiz starten',
       home: 'Zur Startseite'
     },
     solutionTerms: {
@@ -201,7 +201,7 @@ const TEXT = {
       score: function(correct, total) { return `${correct}/${total} points`; },
       detail: function(correct, total) { return `You answered ${correct} of ${total} questions correctly.`; },
       time: function(timeText) { return `Time: ${timeText}`; },
-      newRound: 'Start New Game',
+      newRound: 'Start New Quiz',
       home: 'Home'
     },
     solutionTerms: {
@@ -262,7 +262,7 @@ const TEXT = {
       score: function(correct, total) { return `${correct}/${total} points`; },
       detail: function(correct, total) { return `Tu as répondu correctement à ${correct} questions sur ${total}.`; },
       time: function(timeText) { return `Temps : ${timeText}`; },
-      newRound: 'Nouvelle partie',
+      newRound: 'Démarrer un nouveau quiz',
       home: 'Accueil'
     },
     solutionTerms: {
