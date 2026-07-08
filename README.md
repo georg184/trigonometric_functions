@@ -54,11 +54,11 @@ When changing labels, button text, titles, placeholders, ARIA labels, feedback, 
 
 `/mnt/data/sync/software/HTML/ggprojects/shared/geometry-angle-layout.js`
 
-Current vendored helper version: `0.4.11`.
+Current vendored helper version: `0.4.12`.
 
 When the shared helper changes, copy the updated file into `js/vendor/` and commit the project copy so GitHub Pages can serve it publicly.
 
-The current right-triangle angle arcs and angle-label positions use the calibrated helper data from `angle-label-tuning-v28`. The helper starts with a label-class baseline and adds a guarded exact-label residual correction when enough matching label samples are nearby. The app calls `calibratedAngleMarker()`, which first computes thin/reference-line angle-label values and then analytically adjusts the rendered arc radius and label position for the triangle side and angle-arc stroke widths.
+The current right-triangle angle arcs and angle-label positions use the calibrated helper data from `angle-label-tuning-v29`. The helper starts with a label-class baseline and adds a guarded exact-label residual correction when enough matching label samples are nearby. The app calls `calibratedAngleMarker()`, which first computes thin/reference-line angle-label values and then analytically adjusts the rendered arc radius and label position for the triangle side and angle-arc stroke widths.
 
 ## Cache And Version Safety
 

@@ -1,4 +1,4 @@
-const APP_VERSION = '20260707.3';
+const APP_VERSION = '20260708.1';
 const VERSION_MISMATCH_TEXT = {
   de: {
     title: 'Neue Version verfuegbar',
