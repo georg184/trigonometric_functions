@@ -54,7 +54,7 @@ When changing labels, button text, titles, placeholders, ARIA labels, feedback, 
 
 `/mnt/data/sync/software/HTML/ggprojects/shared/geometry-angle-layout.js`
 
-Current vendored helper version: `0.4.14`.
+Current vendored helper version: `0.4.15`.
 
 When the shared helper changes, copy the updated file into `js/vendor/` and commit the project copy so GitHub Pages can serve it publicly.
 

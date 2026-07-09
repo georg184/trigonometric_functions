@@ -8,7 +8,7 @@
 (function(global) {
   'use strict';
 
-  const VERSION = '0.4.14';
+  const VERSION = '0.4.15';
 
   const DEFAULTS = Object.freeze({
     acuteAngleArcRadius: 44,
@@ -1243,6 +1243,14 @@
     };
   }
 
+  function directedCounterclockwiseBaseRayAngleDeg(geometry) {
+    // Geometry is measured in SVG/screen coordinates; calibration samples use
+    // mathematical counterclockwise starts. A positive screen sweep corresponds
+    // to the opposite mathematical direction, so its CCW start is the end ray.
+    const baseRayScreenAngle = geometry.delta <= 0 ? geometry.start : geometry.end;
+    return normalizeDegrees(-baseRayScreenAngle * 180 / Math.PI);
+  }
+
   function pointOnRay(vertex, angle, distance) {
     return {
       x: vertex.x + Math.cos(angle) * distance,
@@ -1660,7 +1668,7 @@
     const geometry = angleGeometry(vertex, first, second);
     const style = angleLabelStyle(geometry.angleDeg, label, Object.assign({}, options || {}, {
       baseRayAngleDeg: normalizeOptionalDegrees(options && options.baseRayAngleDeg) === null
-        ? normalizeDegrees(-geometry.start * 180 / Math.PI)
+        ? directedCounterclockwiseBaseRayAngleDeg(geometry)
         : options.baseRayAngleDeg
     }));
     const strokeCorrection = angleStrokeCorrection(style.angleDeg, options);
