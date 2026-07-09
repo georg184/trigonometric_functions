@@ -8,7 +8,7 @@
 (function(global) {
   'use strict';
 
-  const VERSION = '0.4.15';
+  const VERSION = '0.4.16';
 
   const DEFAULTS = Object.freeze({
     acuteAngleArcRadius: 44,
@@ -1243,12 +1243,46 @@
     };
   }
 
-  function directedCounterclockwiseBaseRayAngleDeg(geometry) {
-    // Geometry is measured in SVG/screen coordinates; calibration samples use
-    // mathematical counterclockwise starts. A positive screen sweep corresponds
-    // to the opposite mathematical direction, so its CCW start is the end ray.
-    const baseRayScreenAngle = geometry.delta <= 0 ? geometry.start : geometry.end;
-    return normalizeDegrees(-baseRayScreenAngle * 180 / Math.PI);
+  function normalizedCoordinateSystem(options) {
+    return options && options.coordinateSystem === 'math' ? 'math' : 'svg';
+  }
+
+  function counterclockwiseRayOrder(geometry, coordinateSystem) {
+    const firstRayIsStart = coordinateSystem === 'math'
+      ? geometry.delta >= 0
+      : geometry.delta <= 0;
+    return {
+      firstRayIsStart,
+      startRay: firstRayIsStart ? 'first' : 'second',
+      endRay: firstRayIsStart ? 'second' : 'first'
+    };
+  }
+
+  function directedCounterclockwiseBaseRayAngleDeg(geometry, coordinateSystem) {
+    const order = counterclockwiseRayOrder(geometry, coordinateSystem);
+    const baseRayCoordinateAngle = order.firstRayIsStart ? geometry.start : geometry.end;
+    const coordinateSign = coordinateSystem === 'math' ? 1 : -1;
+    return normalizeDegrees(coordinateSign * baseRayCoordinateAngle * 180 / Math.PI);
+  }
+
+  function angleContextFromRays(vertex, first, second, options) {
+    const coordinateSystem = normalizedCoordinateSystem(options);
+    const geometry = angleGeometry(vertex, first, second);
+    const rayOrder = counterclockwiseRayOrder(geometry, coordinateSystem);
+    const baseRayAngleDeg = directedCounterclockwiseBaseRayAngleDeg(geometry, coordinateSystem);
+    return {
+      angleDeg: geometry.angleDeg,
+      angleRad: geometry.angleRad,
+      baseRayAngleDeg,
+      bisectorAngleDeg: normalizeDegrees(baseRayAngleDeg + geometry.angleDeg / 2),
+      coordinateSystem,
+      rayOrder,
+      startRayPoint: rayOrder.firstRayIsStart ? first : second,
+      endRayPoint: rayOrder.firstRayIsStart ? second : first,
+      firstRayPoint: first,
+      secondRayPoint: second,
+      geometry
+    };
   }
 
   function pointOnRay(vertex, angle, distance) {
@@ -1325,6 +1359,13 @@
       fontSizePx,
       baselineFontSizePx: DEFAULTS.angleLabelFontSizePx
     };
+  }
+
+  function angleLabelStyleFromRays(vertex, first, second, label, options) {
+    const context = angleContextFromRays(vertex, first, second, options);
+    return angleLabelStyle(context.angleDeg, label, Object.assign({}, options || {}, {
+      baseRayAngleDeg: context.baseRayAngleDeg
+    }));
   }
 
   function baselineAngleLabelStyle(angleDeg, labelClassId, fontSizePx, settings) {
@@ -1664,16 +1705,16 @@
     });
   }
 
-  function calibratedAngleMarker(vertex, first, second, label, options) {
-    const geometry = angleGeometry(vertex, first, second);
-    const style = angleLabelStyle(geometry.angleDeg, label, Object.assign({}, options || {}, {
-      baseRayAngleDeg: normalizeOptionalDegrees(options && options.baseRayAngleDeg) === null
-        ? directedCounterclockwiseBaseRayAngleDeg(geometry)
-        : options.baseRayAngleDeg
+  function calibratedAngleMarkerFromRays(vertex, first, second, label, options) {
+    const context = angleContextFromRays(vertex, first, second, options);
+    const geometry = context.geometry;
+    const style = angleLabelStyle(context.angleDeg, label, Object.assign({}, options || {}, {
+      baseRayAngleDeg: context.baseRayAngleDeg
     }));
     const strokeCorrection = angleStrokeCorrection(style.angleDeg, options);
     const markerLabel = strokeAdjustedAngleLabelPosition(vertex, geometry, style, options);
     return {
+      angleContext: context,
       geometry,
       style,
       thinArcRadius: style.arcRadius,
@@ -1681,6 +1722,10 @@
       arcRadius: style.arcRadius + strokeCorrection.arcRadiusOffset,
       label: markerLabel
     };
+  }
+
+  function calibratedAngleMarker(vertex, first, second, label, options) {
+    return calibratedAngleMarkerFromRays(vertex, first, second, label, options);
   }
 
   function calibratedAngleLabelPosition(vertex, first, second, label, options) {
@@ -1831,12 +1876,14 @@
     ANGLE_LABEL_SAMPLE_DATA,
     unitVector,
     angleGeometry,
+    angleContextFromRays,
     arcPoints,
     arcSvgPath,
     labelEccentricityForAngle,
     angleLabelPosition,
     angleLabelClassFor,
     angleLabelStyle,
+    angleLabelStyleFromRays,
     angleLabelCalibrationAt,
     angleLabelSampleCorrection,
     thinAngleLabelRelativePosition,
@@ -1845,6 +1892,7 @@
     strokeAdjustedAngleLabelRelativePosition,
     thinAngleLabelPosition,
     strokeAdjustedAngleLabelPosition,
+    calibratedAngleMarkerFromRays,
     calibratedAngleMarker,
     calibratedAngleLabelPosition,
     rightAngleArcDotMarker,

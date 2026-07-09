@@ -1,4 +1,4 @@
-const APP_VERSION = '20260709.3';
+const APP_VERSION = '20260709.4';
 const VERSION_MISMATCH_TEXT = {
   de: {
     title: 'Neue Version verfuegbar',
@@ -1277,13 +1277,14 @@ function getAcuteAngleMarker(task, points, index) {
   const neighborIndices = [0, 1, 2].filter(function(otherIndex) {
     return otherIndex !== index;
   });
-  const marker = angleLayout.calibratedAngleMarker(
+  const marker = angleLayout.calibratedAngleMarkerFromRays(
     points[index],
     points[neighborIndices[0]],
     points[neighborIndices[1]],
     task.angleLabels[index],
     {
       fontSizePx: ANGLE_LABEL_FONT_SIZE,
+      coordinateSystem: 'svg',
       rayStrokeWidthPx: TRIANGLE_SIDE_STROKE_WIDTH,
       arcStrokeWidthPx: TRIANGLE_ANGLE_ARC_STROKE_WIDTH
     }
