@@ -1,4 +1,4 @@
-const APP_VERSION = '20260710.6';
+const APP_VERSION = '20260710.7';
 const VERSION_MISMATCH_TEXT = {
   de: {
     title: 'Neue Version verfuegbar',
@@ -278,6 +278,12 @@ const angleLayout = window.GGGeometryAngleLayout;
 if (!angleLayout) {
   throw new Error('GGGeometryAngleLayout must be loaded before js/app.js.');
 }
+const EXPECTED_ANGLE_LAYOUT_CONTRACT = Object.freeze({
+  helperVersion: '0.4.24',
+  calibrationVersion: 'angle-label-tuning-v35',
+  dataVersion: 'angle-label-data-cloud-v24'
+});
+angleLayout.assertAngleLabelCalibrationContract(EXPECTED_ANGLE_LAYOUT_CONTRACT);
 const EXPECTED_ANGLE_LABEL_RENDER_PROFILE_ID = 'mathjax-3.2.2-chtml-tex-scale1-css-px-v1';
 angleLayout.assertAngleLabelRenderProfile(EXPECTED_ANGLE_LABEL_RENDER_PROFILE_ID);
 const DEGREE = Math.PI / 180;

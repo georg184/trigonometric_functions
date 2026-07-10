@@ -21,9 +21,10 @@
 (function(global) {
   'use strict';
 
-  const VERSION = '0.4.23';
+  const VERSION = '0.4.24';
   const ANGLE_EPSILON_RAD = 1e-12;
   const ANGLE_LABEL_CALIBRATION_VERSION = 'angle-label-tuning-v35';
+  // BEGIN GENERATED: angle-label-data-contract
   const ANGLE_LABEL_DATA_VERSION = 'angle-label-data-cloud-v24';
   const ANGLE_LABEL_RENDER_PROFILE = Object.freeze({
     id: 'mathjax-3.2.2-chtml-tex-scale1-css-px-v1',
@@ -38,6 +39,12 @@
     lineHeight: 1,
     horizontalAnchor: 'center',
     verticalAnchor: 'center'
+  });
+  // END GENERATED: angle-label-data-contract
+  const ANGLE_LABEL_CALIBRATION_CONTRACT = Object.freeze({
+    helperVersion: VERSION,
+    calibrationVersion: ANGLE_LABEL_CALIBRATION_VERSION,
+    dataVersion: ANGLE_LABEL_DATA_VERSION
   });
   const ANGLE_LABEL_SAMPLE_CONFIDENCE_FACTORS = Object.freeze({
     known: 1,
@@ -162,6 +169,7 @@
     [350,[15,49],[17,51],[19,50]]
   ]);
 
+  // BEGIN GENERATED: angle-label-sample-rows
   const ANGLE_LABEL_SAMPLE_ROWS = Object.freeze([
     [350,260,"\\kappa","κ","small",20,22,58,0,2.2,2,"estimated-old-lab"],
     [10,170,"\\chi","χ","medium",12,92,90,-1,2.2,2,"estimated-old-lab"],
@@ -1199,6 +1207,7 @@
     [85,90,"\\mu","μ","medium",18,24.7,65.8,-6.5,1.5,1.25,"known"],
     [40,0,"\\alpha","α","small",24,45.9,74.9,6,3.25,1.25,"known"]
   ]);
+  // END GENERATED: angle-label-sample-rows
 
   const ANGLE_LABEL_CLASS_IDS = ANGLE_LABEL_CLASSES.map(function(labelClass) {
     return labelClass.id;
@@ -1528,6 +1537,24 @@
       baselineFontSizePx: DEFAULTS.angleLabelFontSizePx,
       renderProfileId: ANGLE_LABEL_RENDER_PROFILE.id
     };
+  }
+
+  /**
+   * Verifies that a consumer independently pins the helper, calibration, and
+   * data versions it was tested against.
+   */
+  function assertAngleLabelCalibrationContract(expected) {
+    const requested = expected || {};
+    const mismatches = Object.keys(ANGLE_LABEL_CALIBRATION_CONTRACT).filter(function(key) {
+      return requested[key] !== ANGLE_LABEL_CALIBRATION_CONTRACT[key];
+    });
+    if (mismatches.length > 0) {
+      const detail = mismatches.map(function(key) {
+        return `${key}: expected ${requested[key] || 'missing'}, got ${ANGLE_LABEL_CALIBRATION_CONTRACT[key]}`;
+      }).join('; ');
+      throw new Error(`Incompatible angle-label calibration contract: ${detail}.`);
+    }
+    return ANGLE_LABEL_CALIBRATION_CONTRACT;
   }
 
   /**
@@ -2260,6 +2287,7 @@
     ANGLE_LABEL_CALIBRATION_VERSION,
     ANGLE_LABEL_DATA_VERSION,
     ANGLE_LABEL_RENDER_PROFILE,
+    ANGLE_LABEL_CALIBRATION_CONTRACT,
     ANGLE_LABEL_SAMPLE_CONFIDENCE_FACTORS,
     ANGLE_LABEL_SAMPLE_MASS_BY_LABEL,
     ANGLE_LABEL_CLASS_NORMALIZATION_FACTOR_BY_LABEL,
@@ -2275,6 +2303,7 @@
     labelEccentricityForAngle,
     angleLabelPosition,
     angleLabelClassFor,
+    assertAngleLabelCalibrationContract,
     assertAngleLabelRenderProfile,
     angleLabelSampleConfidenceFactor,
     angleLabelClassNormalizationFactor,
