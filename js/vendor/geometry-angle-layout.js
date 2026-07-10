@@ -21,8 +21,8 @@
 (function(global) {
   'use strict';
 
-  const VERSION = '0.4.20';
-  const ANGLE_LABEL_CALIBRATION_VERSION = 'angle-label-tuning-v34';
+  const VERSION = '0.4.21';
+  const ANGLE_LABEL_CALIBRATION_VERSION = 'angle-label-tuning-v35';
   const ANGLE_LABEL_DATA_VERSION = 'angle-label-data-cloud-v24';
   const ANGLE_LABEL_RENDER_PROFILE = Object.freeze({
     id: 'mathjax-3.2.2-chtml-tex-scale1-css-px-v1',
@@ -61,6 +61,10 @@
     angleLabelResidualFullEffectiveSampleSize: 3,
     angleLabelResidualSingleSampleMaxBlend: 0.1,
     angleLabelResidualMaxBlend: 0.85,
+    angleLabelClassNameNormalizationExponent: 0.25,
+    angleLabelIndependentNameMinSampleMass: 60,
+    angleLabelIndependentNameFullSampleMass: 100,
+    angleLabelIndependentNameMaxBlendBoost: 0.12,
     angleRayStrokeWidthPx: 3.25,
     angleArcStrokeWidthPx: 2.25,
     rightAngleArcRadius: 26,
@@ -1217,6 +1221,42 @@
   });
 
   const ANGLE_LABEL_SAMPLE_DATA = Object.freeze(ANGLE_LABEL_SAMPLE_ROWS.map(sampleRow));
+  const ANGLE_LABEL_SAMPLE_MASS_BY_LABEL = Object.freeze(
+    ANGLE_LABEL_SAMPLE_DATA.reduce(function(result, sample) {
+      const key = labelKey(sample.label);
+      result[key] = (result[key] || 0) + angleLabelSampleConfidenceFactor(sample);
+      return result;
+    }, {})
+  );
+  const ANGLE_LABEL_CLASS_SAMPLE_MASS_REFERENCE = Object.freeze(
+    ANGLE_LABEL_CLASSES.reduce(function(result, labelClass) {
+      const masses = labelClass.covers.map(function(label) {
+        return ANGLE_LABEL_SAMPLE_MASS_BY_LABEL[labelKey(label)] || 0;
+      }).filter(function(mass) {
+        return mass > 0;
+      });
+      result[labelClass.id] = masses.length > 0
+        ? masses.reduce(function(total, mass) { return total + mass; }, 0) / masses.length
+        : 1;
+      return result;
+    }, {})
+  );
+  const ANGLE_LABEL_CLASS_NORMALIZATION_FACTOR_BY_LABEL = Object.freeze(
+    ANGLE_LABEL_CLASSES.reduce(function(result, labelClass) {
+      labelClass.covers.forEach(function(label) {
+        const key = labelKey(label);
+        const mass = ANGLE_LABEL_SAMPLE_MASS_BY_LABEL[key] || 0;
+        const referenceMass = ANGLE_LABEL_CLASS_SAMPLE_MASS_REFERENCE[labelClass.id] || mass;
+        result[key] = mass > 0
+          ? Math.pow(
+            referenceMass / mass,
+            DEFAULTS.angleLabelClassNameNormalizationExponent
+          )
+          : 1;
+      });
+      return result;
+    }, {})
+  );
 
   function mergeOptions(options) {
     return Object.assign({}, DEFAULTS, options || {});
@@ -1432,6 +1472,8 @@
       labelResidualAverageSampleConfidence: correction.labelResidualAverageSampleConfidence,
       labelResidualSampleCount: correction.labelResidualSampleCount,
       labelResidualBlend: correction.labelResidualBlend,
+      labelModelStrength: correction.labelModelStrength,
+      labelResidualMaxBlend: correction.labelResidualMaxBlend,
       fontSizePx,
       baselineFontSizePx: DEFAULTS.angleLabelFontSizePx,
       renderProfileId: ANGLE_LABEL_RENDER_PROFILE.id
@@ -1504,10 +1546,19 @@
       safeClassId,
       targetLabel
     );
+    const labelModelStrength = angleLabelNameModelStrength(targetLabel, settings);
+    const labelResidualMaxBlend = clamp(
+      settings.angleLabelResidualMaxBlend
+        + labelModelStrength * settings.angleLabelIndependentNameMaxBlendBoost,
+      0,
+      1
+    );
     const residualBlend = angleLabelResidualBlend(
       labelResidual.weight,
       labelResidual.effectiveSampleSize,
-      settings
+      Object.assign({}, settings, {
+        angleLabelResidualMaxBlend: labelResidualMaxBlend
+      })
     );
     totalWeight = classCorrection.weight + labelResidual.weight * residualBlend;
 
@@ -1522,7 +1573,9 @@
       labelResidualKishEffectiveSampleSize: labelResidual.kishEffectiveSampleSize,
       labelResidualAverageSampleConfidence: labelResidual.averageSampleConfidence,
       labelResidualSampleCount: labelResidual.sampleCount,
-      labelResidualBlend: residualBlend
+      labelResidualBlend: residualBlend,
+      labelModelStrength,
+      labelResidualMaxBlend
     };
   }
 
@@ -1533,7 +1586,14 @@
     let labelAngleOffsetDeg = 0;
 
     ANGLE_LABEL_SAMPLE_DATA.forEach(function(sample) {
-      const weight = classSampleWeight(sample, target, baseRayAngleDeg, labelClassId, excludedLabel);
+      const weight = classSampleWeight(
+        sample,
+        target,
+        settings,
+        baseRayAngleDeg,
+        labelClassId,
+        excludedLabel
+      );
       if (weight < 0.01) {
         return;
       }
@@ -1651,14 +1711,26 @@
     };
   }
 
-  function classSampleWeight(sample, target, baseRayAngleDeg, labelClassId, excludedLabel) {
+  function classSampleWeight(
+    sample,
+    target,
+    settings,
+    baseRayAngleDeg,
+    labelClassId,
+    excludedLabel
+  ) {
     if (sample.labelClassId !== labelClassId) {
       return 0;
     }
     if (excludedLabel && labelsMatch(sample.label, excludedLabel)) {
       return 0;
     }
-    return neighborhoodSampleWeight(sample, target, baseRayAngleDeg);
+    return neighborhoodSampleWeight(sample, target, baseRayAngleDeg)
+      * classNormalizationFactor(
+        sample.label,
+        labelClassId,
+        settings.angleLabelClassNameNormalizationExponent
+      );
   }
 
   function neighborhoodSampleWeight(sample, target, baseRayAngleDeg) {
@@ -1685,6 +1757,51 @@
       : sampleOrConfidence && sampleOrConfidence.strokeWidthConfidence;
     return ANGLE_LABEL_SAMPLE_CONFIDENCE_FACTORS[confidence]
       ?? ANGLE_LABEL_SAMPLE_CONFIDENCE_FACTORS.unknown;
+  }
+
+  /**
+   * Softly normalizes each label's contribution to its class model. The
+   * exponent stays below 1 so denser labels retain an evidence advantage
+   * without dominating in direct proportion to collection frequency.
+   */
+  function angleLabelClassNormalizationFactor(label, labelClassId, options) {
+    const settings = mergeOptions(options);
+    return classNormalizationFactor(
+      label,
+      labelClassId,
+      settings.angleLabelClassNameNormalizationExponent
+    );
+  }
+
+  function classNormalizationFactor(label, labelClassId, exponent) {
+    const key = labelKey(label);
+    if (numericOr(exponent, 0.25) === DEFAULTS.angleLabelClassNameNormalizationExponent) {
+      return ANGLE_LABEL_CLASS_NORMALIZATION_FACTOR_BY_LABEL[key] || 1;
+    }
+    const mass = ANGLE_LABEL_SAMPLE_MASS_BY_LABEL[key] || 0;
+    if (mass <= 0) {
+      return 1;
+    }
+    const referenceMass = ANGLE_LABEL_CLASS_SAMPLE_MASS_REFERENCE[labelClassId] || mass;
+    return Math.pow(
+      referenceMass / mass,
+      Math.max(0, numericOr(exponent, 0.25))
+    );
+  }
+
+  /**
+   * Returns the global evidence strength used to raise the maximum own-label
+   * blend. Local residual support is still required by angleLabelResidualBlend().
+   */
+  function angleLabelNameModelStrength(label, options) {
+    const settings = mergeOptions(options);
+    const mass = ANGLE_LABEL_SAMPLE_MASS_BY_LABEL[labelKey(normalizeLabel(label))] || 0;
+    const minimum = numericOr(settings.angleLabelIndependentNameMinSampleMass, 60);
+    const full = Math.max(
+      minimum + 0.001,
+      numericOr(settings.angleLabelIndependentNameFullSampleMass, 100)
+    );
+    return clamp((mass - minimum) / (full - minimum), 0, 1);
   }
 
   /**
@@ -1987,6 +2104,10 @@
     };
   }
 
+  function labelKey(label) {
+    return label && (label.latex || label.text) || '';
+  }
+
   function labelsMatch(first, second) {
     return Boolean(first && second)
       && (first.text === second.text || first.latex === second.latex);
@@ -2022,7 +2143,9 @@
       labelResidualKishEffectiveSampleSize: 0,
       labelResidualAverageSampleConfidence: 0,
       labelResidualSampleCount: 0,
-      labelResidualBlend: 0
+      labelResidualBlend: 0,
+      labelModelStrength: 0,
+      labelResidualMaxBlend: DEFAULTS.angleLabelResidualMaxBlend
     };
   }
 
@@ -2058,6 +2181,8 @@
     ANGLE_LABEL_DATA_VERSION,
     ANGLE_LABEL_RENDER_PROFILE,
     ANGLE_LABEL_SAMPLE_CONFIDENCE_FACTORS,
+    ANGLE_LABEL_SAMPLE_MASS_BY_LABEL,
+    ANGLE_LABEL_CLASS_NORMALIZATION_FACTOR_BY_LABEL,
     DEFAULTS,
     ANGLE_LABEL_CLASSES,
     ANGLE_LABEL_CALIBRATION_ROWS,
@@ -2072,6 +2197,8 @@
     angleLabelClassFor,
     assertAngleLabelRenderProfile,
     angleLabelSampleConfidenceFactor,
+    angleLabelClassNormalizationFactor,
+    angleLabelNameModelStrength,
     angleLabelResidualBlend,
     angleLabelStyle,
     angleLabelStyleFromRays,
