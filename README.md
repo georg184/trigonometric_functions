@@ -23,7 +23,7 @@ The public version is intended to be available through GitHub Pages:
 The app intentionally uses a single geometry renderer:
 
 - triangle geometry and angle markers are drawn as inline SVG
-- side labels and angle labels are positioned as HTML overlays and rendered with MathJax
+- side labels and angle labels are positioned as HTML overlays and rendered with pinned MathJax `3.2.2` CommonHTML output
 - reusable angle arc, right-angle marker, and angle-label placement logic comes from `js/vendor/geometry-angle-layout.js`
 
 Older comparison renderers using JSXGraph, D3, and GeoGebra were removed. Do not reintroduce those dependencies unless the app explicitly needs a new rendering comparison mode. For the current quiz workflow, MathJax and the pinned Pyodide/SymPy worker load are the external runtime dependencies; local app assets remain cache-busted with `GG_APP_VERSION`.
@@ -54,11 +54,13 @@ When changing labels, button text, titles, placeholders, ARIA labels, feedback, 
 
 `/mnt/data/sync/software/HTML/ggprojects/shared/geometry-angle-layout.js`
 
-Current vendored helper version: `0.4.17`.
+Current vendored helper version: `0.4.18`.
 
 When the shared helper changes, copy the updated file into `js/vendor/` and commit the project copy so GitHub Pages can serve it publicly.
 
 The current right-triangle angle arcs and angle-label positions use the calibrated helper data from `angle-label-tuning-v32`. The helper starts with a label-class baseline and adds a guarded exact-label residual correction when enough matching label samples are nearby. The app calls `calibratedAngleMarkerFromRays()` with `coordinateSystem: 'svg'`, which normalizes SVG ray endpoints to the calibrated mathematical counterclockwise angle convention, computes thin/reference-line angle-label values, and then analytically adjusts the rendered arc radius and label position for the triangle side and angle-arc stroke widths.
+
+The angle labels also obey the helper's calibration render profile `mathjax-3.2.2-chtml-tex-scale1-css-px-v1`. The app independently declares this id and verifies it with `assertAngleLabelRenderProfile()`. MathJax is pinned to `3.2.2`, uses CommonHTML with `scale: 1` and `matchFontHeight: false`, and the same `ANGLE_LABEL_FONT_SIZE_PX` constant is passed to the helper and assigned directly to each rendered angle-label element. The MathJax container inherits that exact pixel size and uses container font weight `900`, line height `1`, and center anchoring. Do not replace the calibrated label size with `rem`, `em`, `clamp()`, or viewport-relative units. A renderer, version, scale, font-metric, or label-box CSS change requires a new render profile and visual regression validation.
 
 ## Cache And Version Safety
 
@@ -93,6 +95,7 @@ For browser checks, start a local static server and verify:
 - the language selector updates the affected UI consistently in German, English, and French
 - exactly one triangle rendering is visible
 - SVG geometry and five MathJax labels are present
+- angle labels contain `data-angle-label-render-profile="mathjax-3.2.2-chtml-tex-scale1-css-px-v1"`, use CommonHTML rather than nested SVG output, and have a computed font size of exactly `16px`
 - both right-angle marker modes work
 - answer checking and the next-task flow work
 - `Zur Startseite` returns to the intro screen without clearing the current score, and reopening the right-triangle quiz resumes the same in-memory round

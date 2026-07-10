@@ -257,7 +257,6 @@ p {
   transform: translate(-50%, -50%);
   z-index: 2;
   color: var(--text);
-  font-size: 0.98rem;
   font-weight: 800;
   line-height: 1;
   background: transparent;
@@ -266,10 +265,13 @@ p {
 
 .render-label mjx-container {
   background: transparent !important;
+  font-size: inherit !important;
+  margin: 0 !important;
 }
 
 .render-label-angle {
   color: #57606a;
+  font-weight: 900;
 }
 
 .render-label-right {

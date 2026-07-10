@@ -1,4 +1,4 @@
-const APP_VERSION = '20260709.5';
+const APP_VERSION = '20260710.1';
 const VERSION_MISMATCH_TEXT = {
   de: {
     title: 'Neue Version verfuegbar',
@@ -278,6 +278,8 @@ const angleLayout = window.GGGeometryAngleLayout;
 if (!angleLayout) {
   throw new Error('GGGeometryAngleLayout must be loaded before js/app.js.');
 }
+const EXPECTED_ANGLE_LABEL_RENDER_PROFILE_ID = 'mathjax-3.2.2-chtml-tex-scale1-css-px-v1';
+angleLayout.assertAngleLabelRenderProfile(EXPECTED_ANGLE_LABEL_RENDER_PROFILE_ID);
 const DEGREE = Math.PI / 180;
 const TASK_TYPES = ['sin', 'cos', 'tan'];
 const QUESTION_KINDS = {
@@ -296,7 +298,7 @@ const RIGHT_ANGLE_MARKERS = {
   arcDot: 'arcDot',
   square: 'square'
 };
-const ANGLE_LABEL_FONT_SIZE = 16;
+const ANGLE_LABEL_FONT_SIZE_PX = 16;
 const VERTEX_SETS = [
   ['A', 'B', 'C'],
   ['D', 'E', 'F'],
@@ -1283,7 +1285,7 @@ function getAcuteAngleMarker(task, points, index) {
     points[neighborIndices[1]],
     task.angleLabels[index],
     {
-      fontSizePx: ANGLE_LABEL_FONT_SIZE,
+      fontSizePx: ANGLE_LABEL_FONT_SIZE_PX,
       coordinateSystem: 'svg',
       rayStrokeWidthPx: TRIANGLE_SIDE_STROKE_WIDTH,
       arcStrokeWidthPx: TRIANGLE_ANGLE_ARC_STROKE_WIDTH
@@ -1340,7 +1342,9 @@ function getTriangleLabels(task, points) {
       latex: task.angleLabels[index].latex,
       x: marker.label.x,
       y: marker.label.y,
-      color: '#57606a'
+      color: '#57606a',
+      fontSizePx: ANGLE_LABEL_FONT_SIZE_PX,
+      renderProfileId: marker.style.renderProfileId
     });
   }
 
@@ -1361,6 +1365,12 @@ function addHtmlMathLabel(surface, label) {
   element.style.left = `${label.x}px`;
   element.style.top = `${label.y}px`;
   element.style.color = label.color;
+  if (Number.isFinite(label.fontSizePx)) {
+    element.style.fontSize = `${label.fontSizePx}px`;
+  }
+  if (label.renderProfileId) {
+    element.dataset.angleLabelRenderProfile = label.renderProfileId;
+  }
   element.innerHTML = `\\(${label.latex}\\)`;
   surface.appendChild(element);
 }

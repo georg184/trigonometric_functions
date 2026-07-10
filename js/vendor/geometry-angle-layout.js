@@ -4,11 +4,40 @@
  * The functions in this file do not create DOM nodes. They only compute
  * renderer-independent geometry that can be consumed by SVG, D3, JSXGraph,
  * GeoGebra command generation, or HTML/MathJax label overlays.
+ *
+ * CALIBRATED ANGLE-LABEL RENDER CONTRACT
+ * --------------------------------------
+ * The fitted values are renderer-independent geometry, but the observations
+ * were made against the MathJax render profile exported below. Consumers must
+ * render calibrated labels with that same pinned MathJax version, output
+ * processor, scale, exact CSS-pixel font size, font weight, line height, and
+ * center anchor.
+ * `fontSizePx` means the actual CSS pixel size applied to the label element;
+ * it is not a nominal rem/em value. Call assertAngleLabelRenderProfile() in an
+ * application adapter so an incompatible renderer fails visibly instead of
+ * silently producing labels whose geometry is numerically correct but whose
+ * glyph boxes differ from the calibration environment.
  */
 (function(global) {
   'use strict';
 
-  const VERSION = '0.4.17';
+  const VERSION = '0.4.18';
+  const ANGLE_LABEL_CALIBRATION_VERSION = 'angle-label-tuning-v32';
+  const ANGLE_LABEL_DATA_VERSION = 'angle-label-data-cloud-v24';
+  const ANGLE_LABEL_RENDER_PROFILE = Object.freeze({
+    id: 'mathjax-3.2.2-chtml-tex-scale1-css-px-v1',
+    renderer: 'MathJax',
+    rendererVersion: '3.2.2',
+    inputProcessor: 'tex',
+    outputProcessor: 'chtml',
+    outputScale: 1,
+    matchFontHeight: false,
+    fontSizeUnit: 'px',
+    containerFontWeight: 900,
+    lineHeight: 1,
+    horizontalAnchor: 'center',
+    verticalAnchor: 'center'
+  });
 
   const DEFAULTS = Object.freeze({
     acuteAngleArcRadius: 44,
@@ -1389,8 +1418,24 @@
       labelResidualWeight: correction.labelResidualWeight,
       labelResidualBlend: correction.labelResidualBlend,
       fontSizePx,
-      baselineFontSizePx: DEFAULTS.angleLabelFontSizePx
+      baselineFontSizePx: DEFAULTS.angleLabelFontSizePx,
+      renderProfileId: ANGLE_LABEL_RENDER_PROFILE.id
     };
+  }
+
+  /**
+   * Verifies the renderer adapter used by a calibration producer or consumer.
+   * Pass the adapter's independently declared profile id, not the value read
+   * back from this helper; the duplication is intentional and catches drift.
+   */
+  function assertAngleLabelRenderProfile(profile) {
+    const actualId = typeof profile === 'string' ? profile : profile && profile.id;
+    if (actualId !== ANGLE_LABEL_RENDER_PROFILE.id) {
+      throw new Error(
+        `Incompatible angle-label render profile: expected ${ANGLE_LABEL_RENDER_PROFILE.id}, got ${actualId || 'missing'}.`
+      );
+    }
+    return ANGLE_LABEL_RENDER_PROFILE;
   }
 
   function angleLabelStyleFromRays(vertex, first, second, label, options) {
@@ -1902,6 +1947,9 @@
 
   const api = Object.freeze({
     VERSION,
+    ANGLE_LABEL_CALIBRATION_VERSION,
+    ANGLE_LABEL_DATA_VERSION,
+    ANGLE_LABEL_RENDER_PROFILE,
     DEFAULTS,
     ANGLE_LABEL_CLASSES,
     ANGLE_LABEL_CALIBRATION_ROWS,
@@ -1914,6 +1962,7 @@
     labelEccentricityForAngle,
     angleLabelPosition,
     angleLabelClassFor,
+    assertAngleLabelRenderProfile,
     angleLabelStyle,
     angleLabelStyleFromRays,
     angleLabelCalibrationAt,

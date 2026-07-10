@@ -1,5 +1,9 @@
 window.MathJax = {
   loader: { load: ['[tex]/html', '[tex]/ams'] },
+  chtml: {
+    scale: 1,
+    matchFontHeight: false
+  },
   tex: {
     packages: { '[+]': ['html', 'ams'] },
     macros: {
