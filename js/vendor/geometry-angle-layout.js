@@ -21,7 +21,7 @@
 (function(global) {
   'use strict';
 
-  const VERSION = '0.4.22';
+  const VERSION = '0.4.23';
   const ANGLE_EPSILON_RAD = 1e-12;
   const ANGLE_LABEL_CALIBRATION_VERSION = 'angle-label-tuning-v35';
   const ANGLE_LABEL_DATA_VERSION = 'angle-label-data-cloud-v24';
@@ -2014,9 +2014,18 @@
     });
   }
 
-  function thinAngleLabelPosition(vertex, geometry, style) {
+  /**
+   * Converts the mathematical counterclockwise label offset into the angle
+   * direction of the geometry's coordinate system.
+   */
+  function thinAngleLabelPosition(vertex, geometry, style, options) {
+    const coordinateSystem = options && options.coordinateSystem
+      ? normalizedCoordinateSystem(options)
+      : geometry.coordinateSystem || 'svg';
+    const coordinateDirection = coordinateSystem === 'math' ? 1 : -1;
     const labelDistance = style.arcRadius * style.labelPercent / 100;
-    const labelAngle = geometry.middle - style.labelAngleOffsetDeg * Math.PI / 180;
+    const labelAngle = geometry.middle
+      + coordinateDirection * style.labelAngleOffsetDeg * Math.PI / 180;
     return Object.assign(pointOnRay(vertex, labelAngle, labelDistance), {
       distance: labelDistance,
       eccentricity: style.labelPercent / 100,
@@ -2025,13 +2034,14 @@
       labelAngleOffsetDeg: style.labelAngleOffsetDeg,
       labelAngleRad: labelAngle,
       bisectorAngleRad: geometry.middle,
+      coordinateSystem,
       arcRadius: style.arcRadius,
       thinArcRadius: style.arcRadius
     });
   }
 
   function strokeAdjustedAngleLabelPosition(vertex, geometry, style, options) {
-    const thinPosition = thinAngleLabelPosition(vertex, geometry, style);
+    const thinPosition = thinAngleLabelPosition(vertex, geometry, style, options);
     const correction = angleStrokeCorrection(style.angleDeg || geometry.angleDeg, options);
     const shift = pointOnRay({ x: 0, y: 0 }, geometry.middle, correction.bisectorOffset);
     return Object.assign({}, thinPosition, {
