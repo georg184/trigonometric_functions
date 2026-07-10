@@ -21,8 +21,8 @@
 (function(global) {
   'use strict';
 
-  const VERSION = '0.4.18';
-  const ANGLE_LABEL_CALIBRATION_VERSION = 'angle-label-tuning-v32';
+  const VERSION = '0.4.19';
+  const ANGLE_LABEL_CALIBRATION_VERSION = 'angle-label-tuning-v33';
   const ANGLE_LABEL_DATA_VERSION = 'angle-label-data-cloud-v24';
   const ANGLE_LABEL_RENDER_PROFILE = Object.freeze({
     id: 'mathjax-3.2.2-chtml-tex-scale1-css-px-v1',
@@ -49,6 +49,9 @@
     angleLabelSampleMinWeight: 0.08,
     angleLabelResidualMinWeight: 0.35,
     angleLabelResidualFullWeight: 8,
+    angleLabelResidualConfidenceWeightCap: 1,
+    angleLabelResidualFullEffectiveSampleSize: 3,
+    angleLabelResidualSingleSampleMaxBlend: 0.1,
     angleLabelResidualMaxBlend: 0.85,
     angleRayStrokeWidthPx: 3.25,
     angleArcStrokeWidthPx: 2.25,
@@ -1416,6 +1419,8 @@
       sampleCorrectionWeight: correction.weight,
       classCorrectionWeight: correction.classWeight,
       labelResidualWeight: correction.labelResidualWeight,
+      labelResidualEffectiveSampleSize: correction.labelResidualEffectiveSampleSize,
+      labelResidualSampleCount: correction.labelResidualSampleCount,
       labelResidualBlend: correction.labelResidualBlend,
       fontSizePx,
       baselineFontSizePx: DEFAULTS.angleLabelFontSizePx,
@@ -1489,7 +1494,11 @@
       safeClassId,
       targetLabel
     );
-    const residualBlend = labelResidualBlend(labelResidual.weight, settings);
+    const residualBlend = angleLabelResidualBlend(
+      labelResidual.weight,
+      labelResidual.effectiveSampleSize,
+      settings
+    );
     totalWeight = classCorrection.weight + labelResidual.weight * residualBlend;
 
     return {
@@ -1499,6 +1508,8 @@
       weight: totalWeight,
       classWeight: classCorrection.weight,
       labelResidualWeight: labelResidual.weight,
+      labelResidualEffectiveSampleSize: labelResidual.effectiveSampleSize,
+      labelResidualSampleCount: labelResidual.sampleCount,
       labelResidualBlend: residualBlend
     };
   }
@@ -1540,9 +1551,16 @@
     }
 
     let totalWeight = 0;
+    let confidenceWeightTotal = 0;
+    let confidenceWeightSquares = 0;
     let arcRadiusRatio = 0;
     let labelPercent = 0;
     let labelAngleOffsetDeg = 0;
+    let sampleCount = 0;
+    const confidenceWeightCap = Math.max(
+      0.01,
+      numericOr(settings.angleLabelResidualConfidenceWeightCap, 1)
+    );
 
     ANGLE_LABEL_SAMPLE_DATA.forEach(function(sample) {
       const weight = labelResidualSampleWeight(sample, target, baseRayAngleDeg, labelClassId, targetLabel);
@@ -1566,6 +1584,10 @@
         residual.labelAngleOffsetDeg - genericClassCorrection.labelAngleOffsetDeg
       );
       totalWeight += weight;
+      const confidenceWeight = Math.min(weight, confidenceWeightCap);
+      confidenceWeightTotal += confidenceWeight;
+      confidenceWeightSquares += square(confidenceWeight);
+      sampleCount += 1;
     });
 
     if (totalWeight < settings.angleLabelResidualMinWeight) {
@@ -1576,7 +1598,12 @@
       arcRadiusRatio: arcRadiusRatio / totalWeight,
       labelPercent: labelPercent / totalWeight,
       labelAngleOffsetDeg: labelAngleOffsetDeg / totalWeight,
-      weight: totalWeight
+      weight: totalWeight,
+      effectiveSampleSize: effectiveSampleSize(
+        confidenceWeightTotal,
+        confidenceWeightSquares
+      ),
+      sampleCount
     };
   }
 
@@ -1624,13 +1651,45 @@
     return Math.exp(-0.5 * distanceSquared) / (0.05 + distanceSquared);
   }
 
-  function labelResidualBlend(weight, settings) {
-    if (weight <= settings.angleLabelResidualMinWeight) {
+  /**
+   * Returns the exact-label residual blend for a weighted neighborhood.
+   * Consumers normally receive this through angleLabelStyle(). This public
+   * form exists for tuning diagnostics and contract tests.
+   */
+  function angleLabelResidualBlend(weight, effectiveSamples, options) {
+    const settings = mergeOptions(options);
+    const safeWeight = Math.max(0, numericOr(weight, 0));
+    const safeEffectiveSamples = Math.max(0, numericOr(effectiveSamples, 0));
+    if (safeWeight <= settings.angleLabelResidualMinWeight || safeEffectiveSamples <= 0) {
       return 0;
     }
-    const t = (weight - settings.angleLabelResidualMinWeight)
+    const weightConfidence = (safeWeight - settings.angleLabelResidualMinWeight)
       / Math.max(0.001, settings.angleLabelResidualFullWeight - settings.angleLabelResidualMinWeight);
-    return clamp(t, 0, 1) * settings.angleLabelResidualMaxBlend;
+    const maxBlend = clamp(numericOr(settings.angleLabelResidualMaxBlend, 0.85), 0, 1);
+    const singleSampleMaxBlend = clamp(
+      numericOr(settings.angleLabelResidualSingleSampleMaxBlend, 0.1),
+      0,
+      maxBlend
+    );
+    const fullEffectiveSampleSize = Math.max(
+      1.001,
+      numericOr(settings.angleLabelResidualFullEffectiveSampleSize, 3)
+    );
+    const diversityConfidence = (safeEffectiveSamples - 1)
+      / (fullEffectiveSampleSize - 1);
+    const diversityLimitedBlend = lerp(
+      singleSampleMaxBlend,
+      maxBlend,
+      clamp(diversityConfidence, 0, 1)
+    );
+    return clamp(weightConfidence, 0, 1) * diversityLimitedBlend;
+  }
+
+  function effectiveSampleSize(weightTotal, weightSquares) {
+    if (weightTotal <= 0 || weightSquares <= 0) {
+      return 0;
+    }
+    return square(weightTotal) / weightSquares;
   }
 
   function angleLabelCalibrationAt(angleDeg, labelClassId) {
@@ -1919,6 +1978,8 @@
       weight: 0,
       classWeight: 0,
       labelResidualWeight: 0,
+      labelResidualEffectiveSampleSize: 0,
+      labelResidualSampleCount: 0,
       labelResidualBlend: 0
     };
   }
@@ -1928,7 +1989,9 @@
       arcRadiusRatio: 0,
       labelPercent: 0,
       labelAngleOffsetDeg: 0,
-      weight: 0
+      weight: 0,
+      effectiveSampleSize: 0,
+      sampleCount: 0
     };
   }
 
@@ -1963,6 +2026,7 @@
     angleLabelPosition,
     angleLabelClassFor,
     assertAngleLabelRenderProfile,
+    angleLabelResidualBlend,
     angleLabelStyle,
     angleLabelStyleFromRays,
     angleLabelCalibrationAt,
