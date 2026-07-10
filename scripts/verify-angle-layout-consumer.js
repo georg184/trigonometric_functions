@@ -85,6 +85,40 @@ assert.equal(svgRuleBodies.length, 1, 'geometry-svg sizing must have one shared 
 assert.match(svgRuleBodies[0], /\bwidth:\s*100%/);
 assert.match(svgRuleBodies[0], /\bheight:\s*100%/);
 
+function getAppFunctionSource(functionName) {
+  const match = appSource.match(
+    new RegExp(`function ${functionName}\\([^\\n]*\\) \\{([\\s\\S]*?)\\n\\}`)
+  );
+  assert.ok(match, `js/app.js must declare ${functionName}().`);
+  return match[0];
+}
+
+const markerCollectionSource = getAppFunctionSource('getAcuteAngleMarkers');
+assert.equal(
+  (markerCollectionSource.match(/getAcuteAngleMarker\(/g) || []).length,
+  1,
+  'getAcuteAngleMarkers() must calculate each marker through one call site.'
+);
+
+const triangleLabelsSource = getAppFunctionSource('getTriangleLabels');
+assert.match(
+  triangleLabelsSource,
+  /function getTriangleLabels\(task, points, acuteAngleMarkers\)/
+);
+assert.doesNotMatch(triangleLabelsSource, /getAcuteAngleMarker\(/);
+
+const svgPrimitivesSource = getAppFunctionSource('addSvgTrianglePrimitives');
+assert.match(
+  svgPrimitivesSource,
+  /function addSvgTrianglePrimitives\(svg, task, points, acuteAngleMarkers\)/
+);
+assert.doesNotMatch(svgPrimitivesSource, /getAcuteAngleMarker\(/);
+
+const renderSource = getAppFunctionSource('renderSvgWithHtmlLabels');
+assert.equal((renderSource.match(/getAcuteAngleMarkers\(/g) || []).length, 1);
+assert.match(renderSource, /getTriangleLabels\(task, points, acuteAngleMarkers\)/);
+assert.match(renderSource, /addSvgTrianglePrimitives\(svg, task, points, acuteAngleMarkers\)/);
+
 console.log(
   `Angle-layout consumer contract verified: app=${appVersion} helper=${helper.VERSION} `
   + `calibration=${helper.ANGLE_LABEL_CALIBRATION_VERSION} data=${helper.ANGLE_LABEL_DATA_VERSION}`

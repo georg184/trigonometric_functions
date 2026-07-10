@@ -1,4 +1,4 @@
-const APP_VERSION = '20260710.8';
+const APP_VERSION = '20260710.9';
 const VERSION_MISMATCH_TEXT = {
   de: {
     title: 'Neue Version verfuegbar',
@@ -1300,6 +1300,15 @@ function getAcuteAngleMarker(task, points, index) {
   return Object.assign({ neighborIndices }, marker);
 }
 
+function getAcuteAngleMarkers(task, points) {
+  return task.acuteIndices.map(function(index) {
+    return {
+      index,
+      marker: getAcuteAngleMarker(task, points, index)
+    };
+  });
+}
+
 function sideLabelPosition(points, sidePoints, centroid) {
   const first = points[sidePoints[0]];
   const second = points[sidePoints[1]];
@@ -1321,7 +1330,7 @@ function sideLabelPosition(points, sidePoints, centroid) {
   };
 }
 
-function getTriangleLabels(task, points) {
+function getTriangleLabels(task, points, acuteAngleMarkers) {
   const centroid = centroidOf(points);
   const labels = [];
 
@@ -1340,8 +1349,7 @@ function getTriangleLabels(task, points) {
     });
   }
 
-  for (const index of task.acuteIndices) {
-    const marker = getAcuteAngleMarker(task, points, index);
+  for (const { index, marker } of acuteAngleMarkers) {
     labels.push({
       type: 'angle',
       text: task.angleLabels[index].text,
@@ -1381,7 +1389,7 @@ function addHtmlMathLabel(surface, label) {
   surface.appendChild(element);
 }
 
-function addSvgTrianglePrimitives(svg, task, points) {
+function addSvgTrianglePrimitives(svg, task, points, acuteAngleMarkers) {
   const sidePairs = [[1, 2], [0, 2], [0, 1]];
   sidePairs.forEach(function(pair, index) {
     svg.appendChild(createSvgElement('line', {
@@ -1396,8 +1404,7 @@ function addSvgTrianglePrimitives(svg, task, points) {
   });
 
   drawSvgRightAngleMarker(svg, task, points);
-  for (const index of task.acuteIndices) {
-    const marker = getAcuteAngleMarker(task, points, index);
+  for (const { marker } of acuteAngleMarkers) {
     svg.appendChild(createSvgElement('path', {
       d: marker.arcPath,
       fill: 'none',
@@ -1447,7 +1454,8 @@ function renderSvgWithHtmlLabels(surface, task) {
     surface.innerHTML = '';
     const size = getSurfaceSize(surface);
     const points = transformPoints(task, size.width, size.height);
-    const labels = getTriangleLabels(task, points);
+    const acuteAngleMarkers = getAcuteAngleMarkers(task, points);
+    const labels = getTriangleLabels(task, points, acuteAngleMarkers);
     const svg = createSvgElement('svg', {
       class: 'geometry-svg',
       viewBox: `0 0 ${size.width} ${size.height}`,
@@ -1455,7 +1463,7 @@ function renderSvgWithHtmlLabels(surface, task) {
       'aria-label': getTextBundle().quiz.svgAria
     });
 
-    addSvgTrianglePrimitives(svg, task, points);
+    addSvgTrianglePrimitives(svg, task, points, acuteAngleMarkers);
     surface.appendChild(svg);
     labels.forEach(function(label) {
       addHtmlMathLabel(surface, label);
