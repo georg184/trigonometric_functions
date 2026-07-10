@@ -21,8 +21,8 @@
 (function(global) {
   'use strict';
 
-  const VERSION = '0.4.19';
-  const ANGLE_LABEL_CALIBRATION_VERSION = 'angle-label-tuning-v33';
+  const VERSION = '0.4.20';
+  const ANGLE_LABEL_CALIBRATION_VERSION = 'angle-label-tuning-v34';
   const ANGLE_LABEL_DATA_VERSION = 'angle-label-data-cloud-v24';
   const ANGLE_LABEL_RENDER_PROFILE = Object.freeze({
     id: 'mathjax-3.2.2-chtml-tex-scale1-css-px-v1',
@@ -37,6 +37,14 @@
     lineHeight: 1,
     horizontalAnchor: 'center',
     verticalAnchor: 'center'
+  });
+  const ANGLE_LABEL_SAMPLE_CONFIDENCE_FACTORS = Object.freeze({
+    known: 1,
+    estimated: 0.9,
+    'estimated-old-lab': 0.9,
+    'estimated-transition-lab': 0.9,
+    'estimated-current-lab': 0.9,
+    unknown: 0.5
   });
 
   const DEFAULTS = Object.freeze({
@@ -1420,6 +1428,8 @@
       classCorrectionWeight: correction.classWeight,
       labelResidualWeight: correction.labelResidualWeight,
       labelResidualEffectiveSampleSize: correction.labelResidualEffectiveSampleSize,
+      labelResidualKishEffectiveSampleSize: correction.labelResidualKishEffectiveSampleSize,
+      labelResidualAverageSampleConfidence: correction.labelResidualAverageSampleConfidence,
       labelResidualSampleCount: correction.labelResidualSampleCount,
       labelResidualBlend: correction.labelResidualBlend,
       fontSizePx,
@@ -1509,6 +1519,8 @@
       classWeight: classCorrection.weight,
       labelResidualWeight: labelResidual.weight,
       labelResidualEffectiveSampleSize: labelResidual.effectiveSampleSize,
+      labelResidualKishEffectiveSampleSize: labelResidual.kishEffectiveSampleSize,
+      labelResidualAverageSampleConfidence: labelResidual.averageSampleConfidence,
       labelResidualSampleCount: labelResidual.sampleCount,
       labelResidualBlend: residualBlend
     };
@@ -1551,6 +1563,7 @@
     }
 
     let totalWeight = 0;
+    let unqualifiedConfidenceWeightTotal = 0;
     let confidenceWeightTotal = 0;
     let confidenceWeightSquares = 0;
     let arcRadiusRatio = 0;
@@ -1563,7 +1576,12 @@
     );
 
     ANGLE_LABEL_SAMPLE_DATA.forEach(function(sample) {
-      const weight = labelResidualSampleWeight(sample, target, baseRayAngleDeg, labelClassId, targetLabel);
+      if (sample.labelClassId !== labelClassId || !labelsMatch(sample.label, targetLabel)) {
+        return;
+      }
+      const kernelWeight = neighborhoodSampleKernel(sample, target, baseRayAngleDeg);
+      const sampleConfidence = angleLabelSampleConfidenceFactor(sample);
+      const weight = kernelWeight * sampleConfidence;
       if (weight < 0.01) {
         return;
       }
@@ -1584,7 +1602,9 @@
         residual.labelAngleOffsetDeg - genericClassCorrection.labelAngleOffsetDeg
       );
       totalWeight += weight;
-      const confidenceWeight = Math.min(weight, confidenceWeightCap);
+      const unqualifiedConfidenceWeight = Math.min(kernelWeight, confidenceWeightCap);
+      const confidenceWeight = unqualifiedConfidenceWeight * sampleConfidence;
+      unqualifiedConfidenceWeightTotal += unqualifiedConfidenceWeight;
       confidenceWeightTotal += confidenceWeight;
       confidenceWeightSquares += square(confidenceWeight);
       sampleCount += 1;
@@ -1594,15 +1614,21 @@
       return zeroRawCorrection();
     }
 
+    const kishEffectiveSampleSize = effectiveSampleSize(
+      confidenceWeightTotal,
+      confidenceWeightSquares
+    );
+    const averageSampleConfidence = unqualifiedConfidenceWeightTotal > 0
+      ? confidenceWeightTotal / unqualifiedConfidenceWeightTotal
+      : 0;
     return {
       arcRadiusRatio: arcRadiusRatio / totalWeight,
       labelPercent: labelPercent / totalWeight,
       labelAngleOffsetDeg: labelAngleOffsetDeg / totalWeight,
       weight: totalWeight,
-      effectiveSampleSize: effectiveSampleSize(
-        confidenceWeightTotal,
-        confidenceWeightSquares
-      ),
+      effectiveSampleSize: kishEffectiveSampleSize * averageSampleConfidence,
+      kishEffectiveSampleSize,
+      averageSampleConfidence,
       sampleCount
     };
   }
@@ -1635,20 +1661,30 @@
     return neighborhoodSampleWeight(sample, target, baseRayAngleDeg);
   }
 
-  function labelResidualSampleWeight(sample, target, baseRayAngleDeg, labelClassId, targetLabel) {
-    if (sample.labelClassId !== labelClassId || !labelsMatch(sample.label, targetLabel)) {
-      return 0;
-    }
-    return neighborhoodSampleWeight(sample, target, baseRayAngleDeg);
+  function neighborhoodSampleWeight(sample, target, baseRayAngleDeg) {
+    return neighborhoodSampleKernel(sample, target, baseRayAngleDeg)
+      * angleLabelSampleConfidenceFactor(sample);
   }
 
-  function neighborhoodSampleWeight(sample, target, baseRayAngleDeg) {
+  function neighborhoodSampleKernel(sample, target, baseRayAngleDeg) {
     const angleDistance = Math.abs(sample.angleDeg - target.angleDeg);
     const baseRayDistance = circularDistance(sample.baseRayAngleDeg, baseRayAngleDeg);
     const distanceSquared = square(angleDistance / 35)
       + square(baseRayDistance / 70);
 
     return Math.exp(-0.5 * distanceSquared) / (0.05 + distanceSquared);
+  }
+
+  /**
+   * Converts sample provenance into a multiplier for interpolation and
+   * quality-adjusted effective support. Unknown values fail conservatively.
+   */
+  function angleLabelSampleConfidenceFactor(sampleOrConfidence) {
+    const confidence = typeof sampleOrConfidence === 'string'
+      ? sampleOrConfidence
+      : sampleOrConfidence && sampleOrConfidence.strokeWidthConfidence;
+    return ANGLE_LABEL_SAMPLE_CONFIDENCE_FACTORS[confidence]
+      ?? ANGLE_LABEL_SAMPLE_CONFIDENCE_FACTORS.unknown;
   }
 
   /**
@@ -1675,13 +1711,17 @@
       1.001,
       numericOr(settings.angleLabelResidualFullEffectiveSampleSize, 3)
     );
-    const diversityConfidence = (safeEffectiveSamples - 1)
-      / (fullEffectiveSampleSize - 1);
-    const diversityLimitedBlend = lerp(
-      singleSampleMaxBlend,
-      maxBlend,
-      clamp(diversityConfidence, 0, 1)
-    );
+    const diversityLimitedBlend = safeEffectiveSamples <= 1
+      ? singleSampleMaxBlend * safeEffectiveSamples
+      : lerp(
+        singleSampleMaxBlend,
+        maxBlend,
+        clamp(
+          (safeEffectiveSamples - 1) / (fullEffectiveSampleSize - 1),
+          0,
+          1
+        )
+      );
     return clamp(weightConfidence, 0, 1) * diversityLimitedBlend;
   }
 
@@ -1979,6 +2019,8 @@
       classWeight: 0,
       labelResidualWeight: 0,
       labelResidualEffectiveSampleSize: 0,
+      labelResidualKishEffectiveSampleSize: 0,
+      labelResidualAverageSampleConfidence: 0,
       labelResidualSampleCount: 0,
       labelResidualBlend: 0
     };
@@ -1991,6 +2033,8 @@
       labelAngleOffsetDeg: 0,
       weight: 0,
       effectiveSampleSize: 0,
+      kishEffectiveSampleSize: 0,
+      averageSampleConfidence: 0,
       sampleCount: 0
     };
   }
@@ -2013,6 +2057,7 @@
     ANGLE_LABEL_CALIBRATION_VERSION,
     ANGLE_LABEL_DATA_VERSION,
     ANGLE_LABEL_RENDER_PROFILE,
+    ANGLE_LABEL_SAMPLE_CONFIDENCE_FACTORS,
     DEFAULTS,
     ANGLE_LABEL_CLASSES,
     ANGLE_LABEL_CALIBRATION_ROWS,
@@ -2026,6 +2071,7 @@
     angleLabelPosition,
     angleLabelClassFor,
     assertAngleLabelRenderProfile,
+    angleLabelSampleConfidenceFactor,
     angleLabelResidualBlend,
     angleLabelStyle,
     angleLabelStyleFromRays,
