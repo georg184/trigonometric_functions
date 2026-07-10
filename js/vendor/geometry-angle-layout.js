@@ -21,7 +21,8 @@
 (function(global) {
   'use strict';
 
-  const VERSION = '0.4.21';
+  const VERSION = '0.4.22';
+  const ANGLE_EPSILON_RAD = 1e-12;
   const ANGLE_LABEL_CALIBRATION_VERSION = 'angle-label-tuning-v35';
   const ANGLE_LABEL_DATA_VERSION = 'angle-label-data-cloud-v24';
   const ANGLE_LABEL_RENDER_PROFILE = Object.freeze({
@@ -48,6 +49,7 @@
   });
 
   const DEFAULTS = Object.freeze({
+    angleMode: 'minor',
     acuteAngleArcRadius: 44,
     angleLabelFontSizePx: 16,
     angleLabelRadiusFontFloor: 12,
@@ -1334,14 +1336,30 @@
     return { x: dx / length, y: dy / length };
   }
 
-  function angleGeometry(vertex, first, second) {
+  function normalizedAngleMode(options) {
+    return options && options.angleMode === 'directed' ? 'directed' : 'minor';
+  }
+
+  /**
+   * Resolves two rays either to their order-independent minor opening or to
+   * the mathematical counterclockwise opening from first to second.
+   */
+  function angleGeometry(vertex, first, second, options) {
+    const coordinateSystem = normalizedCoordinateSystem(options);
+    const angleMode = normalizedAngleMode(options);
     const start = Math.atan2(first.y - vertex.y, first.x - vertex.x);
     let delta = Math.atan2(second.y - vertex.y, second.x - vertex.x) - start;
-    while (delta <= -Math.PI) {
-      delta += Math.PI * 2;
-    }
-    while (delta > Math.PI) {
-      delta -= Math.PI * 2;
+
+    if (angleMode === 'directed') {
+      const coordinateSign = coordinateSystem === 'math' ? 1 : -1;
+      delta = coordinateSign * normalizeDirectedRadians(coordinateSign * delta);
+    } else {
+      while (delta <= -Math.PI) {
+        delta += Math.PI * 2;
+      }
+      while (delta > Math.PI) {
+        delta -= Math.PI * 2;
+      }
     }
 
     return {
@@ -1351,7 +1369,10 @@
       middle: start + delta / 2,
       angleRad: Math.abs(delta),
       angleDeg: Math.abs(delta) * 180 / Math.PI,
-      sweep: delta > 0 ? 1 : 0
+      sweep: delta > 0 ? 1 : 0,
+      largeArc: Math.abs(delta) > Math.PI + ANGLE_EPSILON_RAD,
+      angleMode,
+      coordinateSystem
     };
   }
 
@@ -1360,6 +1381,13 @@
   }
 
   function counterclockwiseRayOrder(geometry, coordinateSystem) {
+    if (geometry.angleMode === 'directed') {
+      return {
+        firstRayIsStart: true,
+        startRay: 'first',
+        endRay: 'second'
+      };
+    }
     const firstRayIsStart = coordinateSystem === 'math'
       ? geometry.delta >= 0
       : geometry.delta <= 0;
@@ -1379,7 +1407,11 @@
 
   function angleContextFromRays(vertex, first, second, options) {
     const coordinateSystem = normalizedCoordinateSystem(options);
-    const geometry = angleGeometry(vertex, first, second);
+    const angleMode = normalizedAngleMode(options);
+    const geometry = angleGeometry(vertex, first, second, {
+      coordinateSystem,
+      angleMode
+    });
     const rayOrder = counterclockwiseRayOrder(geometry, coordinateSystem);
     const baseRayAngleDeg = directedCounterclockwiseBaseRayAngleDeg(geometry, coordinateSystem);
     return {
@@ -1388,6 +1420,7 @@
       baseRayAngleDeg,
       bisectorAngleDeg: normalizeDegrees(baseRayAngleDeg + geometry.angleDeg / 2),
       coordinateSystem,
+      angleMode,
       rayOrder,
       startRayPoint: rayOrder.firstRayIsStart ? first : second,
       endRayPoint: rayOrder.firstRayIsStart ? second : first,
@@ -1404,10 +1437,20 @@
     };
   }
 
-  function arcPoints(vertex, first, second, radius, steps) {
-    const geometry = angleGeometry(vertex, first, second);
+  function arcPoints(vertex, first, second, radius, steps, options) {
+    let segmentCountOption = steps;
+    let geometryOptions = options;
+    if (steps && typeof steps === 'object') {
+      geometryOptions = steps;
+      segmentCountOption = null;
+    }
+    const geometry = angleGeometry(vertex, first, second, geometryOptions);
     const result = [];
-    const segmentCount = Math.max(1, steps || DEFAULTS.arcSteps);
+    const configuredSegmentCount = geometryOptions && geometryOptions.arcSteps;
+    const segmentCount = Math.max(
+      1,
+      segmentCountOption || configuredSegmentCount || DEFAULTS.arcSteps
+    );
     for (let index = 0; index <= segmentCount; index += 1) {
       const angle = geometry.start + geometry.delta * (index / segmentCount);
       result.push(pointOnRay(vertex, angle, radius));
@@ -1415,14 +1458,21 @@
     return result;
   }
 
-  function arcSvgPath(vertex, first, second, radius) {
-    const geometry = angleGeometry(vertex, first, second);
+  function arcSvgPathFromGeometry(vertex, geometry, radius) {
     const start = pointOnRay(vertex, geometry.start, radius);
     const end = pointOnRay(vertex, geometry.end, radius);
     return [
       'M', start.x, start.y,
-      'A', radius, radius, 0, 0, geometry.sweep, end.x, end.y
+      'A', radius, radius, 0, geometry.largeArc ? 1 : 0, geometry.sweep, end.x, end.y
     ].join(' ');
+  }
+
+  function arcSvgPath(vertex, first, second, radius, options) {
+    return arcSvgPathFromGeometry(
+      vertex,
+      angleGeometry(vertex, first, second, options),
+      radius
+    );
   }
 
   function labelEccentricityForAngle(angleDeg, options) {
@@ -2006,13 +2056,15 @@
     }));
     const strokeCorrection = angleStrokeCorrection(style.angleDeg, options);
     const markerLabel = strokeAdjustedAngleLabelPosition(vertex, geometry, style, options);
+    const arcRadius = style.arcRadius + strokeCorrection.arcRadiusOffset;
     return {
       angleContext: context,
       geometry,
       style,
       thinArcRadius: style.arcRadius,
       strokeCorrection,
-      arcRadius: style.arcRadius + strokeCorrection.arcRadiusOffset,
+      arcRadius,
+      arcPath: arcSvgPathFromGeometry(vertex, geometry, arcRadius),
       label: markerLabel
     };
   }
@@ -2026,7 +2078,7 @@
   }
 
   function angleLabelPosition(vertex, first, second, radius, options) {
-    const geometry = angleGeometry(vertex, first, second);
+    const geometry = angleGeometry(vertex, first, second, options);
     const eccentricity = labelEccentricityForAngle(geometry.angleDeg, options);
     const distance = radius * eccentricity;
     return Object.assign(pointOnRay(vertex, geometry.middle, distance), {
@@ -2082,6 +2134,24 @@
 
   function normalizeDegrees(angleDeg) {
     return ((Number(angleDeg) % 360) + 360) % 360;
+  }
+
+  function normalizeRadians(angleRad) {
+    const fullTurn = Math.PI * 2;
+    return ((Number(angleRad) % fullTurn) + fullTurn) % fullTurn;
+  }
+
+  function normalizeDirectedRadians(angleRad) {
+    const normalized = normalizeRadians(angleRad);
+    if (
+      normalized < ANGLE_EPSILON_RAD
+      || Math.PI * 2 - normalized < ANGLE_EPSILON_RAD
+    ) {
+      return 0;
+    }
+    return Math.abs(normalized - Math.PI) < ANGLE_EPSILON_RAD
+      ? Math.PI
+      : normalized;
   }
 
   function normalizeOptionalDegrees(angleDeg) {

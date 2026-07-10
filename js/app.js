@@ -1,4 +1,4 @@
-const APP_VERSION = '20260710.4';
+const APP_VERSION = '20260710.5';
 const VERSION_MISMATCH_TEXT = {
   de: {
     title: 'Neue Version verfuegbar',
@@ -1287,6 +1287,7 @@ function getAcuteAngleMarker(task, points, index) {
     {
       fontSizePx: ANGLE_LABEL_FONT_SIZE_PX,
       coordinateSystem: 'svg',
+      angleMode: 'minor',
       rayStrokeWidthPx: TRIANGLE_SIDE_STROKE_WIDTH,
       arcStrokeWidthPx: TRIANGLE_ANGLE_ARC_STROKE_WIDTH
     }
@@ -1393,7 +1394,7 @@ function addSvgTrianglePrimitives(svg, task, points) {
   for (const index of task.acuteIndices) {
     const marker = getAcuteAngleMarker(task, points, index);
     svg.appendChild(createSvgElement('path', {
-      d: angleLayout.arcSvgPath(points[index], points[marker.neighborIndices[0]], points[marker.neighborIndices[1]], marker.arcRadius),
+      d: marker.arcPath,
       fill: 'none',
       stroke: '#57606a',
       'stroke-width': TRIANGLE_ANGLE_ARC_STROKE_WIDTH,
