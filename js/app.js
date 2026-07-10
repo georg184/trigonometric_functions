@@ -1,4 +1,4 @@
-const APP_VERSION = '20260710.7';
+const APP_VERSION = '20260710.8';
 const VERSION_MISMATCH_TEXT = {
   de: {
     title: 'Neue Version verfuegbar',
@@ -1237,10 +1237,9 @@ function goToNextTask() {
 }
 
 function getSurfaceSize(surface) {
-  const rect = surface.getBoundingClientRect();
   return {
-    width: Math.max(320, Math.round(rect.width || surface.clientWidth || 420)),
-    height: Math.max(260, Math.round(rect.height || surface.clientHeight || 310))
+    width: surface.clientWidth || 420,
+    height: surface.clientHeight || 340
   };
 }
 

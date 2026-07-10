@@ -239,7 +239,7 @@ p {
 .render-surface {
   position: relative;
   width: 100%;
-  min-height: 340px;
+  height: 340px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: white;
@@ -249,7 +249,7 @@ p {
 .geometry-svg {
   display: block;
   width: 100%;
-  height: 340px;
+  height: 100%;
 }
 
 .render-label {
@@ -499,10 +499,6 @@ input:disabled {
   }
 
   .render-surface {
-    min-height: 320px;
-  }
-
-  .geometry-svg {
     height: 320px;
   }
 }
@@ -536,10 +532,6 @@ input:disabled {
   }
 
   .render-surface {
-    min-height: 280px;
-  }
-
-  .geometry-svg {
     height: 280px;
   }
 }
