@@ -21,7 +21,7 @@
 (function(global) {
   'use strict';
 
-  const VERSION = '0.4.24';
+  const VERSION = '0.4.25';
   const ANGLE_EPSILON_RAD = 1e-12;
   const ANGLE_LABEL_CALIBRATION_VERSION = 'angle-label-tuning-v35';
   // BEGIN GENERATED: angle-label-data-contract
@@ -56,7 +56,7 @@
   });
 
   const DEFAULTS = Object.freeze({
-    angleMode: 'minor',
+    angleMode: 'directed',
     acuteAngleArcRadius: 44,
     angleLabelFontSizePx: 16,
     angleLabelRadiusFontFloor: 12,
@@ -1273,6 +1273,16 @@
     return Object.assign({}, DEFAULTS, options || {});
   }
 
+  function explicitStyleNumber(options, key) {
+    if (!options || !Object.prototype.hasOwnProperty.call(options, key) || options[key] === undefined) {
+      return null;
+    }
+    if (typeof options[key] !== 'number' || !Number.isFinite(options[key])) {
+      throw new TypeError(`${key} must be a finite number when provided.`);
+    }
+    return options[key];
+  }
+
   function calibrationPair(pair) {
     return {
       arcRadius: pair[0],
@@ -1346,7 +1356,10 @@
   }
 
   function normalizedAngleMode(options) {
-    return options && options.angleMode === 'directed' ? 'directed' : 'minor';
+    const requestedMode = options && options.angleMode;
+    return requestedMode === 'minor' || requestedMode === 'directed'
+      ? requestedMode
+      : DEFAULTS.angleMode;
   }
 
   /**
@@ -1517,12 +1530,29 @@
       labelClassId,
       fontSizePx
     }, settings);
+    const calibratedArcRadius = clamp(baseline.arcRadius + correction.arcRadius, 12, 220);
+    const calibratedLabelPercent = clamp(baseline.labelPercent + correction.labelPercent, 25, 130);
+    const calibratedLabelAngleOffsetDeg = clamp(correction.labelAngleOffsetDeg, -90, 90);
+    const explicitArcRadius = explicitStyleNumber(options, 'arcRadius');
+    const explicitLabelPercent = explicitStyleNumber(options, 'labelPercent');
+    const explicitLabelAngleOffsetDeg = explicitStyleNumber(options, 'labelAngleOffsetDeg');
+    if (explicitArcRadius !== null && explicitArcRadius <= 0) {
+      throw new RangeError('arcRadius must be greater than 0 when provided.');
+    }
+    if (explicitLabelPercent !== null && explicitLabelPercent < 0) {
+      throw new RangeError('labelPercent must be greater than or equal to 0 when provided.');
+    }
     return {
       angleDeg: normalizedAngle,
       labelClassId,
-      arcRadius: clamp(baseline.arcRadius + correction.arcRadius, 12, 220),
-      labelPercent: clamp(baseline.labelPercent + correction.labelPercent, 25, 130),
-      labelAngleOffsetDeg: clamp(correction.labelAngleOffsetDeg, -90, 90),
+      arcRadius: explicitArcRadius ?? calibratedArcRadius,
+      labelPercent: explicitLabelPercent ?? calibratedLabelPercent,
+      labelAngleOffsetDeg: explicitLabelAngleOffsetDeg ?? calibratedLabelAngleOffsetDeg,
+      styleOverrides: {
+        arcRadius: explicitArcRadius !== null,
+        labelPercent: explicitLabelPercent !== null,
+        labelAngleOffsetDeg: explicitLabelAngleOffsetDeg !== null
+      },
       sampleCorrectionWeight: correction.weight,
       classCorrectionWeight: correction.classWeight,
       labelResidualWeight: correction.labelResidualWeight,
@@ -2128,15 +2158,19 @@
   function rightAngleArcDotMarker(vertex, first, second, options) {
     const settings = mergeOptions(options);
     const radius = settings.rightAngleArcRadius;
-    const geometry = angleGeometry(vertex, first, second);
+    const geometryOptions = {
+      coordinateSystem: normalizedCoordinateSystem(settings),
+      angleMode: 'minor'
+    };
+    const geometry = angleGeometry(vertex, first, second, geometryOptions);
     const dotDistance = radius * settings.rightAngleDotEccentricity;
 
     return {
       type: 'arcDot',
       arc: {
         radius,
-        path: arcSvgPath(vertex, first, second, radius),
-        points: arcPoints(vertex, first, second, radius, settings.arcSteps)
+        path: arcSvgPathFromGeometry(vertex, geometry, radius),
+        points: arcPoints(vertex, first, second, radius, settings.arcSteps, geometryOptions)
       },
       dot: Object.assign(pointOnRay(vertex, geometry.middle, dotDistance), {
         radius: settings.rightAngleDotRadius,

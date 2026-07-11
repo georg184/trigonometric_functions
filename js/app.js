@@ -1,4 +1,4 @@
-const APP_VERSION = '20260710.9';
+const APP_VERSION = '20260711.1';
 const VERSION_MISMATCH_TEXT = {
   de: {
     title: 'Neue Version verfuegbar',
@@ -279,7 +279,7 @@ if (!angleLayout) {
   throw new Error('GGGeometryAngleLayout must be loaded before js/app.js.');
 }
 const EXPECTED_ANGLE_LAYOUT_CONTRACT = Object.freeze({
-  helperVersion: '0.4.24',
+  helperVersion: '0.4.25',
   calibrationVersion: 'angle-label-tuning-v35',
   dataVersion: 'angle-label-data-cloud-v24'
 });

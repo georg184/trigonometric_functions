@@ -100,6 +100,13 @@ assert.equal(
   'getAcuteAngleMarkers() must calculate each marker through one call site.'
 );
 
+const acuteMarkerSource = getAppFunctionSource('getAcuteAngleMarker');
+assert.match(
+  acuteMarkerSource,
+  /angleMode:\s*'minor'/,
+  'The right-triangle adapter must explicitly request the minor opening.'
+);
+
 const triangleLabelsSource = getAppFunctionSource('getTriangleLabels');
 assert.match(
   triangleLabelsSource,
