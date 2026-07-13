@@ -134,7 +134,7 @@ assert.equal(sideLabelRuleBodies.length, 1, 'Expected one side-label rule.');
 assert.doesNotMatch(
   sideLabelRuleBodies[0],
   /\bfont-size\s*:/,
-  'Side-label size must come from the exact shared JavaScript pixel constant.'
+  'Side-label size must come from the exact shared JavaScript pixel setting.'
 );
 
 const mathJaxContainerRuleBodies = getCssRuleBodies('.render-label mjx-container');
@@ -165,18 +165,67 @@ assert.match(
   /angleMode:\s*'minor'/,
   'The right-triangle adapter must explicitly request the minor opening.'
 );
-assert.match(acuteMarkerSource, /fontSizePx:\s*ANGLE_LABEL_FONT_SIZE_PX/);
+assert.match(acuteMarkerSource, /fontSizePx:\s*labelFontSizePx/);
 
-const angleLabelFontSizeMatch = appSource.match(/const ANGLE_LABEL_FONT_SIZE_PX = (\d+);/);
-const sideLabelFontSizeMatch = appSource.match(/const SIDE_LABEL_FONT_SIZE_PX = (\d+);/);
+const labelFontSizeOptionsMatch = appSource.match(
+  /const LABEL_FONT_SIZE_OPTIONS_PX = Object\.freeze\(\[([^\]]+)\]\);/
+);
+const defaultLabelFontSizeMatch = appSource.match(/const DEFAULT_LABEL_FONT_SIZE_PX = (\d+);/);
 const sideLabelOffsetMatch = appSource.match(/const SIDE_LABEL_OFFSET_PX = (\d+);/);
-assert.ok(angleLabelFontSizeMatch, 'The calibrated angle-label pixel size is missing.');
-assert.ok(sideLabelFontSizeMatch, 'The side-label pixel size is missing.');
+assert.ok(labelFontSizeOptionsMatch, 'The allowed label pixel sizes are missing.');
+assert.ok(defaultLabelFontSizeMatch, 'The default label pixel size is missing.');
 assert.ok(sideLabelOffsetMatch, 'The side-label offset is missing.');
+const labelFontSizeOptions = labelFontSizeOptionsMatch[1]
+  .split(',')
+  .map(value => Number(value.trim()));
+const defaultLabelFontSize = Number(defaultLabelFontSizeMatch[1]);
 assert.equal(renderProfile.fontSizeUnit, 'px');
-assert.equal(Number(angleLabelFontSizeMatch[1]), 18);
-assert.equal(Number(sideLabelFontSizeMatch[1]), 18);
+assert.deepEqual(labelFontSizeOptions, [18, 22, 26]);
+assert.equal(defaultLabelFontSize, 22);
+assert.ok(labelFontSizeOptions.includes(defaultLabelFontSize));
+assert.match(appSource, /let labelFontSizePx = DEFAULT_LABEL_FONT_SIZE_PX;/);
 assert.equal(Number(sideLabelOffsetMatch[1]), 22);
+
+const labelFontSizeInputs = [...indexSource.matchAll(
+  /<input id="labelFontSize(\d+)" type="radio" name="labelFontSize" value="(\d+)"([^>]*)\/>/g
+)].map(match => ({
+  checked: /\bchecked\b/.test(match[3]),
+  idSize: Number(match[1]),
+  value: Number(match[2])
+}));
+assert.deepEqual(
+  labelFontSizeInputs.map(input => input.idSize),
+  labelFontSizeOptions,
+  'The label-size controls must expose every supported size in order.'
+);
+assert.deepEqual(labelFontSizeInputs.map(input => input.value), labelFontSizeOptions);
+assert.deepEqual(
+  labelFontSizeInputs.filter(input => input.checked).map(input => input.value),
+  [defaultLabelFontSize],
+  'Exactly the default label size must be selected in static HTML.'
+);
+
+const readLabelFontSizeSource = getAppFunctionSource('readLabelFontSizeSetting');
+const settingInputs = labelFontSizeOptions.map(value => ({ checked: false, value: String(value) }));
+const labelSizeSettingContext = {
+  DEFAULT_LABEL_FONT_SIZE_PX: defaultLabelFontSize,
+  LABEL_FONT_SIZE_INPUTS: settingInputs,
+  LABEL_FONT_SIZE_OPTIONS_PX: labelFontSizeOptions
+};
+vm.createContext(labelSizeSettingContext);
+vm.runInContext(
+  `${readLabelFontSizeSource}\nthis.readLabelFontSizeForTest = readLabelFontSizeSetting;`,
+  labelSizeSettingContext
+);
+settingInputs[1].checked = true;
+assert.equal(labelSizeSettingContext.readLabelFontSizeForTest(), 22);
+settingInputs[1].checked = false;
+settingInputs[2].checked = true;
+assert.equal(labelSizeSettingContext.readLabelFontSizeForTest(), 26);
+settingInputs[2].value = '999';
+assert.equal(labelSizeSettingContext.readLabelFontSizeForTest(), defaultLabelFontSize);
+settingInputs[2].checked = false;
+assert.equal(labelSizeSettingContext.readLabelFontSizeForTest(), defaultLabelFontSize);
 
 const sideLabelPositionSource = getAppFunctionSource('sideLabelPosition');
 assert.equal(
@@ -206,8 +255,11 @@ assert.match(
   /function getTriangleLabels\(task, points, acuteAngleMarkers\)/
 );
 assert.doesNotMatch(triangleLabelsSource, /getAcuteAngleMarker\(/);
-assert.match(triangleLabelsSource, /fontSizePx:\s*ANGLE_LABEL_FONT_SIZE_PX/);
-assert.match(triangleLabelsSource, /fontSizePx:\s*SIDE_LABEL_FONT_SIZE_PX/);
+assert.equal(
+  (triangleLabelsSource.match(/fontSizePx:\s*labelFontSizePx/g) || []).length,
+  2,
+  'Angle and side labels must use the same selected pixel size.'
+);
 assert.match(triangleLabelsSource, /renderProfileId:\s*marker\.style\.renderProfileId/);
 
 const htmlLabelSource = getAppFunctionSource('addHtmlMathLabel');

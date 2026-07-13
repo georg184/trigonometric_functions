@@ -1,4 +1,4 @@
-const APP_VERSION = '20260713.3';
+const APP_VERSION = '20260713.4';
 const VERSION_MISMATCH_TEXT = {
   de: {
     title: 'Neue Version verfügbar',
@@ -50,6 +50,7 @@ const controls = {
   rightAngleLegend: document.getElementById('rightAngleLegend'),
   rightAngleArcDotLabel: document.getElementById('rightAngleArcDotLabel'),
   rightAngleSquareLabel: document.getElementById('rightAngleSquareLabel'),
+  labelFontSizeLegend: document.getElementById('labelFontSizeLegend'),
   placeholderBackButton: document.getElementById('placeholderBackButton'),
   placeholderText: document.getElementById('placeholderText'),
   resultHomeButton: document.getElementById('resultHomeButton'),
@@ -58,6 +59,9 @@ const controls = {
   nextButton: document.getElementById('nextButton'),
   rightAngleArcDot: document.getElementById('rightAngleArcDot'),
   rightAngleSquare: document.getElementById('rightAngleSquare'),
+  labelFontSize18: document.getElementById('labelFontSize18'),
+  labelFontSize22: document.getElementById('labelFontSize22'),
+  labelFontSize26: document.getElementById('labelFontSize26'),
   triangleStage: document.getElementById('triangleStage'),
   renderTitle: document.getElementById('renderTitle'),
   triangleRenderer: document.getElementById('triangleRenderer'),
@@ -87,6 +91,11 @@ const LANGUAGE_BUTTONS = {
   en: controls.langEnButton,
   fr: controls.langFrButton
 };
+const LABEL_FONT_SIZE_INPUTS = [
+  controls.labelFontSize18,
+  controls.labelFontSize22,
+  controls.labelFontSize26
+];
 const TEXT = {
   de: {
     pageTitle: 'Trigonometrische Funktionen',
@@ -102,7 +111,8 @@ const TEXT = {
       displayTitle: 'Darstellung',
       rightAngleLegend: 'Rechter Winkel',
       rightAngleArcDot: 'Viertelkreis mit Punkt',
-      rightAngleSquare: 'Quadrat'
+      rightAngleSquare: 'Quadrat',
+      labelFontSizeLegend: 'Beschriftungsgröße'
     },
     quiz: {
       backButton: 'Zur Startseite',
@@ -163,7 +173,8 @@ const TEXT = {
       displayTitle: 'Display',
       rightAngleLegend: 'Right angle',
       rightAngleArcDot: 'Quarter circle with dot',
-      rightAngleSquare: 'Square'
+      rightAngleSquare: 'Square',
+      labelFontSizeLegend: 'Label size'
     },
     quiz: {
       backButton: 'Home',
@@ -224,7 +235,8 @@ const TEXT = {
       displayTitle: 'Affichage',
       rightAngleLegend: 'Angle droit',
       rightAngleArcDot: 'Quart de cercle avec point',
-      rightAngleSquare: 'Carré'
+      rightAngleSquare: 'Carré',
+      labelFontSizeLegend: 'Taille des étiquettes'
     },
     quiz: {
       backButton: 'Accueil',
@@ -305,8 +317,8 @@ const RIGHT_ANGLE_MARKERS = {
   arcDot: 'arcDot',
   square: 'square'
 };
-const ANGLE_LABEL_FONT_SIZE_PX = 18;
-const SIDE_LABEL_FONT_SIZE_PX = 18;
+const LABEL_FONT_SIZE_OPTIONS_PX = Object.freeze([18, 22, 26]);
+const DEFAULT_LABEL_FONT_SIZE_PX = 22;
 const SIDE_LABEL_OFFSET_PX = 22;
 const VERTEX_SETS = [
   ['A', 'B', 'C'],
@@ -344,6 +356,7 @@ let roundStartTimestamp = 0;
 let roundElapsedMs = 0;
 let timerIntervalId = null;
 let rightAngleMarker = RIGHT_ANGLE_MARKERS.arcDot;
+let labelFontSizePx = DEFAULT_LABEL_FONT_SIZE_PX;
 let answerCheckInProgress = false;
 let mathRenderQueue = Promise.resolve();
 const mathRenderTokens = new WeakMap();
@@ -458,6 +471,7 @@ function applyLanguage() {
   controls.rightAngleLegend.textContent = texts.intro.rightAngleLegend;
   controls.rightAngleArcDotLabel.textContent = texts.intro.rightAngleArcDot;
   controls.rightAngleSquareLabel.textContent = texts.intro.rightAngleSquare;
+  controls.labelFontSizeLegend.textContent = texts.intro.labelFontSizeLegend;
   controls.rightAngleArcDot.setAttribute('aria-label', texts.intro.rightAngleArcDot);
   controls.rightAngleSquare.setAttribute('aria-label', texts.intro.rightAngleSquare);
 
@@ -876,6 +890,16 @@ function getCompatibleAngleSets(vertexLabels) {
 
 function readRightAngleMarkerSetting() {
   return controls.rightAngleSquare.checked ? RIGHT_ANGLE_MARKERS.square : RIGHT_ANGLE_MARKERS.arcDot;
+}
+
+function readLabelFontSizeSetting() {
+  const selectedInput = LABEL_FONT_SIZE_INPUTS.find(function(input) {
+    return input.checked;
+  });
+  const selectedSize = selectedInput ? Number(selectedInput.value) : NaN;
+  return LABEL_FONT_SIZE_OPTIONS_PX.includes(selectedSize)
+    ? selectedSize
+    : DEFAULT_LABEL_FONT_SIZE_PX;
 }
 
 function buildTask() {
@@ -1371,7 +1395,7 @@ function getAcuteAngleMarker(task, points, index) {
     points[neighborIndices[1]],
     task.angleLabels[index],
     {
-      fontSizePx: ANGLE_LABEL_FONT_SIZE_PX,
+      fontSizePx: labelFontSizePx,
       coordinateSystem: 'svg',
       angleMode: 'minor',
       rayStrokeWidthPx: TRIANGLE_SIDE_STROKE_WIDTH,
@@ -1427,7 +1451,7 @@ function getTriangleLabels(task, points, acuteAngleMarkers) {
       x: position.x,
       y: position.y,
       color: '#0969da',
-      fontSizePx: SIDE_LABEL_FONT_SIZE_PX
+      fontSizePx: labelFontSizePx
     });
   }
 
@@ -1439,7 +1463,7 @@ function getTriangleLabels(task, points, acuteAngleMarkers) {
       x: marker.label.x,
       y: marker.label.y,
       color: '#57606a',
-      fontSizePx: ANGLE_LABEL_FONT_SIZE_PX,
+      fontSizePx: labelFontSizePx,
       renderProfileId: marker.style.renderProfileId
     });
   }
@@ -1604,6 +1628,7 @@ function startNewRound() {
   roundStartTimestamp = 0;
   roundElapsedMs = 0;
   rightAngleMarker = readRightAngleMarkerSetting();
+  labelFontSizePx = readLabelFontSizeSetting();
   showScreen('quiz');
   updateScoreCounter();
   updateTimeCounter();
@@ -1612,6 +1637,7 @@ function startNewRound() {
 
 function startTriangleQuiz() {
   rightAngleMarker = readRightAngleMarkerSetting();
+  labelFontSizePx = readLabelFontSizeSetting();
   showScreen('quiz');
   if (currentTask && !roundFinished) {
     updateScoreCounter();
@@ -1665,6 +1691,15 @@ controls.rightAngleArcDot.addEventListener('change', function() {
 
 controls.rightAngleSquare.addEventListener('change', function() {
   rightAngleMarker = readRightAngleMarkerSetting();
+});
+
+LABEL_FONT_SIZE_INPUTS.forEach(function(input) {
+  input.addEventListener('change', function() {
+    labelFontSizePx = readLabelFontSizeSetting();
+    if (currentTask && !screens.quiz.classList.contains('hidden')) {
+      renderTriangle(currentTask);
+    }
+  });
 });
 
 window.addEventListener('resize', function() {

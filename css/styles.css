@@ -173,6 +173,10 @@ p {
   border: 0;
 }
 
+.config-fieldset + .config-fieldset {
+  margin-top: 16px;
+}
+
 .config-fieldset legend {
   width: 100%;
   margin-bottom: 8px;

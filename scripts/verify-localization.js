@@ -46,6 +46,18 @@ assert.match(
   indexSource,
   /<div class="language-switcher" role="group" aria-label="Sprachauswahl">/
 );
+assert.match(indexSource, /<legend id="labelFontSizeLegend">Beschriftungsgröße<\/legend>/);
+assert.match(
+  indexSource,
+  /id="labelFontSize22" type="radio" name="labelFontSize" value="22" checked/
+);
+assert.match(appSource, /labelFontSizeLegend: 'Beschriftungsgröße'/);
+assert.match(appSource, /labelFontSizeLegend: 'Label size'/);
+assert.match(appSource, /labelFontSizeLegend: 'Taille des étiquettes'/);
+assert.match(
+  getFunctionSource('applyLanguage'),
+  /controls\.labelFontSizeLegend\.textContent = texts\.intro\.labelFontSizeLegend/
+);
 
 let inputModeUpdateCount = 0;
 let helperClearCount = 0;

@@ -99,6 +99,7 @@ async function main() {
       };
     },
     performance: { now: function() { return now; } },
+    readLabelFontSizeSetting: function() { return 22; },
     readRightAngleMarkerSetting: function() { return 'arcDot'; },
     renderAnswerHelpers: function() {},
     renderMath: function(element, latex) { element.renderedLatex = latex; },
@@ -162,6 +163,7 @@ async function main() {
     let roundElapsedMs = 0;
     let timerIntervalId = null;
     let rightAngleMarker = RIGHT_ANGLE_MARKERS.arcDot;
+    let labelFontSizePx = 18;
     let answerCheckInProgress = false;
 
     ${functionNames.map(getFunctionSource).join('\n\n')}
@@ -183,7 +185,8 @@ async function main() {
           roundFinished,
           roundStarted,
           taskNumber,
-          timerIntervalId
+          timerIntervalId,
+          labelFontSizePx
         };
       }
     };
@@ -196,6 +199,7 @@ async function main() {
   assert.equal(state.taskNumber, 1);
   assert.equal(state.roundStarted, false);
   assert.equal(state.currentTaskScored, false);
+  assert.equal(state.labelFontSizePx, 22);
   assert.equal(controls.roundStartPanel.classList.contains('hidden'), false);
   assert.equal(controls.answerForm.classList.contains('hidden'), true);
   assert.equal(controls.nextButton.disabled, true);
