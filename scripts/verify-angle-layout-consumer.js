@@ -3,12 +3,14 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 
 const ROOT = path.resolve(__dirname, '..');
 const helper = require(path.join(ROOT, 'js/vendor/geometry-angle-layout.js'));
 const appSource = fs.readFileSync(path.join(ROOT, 'js/app.js'), 'utf8');
 const indexSource = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const stylesSource = fs.readFileSync(path.join(ROOT, 'css/styles.css'), 'utf8');
+const mathJaxConfigSource = fs.readFileSync(path.join(ROOT, 'js/mathjax-config.js'), 'utf8');
 
 const contractBlock = appSource.match(
   /const EXPECTED_ANGLE_LAYOUT_CONTRACT = Object\.freeze\(\{([\s\S]*?)\}\);/
@@ -32,6 +34,31 @@ const profileMatch = appSource.match(
 );
 assert.ok(profileMatch, 'js/app.js must declare the expected render profile.');
 assert.equal(profileMatch[1], helper.ANGLE_LABEL_RENDER_PROFILE.id);
+
+const renderProfile = helper.ANGLE_LABEL_RENDER_PROFILE;
+const expectedMathJaxUrl = `https://cdn.jsdelivr.net/npm/mathjax@${renderProfile.rendererVersion}`
+  + '/es5/tex-mml-chtml.js';
+const externalScriptUrls = [...indexSource.matchAll(/<script[^>]+src="([^"]+)"/g)]
+  .map(match => match[1])
+  .filter(url => /^https?:/.test(url));
+assert.deepEqual(
+  externalScriptUrls,
+  [expectedMathJaxUrl],
+  'index.html must load only the pinned CommonHTML MathJax bundle required by the render profile.'
+);
+assert.equal(renderProfile.renderer, 'MathJax');
+assert.equal(renderProfile.inputProcessor, 'tex');
+assert.equal(renderProfile.outputProcessor, 'chtml');
+
+const mathJaxContext = { window: {} };
+vm.createContext(mathJaxContext);
+vm.runInContext(mathJaxConfigSource, mathJaxContext, { filename: 'js/mathjax-config.js' });
+const mathJaxConfig = mathJaxContext.window.MathJax;
+assert.ok(mathJaxConfig, 'js/mathjax-config.js must assign window.MathJax.');
+assert.equal(mathJaxConfig.chtml.scale, renderProfile.outputScale);
+assert.equal(mathJaxConfig.chtml.matchFontHeight, renderProfile.matchFontHeight);
+assert.ok(mathJaxConfig.tex, 'The calibrated render profile requires the TeX input processor.');
+assert.equal(mathJaxConfig.svg, undefined, 'The calibrated consumer must not configure SVG output.');
 
 const appVersionMatch = appSource.match(/const APP_VERSION = '(\d{8}\.\d+)'/);
 const indexVersionMatch = indexSource.match(
@@ -85,6 +112,38 @@ assert.equal(svgRuleBodies.length, 1, 'geometry-svg sizing must have one shared 
 assert.match(svgRuleBodies[0], /\bwidth:\s*100%/);
 assert.match(svgRuleBodies[0], /\bheight:\s*100%/);
 
+const renderLabelRuleBodies = getCssRuleBodies('.render-label');
+assert.equal(renderLabelRuleBodies.length, 1, 'Expected one shared render-label rule.');
+assert.equal(renderProfile.horizontalAnchor, 'center');
+assert.equal(renderProfile.verticalAnchor, 'center');
+assert.match(renderLabelRuleBodies[0], /\btransform:\s*translate\(\s*-50%\s*,\s*-50%\s*\)/);
+assert.match(renderLabelRuleBodies[0], /\bline-height:\s*1(?:\.0+)?\s*;/);
+assert.match(renderLabelRuleBodies[0], /\bbackground:\s*transparent\s*;/);
+assert.doesNotMatch(renderLabelRuleBodies[0], /text-shadow|background-color/i);
+
+const angleLabelRuleBodies = getCssRuleBodies('.render-label-angle');
+assert.equal(angleLabelRuleBodies.length, 1, 'Expected one calibrated angle-label rule.');
+const angleLabelWeightMatch = angleLabelRuleBodies[0].match(/\bfont-weight:\s*(\d+)/);
+assert.ok(angleLabelWeightMatch, 'The calibrated angle-label font weight is missing.');
+assert.equal(Number(angleLabelWeightMatch[1]), renderProfile.containerFontWeight);
+assert.doesNotMatch(angleLabelRuleBodies[0], /\bfont-size\s*:/);
+assert.doesNotMatch(angleLabelRuleBodies[0], /text-shadow|background(?:-color)?\s*:/i);
+
+const sideLabelRuleBodies = getCssRuleBodies('.render-label-side');
+assert.equal(sideLabelRuleBodies.length, 1, 'Expected one side-label rule.');
+assert.doesNotMatch(
+  sideLabelRuleBodies[0],
+  /\bfont-size\s*:/,
+  'Side-label size must come from the exact shared JavaScript pixel constant.'
+);
+
+const mathJaxContainerRuleBodies = getCssRuleBodies('.render-label mjx-container');
+assert.equal(mathJaxContainerRuleBodies.length, 1, 'Expected one MathJax geometry-label rule.');
+assert.match(mathJaxContainerRuleBodies[0], /\bbackground:\s*transparent\s*!important\s*;/);
+assert.match(mathJaxContainerRuleBodies[0], /\bfont-size:\s*inherit\s*!important\s*;/);
+assert.match(mathJaxContainerRuleBodies[0], /\bmargin:\s*0\s*!important\s*;/);
+assert.doesNotMatch(mathJaxContainerRuleBodies[0], /text-shadow|background-color/i);
+
 function getAppFunctionSource(functionName) {
   const match = appSource.match(
     new RegExp(`function ${functionName}\\([^\\n]*\\) \\{([\\s\\S]*?)\\n\\}`)
@@ -106,6 +165,40 @@ assert.match(
   /angleMode:\s*'minor'/,
   'The right-triangle adapter must explicitly request the minor opening.'
 );
+assert.match(acuteMarkerSource, /fontSizePx:\s*ANGLE_LABEL_FONT_SIZE_PX/);
+
+const angleLabelFontSizeMatch = appSource.match(/const ANGLE_LABEL_FONT_SIZE_PX = (\d+);/);
+const sideLabelFontSizeMatch = appSource.match(/const SIDE_LABEL_FONT_SIZE_PX = (\d+);/);
+const sideLabelOffsetMatch = appSource.match(/const SIDE_LABEL_OFFSET_PX = (\d+);/);
+assert.ok(angleLabelFontSizeMatch, 'The calibrated angle-label pixel size is missing.');
+assert.ok(sideLabelFontSizeMatch, 'The side-label pixel size is missing.');
+assert.ok(sideLabelOffsetMatch, 'The side-label offset is missing.');
+assert.equal(renderProfile.fontSizeUnit, 'px');
+assert.equal(Number(angleLabelFontSizeMatch[1]), 18);
+assert.equal(Number(sideLabelFontSizeMatch[1]), 18);
+assert.equal(Number(sideLabelOffsetMatch[1]), 22);
+
+const sideLabelPositionSource = getAppFunctionSource('sideLabelPosition');
+assert.equal(
+  (sideLabelPositionSource.match(/SIDE_LABEL_OFFSET_PX/g) || []).length,
+  2,
+  'Side-label x and y coordinates must share the configured offset.'
+);
+const sidePositionContext = {
+  SIDE_LABEL_OFFSET_PX: Number(sideLabelOffsetMatch[1]),
+  angleLayout: helper
+};
+vm.createContext(sidePositionContext);
+vm.runInContext(
+  `${sideLabelPositionSource}\nthis.sideLabelPositionForTest = sideLabelPosition;`,
+  sidePositionContext
+);
+const testSidePosition = sidePositionContext.sideLabelPositionForTest(
+  [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 0, y: 100 }],
+  [0, 1],
+  { x: 100 / 3, y: 100 / 3 }
+);
+assert.equal(Math.hypot(testSidePosition.x - 50, testSidePosition.y), 22);
 
 const triangleLabelsSource = getAppFunctionSource('getTriangleLabels');
 assert.match(
@@ -113,6 +206,20 @@ assert.match(
   /function getTriangleLabels\(task, points, acuteAngleMarkers\)/
 );
 assert.doesNotMatch(triangleLabelsSource, /getAcuteAngleMarker\(/);
+assert.match(triangleLabelsSource, /fontSizePx:\s*ANGLE_LABEL_FONT_SIZE_PX/);
+assert.match(triangleLabelsSource, /fontSizePx:\s*SIDE_LABEL_FONT_SIZE_PX/);
+assert.match(triangleLabelsSource, /renderProfileId:\s*marker\.style\.renderProfileId/);
+
+const htmlLabelSource = getAppFunctionSource('addHtmlMathLabel');
+assert.match(htmlLabelSource, /element\.style\.fontSize = `\$\{label\.fontSizePx\}px`/);
+assert.match(
+  htmlLabelSource,
+  /element\.dataset\.angleLabelRenderProfile = label\.renderProfileId/
+);
+assert.doesNotMatch(
+  htmlLabelSource,
+  /style\.fontSize\s*=\s*(?:`[^`]*(?:rem|em|vw|vh)|clamp\()/
+);
 
 const svgPrimitivesSource = getAppFunctionSource('addSvgTrianglePrimitives');
 assert.match(
@@ -125,6 +232,19 @@ const renderSource = getAppFunctionSource('renderSvgWithHtmlLabels');
 assert.equal((renderSource.match(/getAcuteAngleMarkers\(/g) || []).length, 1);
 assert.match(renderSource, /getTriangleLabels\(task, points, acuteAngleMarkers\)/);
 assert.match(renderSource, /addSvgTrianglePrimitives\(svg, task, points, acuteAngleMarkers\)/);
+
+const workerInitializerSource = getAppFunctionSource('initializeAnswerChecker');
+assert.equal(
+  (appSource.match(/new Worker\(/g) || []).length,
+  1,
+  'The app must have exactly one answer-worker construction site.'
+);
+assert.match(
+  workerInitializerSource,
+  /new Worker\(\s*`js\/sympy-worker\.js\?v=\$\{APP_VERSION\}`\s*,\s*\{\s*type:\s*'module'\s*\}\s*\)/,
+  'The module worker URL must carry the current APP_VERSION cache token.'
+);
+assert.doesNotMatch(indexSource, /sympy-worker\.js/, 'The worker must be created by app.js, not index.html.');
 
 console.log(
   `Angle-layout consumer contract verified: app=${appVersion} helper=${helper.VERSION} `

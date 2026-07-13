@@ -21,7 +21,22 @@
 (function(global) {
   'use strict';
 
-  const VERSION = '0.4.25';
+  function deepFreeze(value, seen) {
+    if (!value || typeof value !== 'object') {
+      return value;
+    }
+    const visited = seen || new WeakSet();
+    if (visited.has(value)) {
+      return value;
+    }
+    visited.add(value);
+    Reflect.ownKeys(value).forEach(function(key) {
+      deepFreeze(value[key], visited);
+    });
+    return Object.isFrozen(value) ? value : Object.freeze(value);
+  }
+
+  const VERSION = '0.4.28';
   const ANGLE_EPSILON_RAD = 1e-12;
   const ANGLE_LABEL_CALIBRATION_VERSION = 'angle-label-tuning-v35';
   // BEGIN GENERATED: angle-label-data-contract
@@ -83,7 +98,7 @@
     arcSteps: 18
   });
 
-  const ANGLE_LABEL_CLASSES = Object.freeze([
+  const ANGLE_LABEL_CLASSES = deepFreeze([
     {
       id: 'small',
       name: 'klein',
@@ -131,7 +146,7 @@
     }
   ]);
 
-  const ANGLE_LABEL_CALIBRATION_ROWS = Object.freeze([
+  const ANGLE_LABEL_CALIBRATION_ROWS = deepFreeze([
     [10,[46,83],[73,87],[87,88]],
     [20,[40,79],[60,85],[63,83]],
     [30,[35,77],[47,80],[43,77]],
@@ -1221,7 +1236,7 @@
     return result;
   }, {});
 
-  const ANGLE_LABEL_CALIBRATION = ANGLE_LABEL_CALIBRATION_ROWS.map(function(row) {
+  const ANGLE_LABEL_CALIBRATION = deepFreeze(ANGLE_LABEL_CALIBRATION_ROWS.map(function(row) {
     const [angleDeg, small, medium, large] = row;
     return {
       angleDeg,
@@ -1229,9 +1244,9 @@
       medium: calibrationPair(medium),
       large: calibrationPair(large)
     };
-  });
+  }));
 
-  const ANGLE_LABEL_SAMPLE_DATA = Object.freeze(ANGLE_LABEL_SAMPLE_ROWS.map(sampleRow));
+  const ANGLE_LABEL_SAMPLE_DATA = deepFreeze(ANGLE_LABEL_SAMPLE_ROWS.map(sampleRow));
   const ANGLE_LABEL_SAMPLE_MASS_BY_LABEL = Object.freeze(
     ANGLE_LABEL_SAMPLE_DATA.reduce(function(result, sample) {
       const key = labelKey(sample.label);
@@ -1281,6 +1296,52 @@
       throw new TypeError(`${key} must be a finite number when provided.`);
     }
     return options[key];
+  }
+
+  function requirePositiveFiniteNumber(value, key) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      throw new TypeError(`${key} must be a finite number.`);
+    }
+    if (value <= 0) {
+      throw new RangeError(`${key} must be greater than 0.`);
+    }
+    return value;
+  }
+
+  function requirePositiveInteger(value, key) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      throw new TypeError(`${key} must be a finite number.`);
+    }
+    if (!Number.isInteger(value)) {
+      throw new RangeError(`${key} must be an integer.`);
+    }
+    if (value <= 0) {
+      throw new RangeError(`${key} must be greater than 0.`);
+    }
+    return value;
+  }
+
+  function resolvedAngleLabelFontSizePx(options) {
+    if (options && Object.prototype.hasOwnProperty.call(options, 'fontSizePx')
+      && options.fontSizePx !== undefined) {
+      return requirePositiveFiniteNumber(options.fontSizePx, 'fontSizePx');
+    }
+    if (options && Object.prototype.hasOwnProperty.call(options, 'angleLabelFontSizePx')
+      && options.angleLabelFontSizePx !== undefined) {
+      return requirePositiveFiniteNumber(options.angleLabelFontSizePx, 'angleLabelFontSizePx');
+    }
+    return DEFAULTS.angleLabelFontSizePx;
+  }
+
+  function resolvedArcSteps(segmentCountOption, geometryOptions) {
+    if (segmentCountOption !== undefined) {
+      return requirePositiveInteger(segmentCountOption, 'steps');
+    }
+    if (geometryOptions && Object.prototype.hasOwnProperty.call(geometryOptions, 'arcSteps')
+      && geometryOptions.arcSteps !== undefined) {
+      return requirePositiveInteger(geometryOptions.arcSteps, 'arcSteps');
+    }
+    return DEFAULTS.arcSteps;
   }
 
   function calibrationPair(pair) {
@@ -1462,17 +1523,13 @@
   function arcPoints(vertex, first, second, radius, steps, options) {
     let segmentCountOption = steps;
     let geometryOptions = options;
-    if (steps && typeof steps === 'object') {
+    if (steps !== null && typeof steps === 'object') {
       geometryOptions = steps;
-      segmentCountOption = null;
+      segmentCountOption = undefined;
     }
     const geometry = angleGeometry(vertex, first, second, geometryOptions);
     const result = [];
-    const configuredSegmentCount = geometryOptions && geometryOptions.arcSteps;
-    const segmentCount = Math.max(
-      1,
-      segmentCountOption || configuredSegmentCount || DEFAULTS.arcSteps
-    );
+    const segmentCount = resolvedArcSteps(segmentCountOption, geometryOptions);
     for (let index = 0; index <= segmentCount; index += 1) {
       const angle = geometry.start + geometry.delta * (index / segmentCount);
       result.push(pointOnRay(vertex, angle, radius));
@@ -1520,7 +1577,7 @@
   function angleLabelStyle(angleDeg, label, options) {
     const settings = mergeOptions(options);
     const labelClassId = settings.labelClassId || angleLabelClassFor(label);
-    const fontSizePx = settings.fontSizePx || settings.angleLabelFontSizePx;
+    const fontSizePx = resolvedAngleLabelFontSizePx(options);
     const normalizedAngle = clamp(normalizeDegrees(angleDeg), 10, 350);
     const baseline = baselineAngleLabelStyle(normalizedAngle, labelClassId, fontSizePx, settings);
     const correction = angleLabelSampleCorrection({
@@ -1963,7 +2020,7 @@
       return row.angleDeg === angle;
     });
     if (exact) {
-      return exact[safeClassId];
+      return Object.assign({}, exact[safeClassId]);
     }
 
     let lower = ANGLE_LABEL_CALIBRATION[0];
@@ -2099,7 +2156,7 @@
 
   function strokeAdjustedAngleLabelPosition(vertex, geometry, style, options) {
     const thinPosition = thinAngleLabelPosition(vertex, geometry, style, options);
-    const correction = angleStrokeCorrection(style.angleDeg || geometry.angleDeg, options);
+    const correction = angleStrokeCorrection(geometry.angleDeg, options);
     const shift = pointOnRay({ x: 0, y: 0 }, geometry.middle, correction.bisectorOffset);
     return Object.assign({}, thinPosition, {
       x: thinPosition.x + shift.x,
@@ -2121,8 +2178,8 @@
     const style = angleLabelStyle(context.angleDeg, label, Object.assign({}, options || {}, {
       baseRayAngleDeg: context.baseRayAngleDeg
     }));
-    const strokeCorrection = angleStrokeCorrection(style.angleDeg, options);
     const markerLabel = strokeAdjustedAngleLabelPosition(vertex, geometry, style, options);
+    const strokeCorrection = markerLabel.strokeCorrection;
     const arcRadius = style.arcRadius + strokeCorrection.arcRadiusOffset;
     return {
       angleContext: context,

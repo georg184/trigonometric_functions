@@ -1,7 +1,7 @@
-const APP_VERSION = '20260711.1';
+const APP_VERSION = '20260713.3';
 const VERSION_MISMATCH_TEXT = {
   de: {
-    title: 'Neue Version verfuegbar',
+    title: 'Neue Version verfügbar',
     body: 'Diese Seite hat HTML und JavaScript aus unterschiedlichen Versionen geladen. Bitte die Seite neu laden.'
   },
   en: {
@@ -10,7 +10,7 @@ const VERSION_MISMATCH_TEXT = {
   },
   fr: {
     title: 'Nouvelle version disponible',
-    body: 'Cette page a charge le HTML et le JavaScript de versions differentes. Veuillez recharger la page.'
+    body: 'Cette page a chargé le HTML et le JavaScript de versions différentes. Veuillez recharger la page.'
   }
 };
 const initialMismatchLanguage = VERSION_MISMATCH_TEXT[document.documentElement.lang] ? document.documentElement.lang : 'de';
@@ -279,7 +279,7 @@ if (!angleLayout) {
   throw new Error('GGGeometryAngleLayout must be loaded before js/app.js.');
 }
 const EXPECTED_ANGLE_LAYOUT_CONTRACT = Object.freeze({
-  helperVersion: '0.4.25',
+  helperVersion: '0.4.28',
   calibrationVersion: 'angle-label-tuning-v35',
   dataVersion: 'angle-label-data-cloud-v24'
 });
@@ -300,11 +300,14 @@ const SIDE_COLORS = ['#bf8700', '#2ea043', '#0969da'];
 const TRIANGLE_SIDE_STROKE_WIDTH = 3.5;
 const TRIANGLE_ANGLE_ARC_STROKE_WIDTH = 2;
 const ANSWER_CHECK_TIMEOUT_MS = 45000;
+const ANSWER_MAX_LENGTH = 160;
 const RIGHT_ANGLE_MARKERS = {
   arcDot: 'arcDot',
   square: 'square'
 };
-const ANGLE_LABEL_FONT_SIZE_PX = 16;
+const ANGLE_LABEL_FONT_SIZE_PX = 18;
+const SIDE_LABEL_FONT_SIZE_PX = 18;
+const SIDE_LABEL_OFFSET_PX = 22;
 const VERTEX_SETS = [
   ['A', 'B', 'C'],
   ['D', 'E', 'F'],
@@ -425,10 +428,12 @@ function refreshCurrentMathAfterLanguageChange() {
   if (!currentTask) {
     return;
   }
-  if (!controls.taskQuestion.innerHTML.trim() && controls.answerForm.classList.contains('hidden')) {
+  setAnswerInputMode(currentTask);
+  if (!roundStarted) {
+    controls.answerHelpers.classList.add('hidden');
+    clearMathContent(controls.answerHelpers);
     return;
   }
-  setAnswerInputMode(currentTask);
   renderMath(controls.taskQuestion, getQuestionLatex(currentTask));
   renderAnswerHelpers(currentTask);
   if (!controls.solution.classList.contains('hidden')) {
@@ -687,9 +692,12 @@ function getCheckerMode(task) {
 }
 
 function exactAnswerCheck(rawValue, task) {
-  const normalizedAnswer = normalizeAnswer(rawValue);
+  const normalizedAnswer = normalizeExactFallbackAnswer(rawValue, task);
+  if (normalizedAnswer === null) {
+    return false;
+  }
   return task.acceptedAnswers.some(function(acceptedAnswer) {
-    return normalizedAnswer === normalizeAnswer(acceptedAnswer);
+    return normalizedAnswer === normalizeExactFallbackAnswer(acceptedAnswer, task);
   });
 }
 
@@ -700,6 +708,14 @@ function fallbackAnswerCheck(rawValue, task, error) {
   return {
     correct: exactAnswerCheck(rawValue, task),
     checker: 'exact-fallback'
+  };
+}
+
+function invalidInputResult(checker) {
+  return {
+    correct: false,
+    checker,
+    invalidInput: true
   };
 }
 
@@ -739,34 +755,69 @@ function handleAnswerCheckerMessage(event) {
   pending.resolve(message.result);
 }
 
+function terminateAnswerCheckerWorker(worker) {
+  const targetWorker = worker || answerCheckerWorker;
+  if (!targetWorker) {
+    return;
+  }
+  if (targetWorker === answerCheckerWorker) {
+    answerCheckerWorker = null;
+  }
+  targetWorker.terminate();
+}
+
+function restartAnswerCheckerAfterTimeout(timedOutWorker, error) {
+  if (!timedOutWorker || timedOutWorker !== answerCheckerWorker) {
+    return;
+  }
+  terminateAnswerCheckerWorker(timedOutWorker);
+  resolvePendingAnswerChecksWithFallback(error);
+  answerCheckerFailed = false;
+  initializeAnswerChecker();
+}
+
 function initializeAnswerChecker() {
   if (!window.Worker) {
     answerCheckerFailed = true;
     return;
   }
 
+  let worker;
   try {
-    answerCheckerWorker = new Worker(`js/sympy-worker.js?v=${APP_VERSION}`, { type: 'module' });
+    worker = new Worker(`js/sympy-worker.js?v=${APP_VERSION}`, { type: 'module' });
   } catch (error) {
     answerCheckerFailed = true;
     console.warn('Could not start answer checker worker:', error);
     return;
   }
 
-  answerCheckerWorker.addEventListener('message', handleAnswerCheckerMessage);
-  answerCheckerWorker.addEventListener('error', function(event) {
+  answerCheckerWorker = worker;
+  answerCheckerFailed = false;
+  worker.addEventListener('message', function(event) {
+    if (worker === answerCheckerWorker) {
+      handleAnswerCheckerMessage(event);
+    }
+  });
+  worker.addEventListener('error', function(event) {
+    if (worker !== answerCheckerWorker) {
+      return;
+    }
     answerCheckerFailed = true;
     resolvePendingAnswerChecksWithFallback(event.message || 'answer checker worker error');
   });
 }
 
 function checkAnswer(rawValue, task) {
+  if (String(rawValue).length > ANSWER_MAX_LENGTH) {
+    return Promise.resolve(invalidInputResult('client-input-limit'));
+  }
   if (!answerCheckerWorker || answerCheckerFailed) {
     return Promise.resolve(fallbackAnswerCheck(rawValue, task));
   }
 
   const id = answerCheckerRequestId + 1;
   answerCheckerRequestId = id;
+  const requestWorker = answerCheckerWorker;
   const payload = {
     mode: getCheckerMode(task),
     userAnswer: rawValue,
@@ -779,7 +830,9 @@ function checkAnswer(rawValue, task) {
   return new Promise(function(resolve) {
     const timeoutId = window.setTimeout(function() {
       pendingAnswerChecks.delete(id);
-      resolve(fallbackAnswerCheck(rawValue, task, 'answer checker timed out'));
+      const timeoutError = 'answer checker timed out';
+      resolve(fallbackAnswerCheck(rawValue, task, timeoutError));
+      restartAnswerCheckerAfterTimeout(requestWorker, timeoutError);
     }, ANSWER_CHECK_TIMEOUT_MS);
 
     pendingAnswerChecks.set(id, {
@@ -788,7 +841,7 @@ function checkAnswer(rawValue, task) {
       resolve,
       timeoutId
     });
-    answerCheckerWorker.postMessage({
+    requestWorker.postMessage({
       type: 'check-answer',
       id,
       payload
@@ -941,7 +994,7 @@ function getSolutionLatex(task) {
 }
 
 function normalizeAnswer(value) {
-  return value
+  return String(value)
     .trim()
     .toLowerCase()
     .replace(/\\left|\\right/g, '')
@@ -958,7 +1011,35 @@ function normalizeAnswer(value) {
     .replace(/\s+/g, '')
     .replace(/÷|:/g, '/')
     .replace(/\\(?:dfrac|tfrac|frac)\{([^{}]+)\}\{([^{}]+)\}/g, '($1)/($2)')
-    .replace(/[{}()]/g, '');
+    .replace(/\{/g, '(')
+    .replace(/\}/g, ')');
+}
+
+function normalizeExactFallbackAnswer(value, task) {
+  const normalized = normalizeAnswer(value);
+  if (!normalized) {
+    return null;
+  }
+
+  if (task.questionKind === QUESTION_KINDS.functionToRatio) {
+    const ratioMatch = normalized.match(/^(\([a-z]+\)|[a-z]+)\/(\([a-z]+\)|[a-z]+)$/);
+    if (!ratioMatch) {
+      return null;
+    }
+    const numerator = ratioMatch[1].replace(/^\(|\)$/g, '');
+    const denominator = ratioMatch[2].replace(/^\(|\)$/g, '');
+    const allowedSymbols = getAllowedSideSymbols(task);
+    if (!allowedSymbols.includes(numerator) || !allowedSymbols.includes(denominator)) {
+      return null;
+    }
+    return `${numerator}/${denominator}`;
+  }
+
+  const trigMatch = normalized.match(/^(1\/)?(sin|cos|tan)\(([a-z]+)\)$/);
+  if (!trigMatch) {
+    return null;
+  }
+  return `${trigMatch[1] || ''}${trigMatch[2]}(${trigMatch[3]})`;
 }
 
 function scoreCurrentTask(isCorrect) {
@@ -1325,8 +1406,8 @@ function sideLabelPosition(points, sidePoints, centroid) {
   const outwardNormal = normals[0].x * inward.x + normals[0].y * inward.y < 0 ? normals[0] : normals[1];
 
   return {
-    x: midpoint.x + outwardNormal.x * 26,
-    y: midpoint.y + outwardNormal.y * 26
+    x: midpoint.x + outwardNormal.x * SIDE_LABEL_OFFSET_PX,
+    y: midpoint.y + outwardNormal.y * SIDE_LABEL_OFFSET_PX
   };
 }
 
@@ -1345,7 +1426,8 @@ function getTriangleLabels(task, points, acuteAngleMarkers) {
       latex: getSideName(task, vertexIndex),
       x: position.x,
       y: position.y,
-      color: '#0969da'
+      color: '#0969da',
+      fontSizePx: SIDE_LABEL_FONT_SIZE_PX
     });
   }
 

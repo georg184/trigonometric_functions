@@ -6,14 +6,21 @@ import { loadPyodide } from 'https://cdn.jsdelivr.net/pyodide/v314.0.0/full/pyod
 const CHECKER_PYTHON = String.raw`
 import json
 import re
-from sympy import Float, Integer, Rational, Symbol, cancel, cos, simplify, sin, tan
+from sympy import Add, Float, Integer, Mul, Pow, Rational, Symbol, cancel, cos, preorder_traversal, simplify, sin, tan
 from sympy.parsing.sympy_parser import convert_xor, parse_expr, standard_transformations
 
 TRANSFORMATIONS = standard_transformations + (convert_xor,)
+MAX_EXPRESSION_INPUT_LENGTH = 160
+MAX_EXPRESSION_NODES = 64
+MAX_PARENTHESIS_DEPTH = 8
+MAX_ABSOLUTE_INTEGER_EXPONENT = 12
 SAFE_GLOBALS = {
     "__builtins__": {},
+    "Add": Add,
     "Float": Float,
     "Integer": Integer,
+    "Mul": Mul,
+    "Pow": Pow,
     "Rational": Rational,
 }
 TRIG_FUNCTIONS = {
@@ -37,7 +44,10 @@ LATEX_NAME_NORMALIZATIONS = [
 
 
 def normalize_expression_input(value):
-    text = str(value).strip().lower()
+    raw_text = str(value)
+    if len(raw_text) > MAX_EXPRESSION_INPUT_LENGTH:
+        raise ValueError("expression is too long")
+    text = raw_text.strip().lower()
     text = re.sub(r"\s+", "", text)
     text = text.replace("÷", "/").replace(":", "/")
     text = text.replace("\\left", "").replace("\\right", "")
@@ -46,7 +56,38 @@ def normalize_expression_input(value):
     for latex_name, input_name in LATEX_NAME_NORMALIZATIONS:
         text = re.sub(r"\\" + latex_name + r"\b", input_name, text)
     text = text.replace("{", "(").replace("}", ")")
+    if len(text) > MAX_EXPRESSION_INPUT_LENGTH:
+        raise ValueError("normalized expression is too long")
     return text
+
+
+def validate_expression_parentheses(expression):
+    depth = 0
+    for character in expression:
+        if character == "(":
+            depth += 1
+            if depth > MAX_PARENTHESIS_DEPTH:
+                raise ValueError("parenthesis nesting is too deep")
+        elif character == ")":
+            depth -= 1
+            if depth < 0:
+                raise ValueError("unbalanced parentheses")
+    if depth != 0:
+        raise ValueError("unbalanced parentheses")
+
+
+def validate_parsed_expression(expression):
+    nodes = list(preorder_traversal(expression))
+    if len(nodes) > MAX_EXPRESSION_NODES:
+        raise ValueError("expression is too complex")
+    for node in nodes:
+        if not isinstance(node, Pow):
+            continue
+        exponent = node.exp
+        if not isinstance(exponent, Integer):
+            raise ValueError("exponent must be an integer literal")
+        if abs(int(exponent)) > MAX_ABSOLUTE_INTEGER_EXPONENT:
+            raise ValueError("exponent is too large")
 
 
 def parse_expression(value, local_symbols, allow_trig):
@@ -55,6 +96,7 @@ def parse_expression(value, local_symbols, allow_trig):
         raise ValueError("empty expression")
     if not re.fullmatch(r"[a-z0-9+\-*/^().]+", expression):
         raise ValueError("unsupported characters")
+    validate_expression_parentheses(expression)
 
     local_dict = dict(local_symbols)
     allowed_names = set(local_dict)
@@ -66,13 +108,15 @@ def parse_expression(value, local_symbols, allow_trig):
     if not expression_names.issubset(allowed_names):
         raise ValueError("unsupported name")
 
-    return parse_expr(
+    parsed_expression = parse_expr(
         expression,
         local_dict=local_dict,
         global_dict=SAFE_GLOBALS,
         transformations=TRANSFORMATIONS,
-        evaluate=True,
+        evaluate=False,
     )
+    validate_parsed_expression(parsed_expression)
+    return parsed_expression
 
 
 def parse_side_expression(value, allowed_symbols):
@@ -111,20 +155,33 @@ def build_trig_substitutions(angle_definitions, allowed_symbols):
     return substitutions
 
 
-def convert_trig_to_side_expression(expression, angle_definitions, allowed_symbols):
-    converted = expression.subs(build_trig_substitutions(angle_definitions, allowed_symbols))
+def convert_trig_to_side_expression(expression, substitutions):
+    converted = expression.subs(substitutions)
     if converted.has(sin, cos, tan):
         raise ValueError("unsupported trigonometric argument")
     return converted
 
 
+def invalid_input_result(checker, error):
+    return json.dumps({
+        "correct": False,
+        "checker": checker,
+        "invalidInput": True,
+        "errorType": type(error).__name__,
+    })
+
+
 def check_side_ratio(payload):
     allowed_symbols = payload.get("allowedSymbols", [])
-    user_expression = parse_side_expression(payload.get("userAnswer", ""), allowed_symbols)
     expected_expression = parse_side_expression(payload.get("expectedAnswer", "") or payload.get("targetRatio", ""), allowed_symbols)
-    difference = cancel(user_expression - expected_expression)
+    try:
+        user_expression = parse_side_expression(payload.get("userAnswer", ""), allowed_symbols)
+        difference = cancel(user_expression - expected_expression)
+        correct = bool(simplify(difference) == 0)
+    except Exception as error:
+        return invalid_input_result("sympy-side-ratio", error)
     return json.dumps({
-        "correct": bool(simplify(difference) == 0),
+        "correct": correct,
         "checker": "sympy-side-ratio",
         "normalizedUser": str(user_expression),
         "normalizedExpected": str(expected_expression),
@@ -134,12 +191,17 @@ def check_side_ratio(payload):
 def check_trig_expression(payload):
     allowed_symbols = payload.get("allowedSymbols", [])
     angle_definitions = payload.get("angleDefinitions", [])
-    user_expression = parse_trig_expression(payload.get("userAnswer", ""), angle_definitions)
-    user_side_expression = convert_trig_to_side_expression(user_expression, angle_definitions, allowed_symbols)
     expected_expression = parse_side_expression(payload.get("targetRatio", ""), allowed_symbols)
-    difference = cancel(user_side_expression - expected_expression)
+    substitutions = build_trig_substitutions(angle_definitions, allowed_symbols)
+    try:
+        user_expression = parse_trig_expression(payload.get("userAnswer", ""), angle_definitions)
+        user_side_expression = convert_trig_to_side_expression(user_expression, substitutions)
+        difference = cancel(user_side_expression - expected_expression)
+        correct = bool(simplify(difference) == 0)
+    except Exception as error:
+        return invalid_input_result("sympy-trig-expression", error)
     return json.dumps({
-        "correct": bool(simplify(difference) == 0),
+        "correct": correct,
         "checker": "sympy-trig-expression",
         "normalizedUser": str(user_expression),
         "normalizedUserAsSides": str(user_side_expression),
