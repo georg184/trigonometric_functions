@@ -1,6 +1,6 @@
 # trigonometric_functions
 
-Interactive HTML quiz for practicing sine, cosine, and tangent on right triangles. The triangle path generates random labeled right triangles, asks both function-to-side-ratio and side-ratio-to-function questions, supports configurable right-angle markers, and renders the drawing with inline SVG plus HTML/MathJax labels.
+Interactive HTML quiz for practicing sine, cosine, and tangent on right triangles. The triangle path generates random labeled right triangles, asks both function-to-side-ratio and side-ratio-to-function questions, supports configurable right-angle markers, and currently shows each drawing twice for a direct MathJax/KaTeX label comparison.
 
 ## Live Version
 
@@ -25,13 +25,16 @@ The public version is intended to be available through GitHub Pages:
 
 ## Rendering Architecture
 
-The app intentionally uses a single geometry renderer:
+The app intentionally uses one shared geometry pipeline with two stacked label-renderer panels:
 
-- triangle geometry and angle markers are drawn as inline SVG
-- side labels and angle labels are positioned as HTML overlays and rendered with pinned MathJax `3.2.2` CommonHTML output
-- reusable angle arc, right-angle marker, and angle-label placement logic comes from `js/vendor/geometry-angle-layout.js`
+- both panels draw identical triangle geometry and angle markers as inline SVG
+- the first panel renders its HTML-overlay side and angle labels with pinned MathJax `3.2.2` CommonHTML output
+- the second panel renders the same labels with pinned KaTeX `0.17.0`
+- both panels use the same selected exact CSS-pixel font size and obtain their angle arcs, right-angle markers, and label positions from `js/vendor/geometry-angle-layout.js`
+- the KaTeX panel deliberately reuses the MathJax-calibrated positions so the current comparison isolates renderer/font differences; it is not an independently calibrated KaTeX render profile
+- questions, solutions, formulas, and explanations continue to use MathJax
 
-Older comparison renderers using JSXGraph, D3, and GeoGebra were removed. Do not reintroduce those dependencies unless the app explicitly needs a new rendering comparison mode. For the current quiz workflow, MathJax and the pinned Pyodide/SymPy worker load are the external runtime dependencies; local app assets remain cache-busted with `GG_APP_VERSION`.
+Older comparison renderers using JSXGraph, D3, and GeoGebra remain removed. Do not reintroduce those dependencies unless the app explicitly needs another rendering comparison mode. For the current quiz workflow, MathJax, KaTeX, and the pinned Pyodide/SymPy worker load are the external runtime dependencies; local app assets remain cache-busted with `GG_APP_VERSION`.
 
 ## Runtime Behavior Notes
 
@@ -107,11 +110,12 @@ For browser checks, start a local static server and verify:
 - a round ends after 10 scored questions and shows the local result as points out of 10 plus elapsed time
 - the result screen offers both `Neues Quiz starten` and `Zur Startseite`
 - the language selector updates the affected UI consistently in German, English, and French
-- exactly one triangle rendering is visible
-- SVG geometry and five MathJax labels are present
+- two vertically stacked, geometrically identical SVG triangles are visible
+- the first triangle has five MathJax labels and the second has five KaTeX labels
 - the display settings offer `18px`, `22px`, and `26px` label sizes, default to `22px`, and update both angle and side labels together
-- angle labels contain `data-angle-label-render-profile="mathjax-3.2.2-chtml-tex-scale1-css-px-v1"`, use CommonHTML rather than nested SVG output, and have the exact selected CSS-pixel font size
-- side labels have the same exact selected font size and remain clearly separated from their triangle sides at the configured `22px` center-line offset
+- MathJax angle labels contain `data-angle-label-render-profile="mathjax-3.2.2-chtml-tex-scale1-css-px-v1"`, use CommonHTML rather than nested SVG output, and have the exact selected CSS-pixel font size
+- KaTeX labels contain KaTeX HTML/MathML output, use the same exact selected CSS-pixel font size and positions, and do not claim the MathJax render profile
+- side labels in both panels have the same exact selected font size and remain clearly separated from their triangle sides at the configured `22px` center-line offset
 - both right-angle marker modes work
 - answer checking and the next-task flow work
 - `Zur Startseite` returns to the intro screen without clearing the current score, and reopening the right-triangle quiz resumes the same in-memory round

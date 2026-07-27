@@ -38,13 +38,33 @@ assert.equal(profileMatch[1], helper.ANGLE_LABEL_RENDER_PROFILE.id);
 const renderProfile = helper.ANGLE_LABEL_RENDER_PROFILE;
 const expectedMathJaxUrl = `https://cdn.jsdelivr.net/npm/mathjax@${renderProfile.rendererVersion}`
   + '/es5/tex-mml-chtml.js';
+const kaTeXVersionMatch = appSource.match(/const KATEX_VERSION = '([^']+)'/);
+assert.ok(kaTeXVersionMatch, 'js/app.js must pin the KaTeX comparison version.');
+const kaTeXVersion = kaTeXVersionMatch[1];
+assert.equal(kaTeXVersion, '0.17.0');
+const expectedKaTeXScriptUrl = `https://cdn.jsdelivr.net/npm/katex@${kaTeXVersion}/dist/katex.min.js`;
+const expectedKaTeXStyleUrl = `https://cdn.jsdelivr.net/npm/katex@${kaTeXVersion}/dist/katex.min.css`;
 const externalScriptUrls = [...indexSource.matchAll(/<script[^>]+src="([^"]+)"/g)]
   .map(match => match[1])
   .filter(url => /^https?:/.test(url));
 assert.deepEqual(
   externalScriptUrls,
-  [expectedMathJaxUrl],
-  'index.html must load only the pinned CommonHTML MathJax bundle required by the render profile.'
+  [expectedMathJaxUrl, expectedKaTeXScriptUrl],
+  'index.html must load only the pinned MathJax and KaTeX comparison bundles.'
+);
+const externalStyleUrls = [...indexSource.matchAll(/<link[^>]+href="([^"]+)"/g)]
+  .map(match => match[1])
+  .filter(url => /^https?:/.test(url));
+assert.deepEqual(externalStyleUrls, [expectedKaTeXStyleUrl]);
+assert.ok(indexSource.includes(
+  `href="${expectedKaTeXStyleUrl}" integrity="sha384-vlBdW0r3AcZO/HboRPznQNowvexd3fY8qHOWkBi5q7KGgqJ+F48+DceybYmrVbmB" crossorigin="anonymous"`
+));
+assert.ok(indexSource.includes(
+  `src="${expectedKaTeXScriptUrl}" integrity="sha384-AtrdNsnxl/75rvBneBVH7DtOvCxSVahR2zWqle1coBKd8DEmLoviqNeJSx64gNAs" crossorigin="anonymous"`
+));
+assert.match(
+  appSource,
+  /if \(!window\.katex \|\| window\.katex\.version !== KATEX_VERSION\)/
 );
 assert.equal(renderProfile.renderer, 'MathJax');
 assert.equal(renderProfile.inputProcessor, 'tex');
@@ -143,6 +163,14 @@ assert.match(mathJaxContainerRuleBodies[0], /\bbackground:\s*transparent\s*!impo
 assert.match(mathJaxContainerRuleBodies[0], /\bfont-size:\s*inherit\s*!important\s*;/);
 assert.match(mathJaxContainerRuleBodies[0], /\bmargin:\s*0\s*!important\s*;/);
 assert.doesNotMatch(mathJaxContainerRuleBodies[0], /text-shadow|background-color/i);
+
+const kaTeXContainerRuleBodies = getCssRuleBodies('.render-label-katex .katex');
+assert.equal(kaTeXContainerRuleBodies.length, 1, 'Expected one KaTeX geometry-label rule.');
+assert.match(kaTeXContainerRuleBodies[0], /\bbackground:\s*transparent\s*;/);
+assert.match(kaTeXContainerRuleBodies[0], /\bfont-size:\s*inherit\s*;/);
+assert.match(kaTeXContainerRuleBodies[0], /\bfont-weight:\s*inherit\s*;/);
+assert.match(kaTeXContainerRuleBodies[0], /\bline-height:\s*1(?:\.0+)?\s*;/);
+assert.doesNotMatch(kaTeXContainerRuleBodies[0], /text-shadow|background-color/i);
 
 function getAppFunctionSource(functionName) {
   const match = appSource.match(
@@ -262,15 +290,35 @@ assert.equal(
 );
 assert.match(triangleLabelsSource, /renderProfileId:\s*marker\.style\.renderProfileId/);
 
-const htmlLabelSource = getAppFunctionSource('addHtmlMathLabel');
-assert.match(htmlLabelSource, /element\.style\.fontSize = `\$\{label\.fontSizePx\}px`/);
+const geometryLabelSource = getAppFunctionSource('createHtmlGeometryLabel');
+assert.match(geometryLabelSource, /element\.style\.fontSize = `\$\{label\.fontSizePx\}px`/);
+assert.match(geometryLabelSource, /element\.dataset\.labelRenderer = renderer/);
+assert.doesNotMatch(
+  geometryLabelSource,
+  /style\.fontSize\s*=\s*(?:`[^`]*(?:rem|em|vw|vh)|clamp\()/
+);
+
+const mathJaxLabelSource = getAppFunctionSource('addHtmlMathJaxLabel');
 assert.match(
-  htmlLabelSource,
+  mathJaxLabelSource,
   /element\.dataset\.angleLabelRenderProfile = label\.renderProfileId/
 );
+assert.match(mathJaxLabelSource, /createHtmlGeometryLabel\(label, 'mathjax'\)/);
+assert.match(mathJaxLabelSource, /element\.innerHTML = `\\\\\(\$\{label\.latex\}\\\\\)`/);
+
+const kaTeXLabelSource = getAppFunctionSource('addHtmlKaTeXLabel');
+assert.match(kaTeXLabelSource, /createHtmlGeometryLabel\(label, 'katex'\)/);
+assert.match(
+  kaTeXLabelSource,
+  /element\.dataset\.angleLabelPlacementProfile = label\.renderProfileId/
+);
+assert.doesNotMatch(kaTeXLabelSource, /angleLabelRenderProfile/);
+assert.match(kaTeXLabelSource, /window\.katex\.render\(label\.latex, element,/);
+assert.match(kaTeXLabelSource, /output:\s*'htmlAndMathml'/);
+assert.match(kaTeXLabelSource, /throwOnError:\s*true/);
 assert.doesNotMatch(
-  htmlLabelSource,
-  /style\.fontSize\s*=\s*(?:`[^`]*(?:rem|em|vw|vh)|clamp\()/
+  kaTeXLabelSource,
+  /MathJax|typesetMath|replaceMathContent/
 );
 
 const svgPrimitivesSource = getAppFunctionSource('addSvgTrianglePrimitives');
@@ -280,10 +328,35 @@ assert.match(
 );
 assert.doesNotMatch(svgPrimitivesSource, /getAcuteAngleMarker\(/);
 
-const renderSource = getAppFunctionSource('renderSvgWithHtmlLabels');
+const renderSource = getAppFunctionSource('renderSvgGeometryWithLabels');
 assert.equal((renderSource.match(/getAcuteAngleMarkers\(/g) || []).length, 1);
 assert.match(renderSource, /getTriangleLabels\(task, points, acuteAngleMarkers\)/);
 assert.match(renderSource, /addSvgTrianglePrimitives\(svg, task, points, acuteAngleMarkers\)/);
+assert.match(renderSource, /addLabel\(surface, label\)/);
+
+const mathJaxRenderSource = getAppFunctionSource('renderSvgWithMathJaxLabels');
+assert.match(mathJaxRenderSource, /replaceMathContent\(surface,/);
+assert.match(mathJaxRenderSource, /renderSvgGeometryWithLabels\(/);
+assert.match(mathJaxRenderSource, /addHtmlMathJaxLabel/);
+assert.match(mathJaxRenderSource, /quiz\.mathJaxSvgAria/);
+
+const kaTeXRenderSource = getAppFunctionSource('renderSvgWithKaTeXLabels');
+assert.doesNotMatch(kaTeXRenderSource, /replaceMathContent|typesetMath|MathJax/);
+assert.match(kaTeXRenderSource, /renderSvgGeometryWithLabels\(/);
+assert.match(kaTeXRenderSource, /addHtmlKaTeXLabel/);
+assert.match(kaTeXRenderSource, /quiz\.kaTeXSvgAria/);
+
+const triangleRenderSource = getAppFunctionSource('renderTriangle');
+assert.match(
+  triangleRenderSource,
+  /renderSvgWithMathJaxLabels\(controls\.triangleRenderer, task\)/
+);
+assert.match(
+  triangleRenderSource,
+  /renderSvgWithKaTeXLabels\(controls\.kaTeXTriangleRenderer, task\)/
+);
+assert.match(indexSource, /id="triangleRenderer" class="render-surface"/);
+assert.match(indexSource, /id="kaTeXTriangleRenderer" class="render-surface"/);
 
 const workerInitializerSource = getAppFunctionSource('initializeAnswerChecker');
 assert.equal(

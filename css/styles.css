@@ -223,6 +223,8 @@ p {
 }
 
 .triangle-stage {
+  display: grid;
+  gap: 16px;
   min-width: 0;
 }
 
@@ -238,6 +240,13 @@ p {
   color: var(--muted);
   font-size: 0.88rem;
   font-weight: 800;
+}
+
+.render-note {
+  margin: -2px 0 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .render-surface {
@@ -271,6 +280,13 @@ p {
   background: transparent !important;
   font-size: inherit !important;
   margin: 0 !important;
+}
+
+.render-label-katex .katex {
+  background: transparent;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: 1;
 }
 
 .render-label-angle {

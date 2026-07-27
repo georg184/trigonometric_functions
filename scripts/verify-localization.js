@@ -58,6 +58,30 @@ assert.match(
   getFunctionSource('applyLanguage'),
   /controls\.labelFontSizeLegend\.textContent = texts\.intro\.labelFontSizeLegend/
 );
+assert.match(indexSource, /id="renderTitle" class="render-title">1\. Inline-SVG \+ MathJax/);
+assert.match(indexSource, /id="kaTeXRenderTitle" class="render-title">2\. Inline-SVG \+ KaTeX/);
+assert.match(
+  indexSource,
+  /id="kaTeXRenderNote" class="render-note">Gleiche Geometrie und MathJax-kalibrierte Positionen/
+);
+assert.match(appSource, /kaTeXRenderNote: 'Same geometry and MathJax-calibrated positions'/);
+assert.match(
+  appSource,
+  /kaTeXRenderNote: 'Même géométrie et positions calibrées pour MathJax'/
+);
+const applyLanguageSource = getFunctionSource('applyLanguage');
+assert.match(
+  applyLanguageSource,
+  /controls\.kaTeXRenderTitle\.textContent = texts\.quiz\.kaTeXRenderTitle/
+);
+assert.match(
+  applyLanguageSource,
+  /controls\.kaTeXRenderNote\.textContent = texts\.quiz\.kaTeXRenderNote/
+);
+assert.match(
+  applyLanguageSource,
+  /controls\.triangleStage\.setAttribute\('aria-label', texts\.quiz\.triangleStageAria\)/
+);
 
 let inputModeUpdateCount = 0;
 let helperClearCount = 0;
