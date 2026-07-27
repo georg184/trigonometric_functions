@@ -242,8 +242,8 @@ p {
   font-weight: 800;
 }
 
-.render-note {
-  margin: -2px 0 8px;
+.render-comparison-note {
+  margin: 0 2px;
   color: var(--muted);
   font-size: 0.78rem;
   line-height: 1.35;
@@ -270,7 +270,7 @@ p {
   transform: translate(-50%, -50%);
   z-index: 2;
   color: var(--text);
-  font-weight: 800;
+  font-weight: 400;
   line-height: 1;
   background: transparent;
   pointer-events: none;
@@ -279,19 +279,19 @@ p {
 .render-label mjx-container {
   background: transparent !important;
   font-size: inherit !important;
+  font-weight: 400 !important;
   margin: 0 !important;
 }
 
 .render-label-katex .katex {
   background: transparent;
   font-size: inherit;
-  font-weight: inherit;
+  font-weight: 400;
   line-height: 1;
 }
 
 .render-label-angle {
   color: #57606a;
-  font-weight: 900;
 }
 
 .render-label-right {

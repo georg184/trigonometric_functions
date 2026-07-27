@@ -58,25 +58,54 @@ assert.match(
   getFunctionSource('applyLanguage'),
   /controls\.labelFontSizeLegend\.textContent = texts\.intro\.labelFontSizeLegend/
 );
-assert.match(indexSource, /id="renderTitle" class="render-title">1\. Inline-SVG \+ MathJax/);
-assert.match(indexSource, /id="kaTeXRenderTitle" class="render-title">2\. Inline-SVG \+ KaTeX/);
 assert.match(
   indexSource,
-  /id="kaTeXRenderNote" class="render-note">Gleiche Geometrie und MathJax-kalibrierte Positionen/
+  /id="mathJaxRegularRenderTitle" class="render-title">1\. Inline-SVG \+ MathJax — regulär/
 );
-assert.match(appSource, /kaTeXRenderNote: 'Same geometry and MathJax-calibrated positions'/);
+assert.match(
+  indexSource,
+  /id="kaTeXRegularRenderTitle" class="render-title">2\. Inline-SVG \+ KaTeX — regulär/
+);
+assert.match(
+  indexSource,
+  /id="mathJaxBoldRenderTitle" class="render-title">3\. Inline-SVG \+ MathJax — fett/
+);
+assert.match(
+  indexSource,
+  /id="kaTeXBoldRenderTitle" class="render-title">4\. Inline-SVG \+ KaTeX — fett/
+);
+assert.match(
+  indexSource,
+  /id="renderComparisonNote" class="render-comparison-note">Identische Geometrie und MathJax-kalibrierte Positionen; regulär und fett werden explizit über TeX gewählt\./
+);
 assert.match(
   appSource,
-  /kaTeXRenderNote: 'Même géométrie et positions calibrées pour MathJax'/
+  /renderComparisonNote: 'Identical geometry and MathJax-calibrated positions; regular and bold are selected explicitly through TeX\.'/
+);
+assert.match(
+  appSource,
+  /renderComparisonNote: 'Géométrie et positions calibrées pour MathJax identiques ; les variantes normale et grasse sont choisies explicitement via TeX\.'/
 );
 const applyLanguageSource = getFunctionSource('applyLanguage');
 assert.match(
   applyLanguageSource,
-  /controls\.kaTeXRenderTitle\.textContent = texts\.quiz\.kaTeXRenderTitle/
+  /controls\.renderComparisonNote\.textContent = texts\.quiz\.renderComparisonNote/
 );
 assert.match(
   applyLanguageSource,
-  /controls\.kaTeXRenderNote\.textContent = texts\.quiz\.kaTeXRenderNote/
+  /controls\.mathJaxRegularRenderTitle\.textContent = texts\.quiz\.mathJaxRegularRenderTitle/
+);
+assert.match(
+  applyLanguageSource,
+  /controls\.kaTeXRegularRenderTitle\.textContent = texts\.quiz\.kaTeXRegularRenderTitle/
+);
+assert.match(
+  applyLanguageSource,
+  /controls\.mathJaxBoldRenderTitle\.textContent = texts\.quiz\.mathJaxBoldRenderTitle/
+);
+assert.match(
+  applyLanguageSource,
+  /controls\.kaTeXBoldRenderTitle\.textContent = texts\.quiz\.kaTeXBoldRenderTitle/
 );
 assert.match(
   applyLanguageSource,

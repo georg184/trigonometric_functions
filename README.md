@@ -1,6 +1,6 @@
 # trigonometric_functions
 
-Interactive HTML quiz for practicing sine, cosine, and tangent on right triangles. The triangle path generates random labeled right triangles, asks both function-to-side-ratio and side-ratio-to-function questions, supports configurable right-angle markers, and currently shows each drawing twice for a direct MathJax/KaTeX label comparison.
+Interactive HTML quiz for practicing sine, cosine, and tangent on right triangles. The triangle path generates random labeled right triangles, asks both function-to-side-ratio and side-ratio-to-function questions, supports configurable right-angle markers, and currently shows each drawing four times for a direct regular/bold MathJax/KaTeX label comparison.
 
 ## Live Version
 
@@ -15,23 +15,25 @@ The public version is intended to be available through GitHub Pages:
 - `js/mathjax-config.js`: MathJax configuration
 - `js/vendor/geometry-angle-layout.js`: vendored copy of `ggprojects/shared/geometry-angle-layout.js` for public GitHub Pages use
 - `js/sympy-worker.js`: module web worker that loads Pyodide/SymPy from a pinned CDN URL and checks answers in the browser
-- `js/app.js`: the quiz logic, random task generation, answer checking, and the SVG/MathJax geometry renderer
+- `js/app.js`: the quiz logic, random task generation, answer checking, and the shared SVG geometry pipeline with MathJax/KaTeX label adapters
 - `scripts/verify-answer-checker.js`: regression tests for SymPy checking and the conservative infrastructure fallback
 - `scripts/verify-task-flow.js`: regression tests for answer scoring and the complete ten-question round workflow
 - `scripts/verify-localization.js`: static fallback and pre-start language-state regression tests
-- `scripts/verify-angle-layout-consumer.js`: static consumer, cache, MathJax, and calibrated render-profile contract checks
+- `scripts/verify-angle-layout-consumer.js`: static consumer, cache, MathJax/KaTeX font-variant, and calibrated placement-profile contract checks
 - `scripts/verify-javascript-syntax.js`: recursive syntax checking for every local JavaScript file
 - `SUPABASE_VARIANTS.md`: deferred architecture notes for optional login, registration, and online highscores
 
 ## Rendering Architecture
 
-The app intentionally uses one shared geometry pipeline with two stacked label-renderer panels:
+The app intentionally uses one shared geometry pipeline with four stacked label-renderer panels:
 
-- both panels draw identical triangle geometry and angle markers as inline SVG
-- the first panel renders its HTML-overlay side and angle labels with pinned MathJax `3.2.2` CommonHTML output
-- the second panel renders the same labels with pinned KaTeX `0.17.0`
-- both panels use the same selected exact CSS-pixel font size and obtain their angle arcs, right-angle markers, and label positions from `js/vendor/geometry-angle-layout.js`
-- the KaTeX panel deliberately reuses the MathJax-calibrated positions so the current comparison isolates renderer/font differences; it is not an independently calibrated KaTeX render profile
+- all four panels draw identical triangle geometry and angle markers as inline SVG
+- the first and third panels render their HTML-overlay labels with pinned MathJax `3.2.2` CommonHTML output
+- the second and fourth panels render the same labels with pinned KaTeX `0.17.0`
+- panels one and two explicitly use `\mathnormal{...}`; panels three and four explicitly use `\boldsymbol{...}`
+- CSS keeps the label containers at weight `400`, so the TeX command rather than inherited page styling selects the regular or bold math face
+- every panel uses the same selected exact CSS-pixel font size and obtains its angle arcs, right-angle markers, and label positions from `js/vendor/geometry-angle-layout.js`
+- all four panels deliberately reuse the MathJax-calibrated positions so the comparison isolates renderer/font-face differences; none claims an independently validated render profile for its chosen font variant
 - questions, solutions, formulas, and explanations continue to use MathJax
 
 Older comparison renderers using JSXGraph, D3, and GeoGebra remain removed. Do not reintroduce those dependencies unless the app explicitly needs another rendering comparison mode. For the current quiz workflow, MathJax, KaTeX, and the pinned Pyodide/SymPy worker load are the external runtime dependencies; local app assets remain cache-busted with `GG_APP_VERSION`.
@@ -68,11 +70,13 @@ When the shared helper changes, run `node shared/angle-label-contract-tool.js --
 
 The current right-triangle angle arcs and angle-label positions use the calibrated helper data from `angle-label-tuning-v35`. The helper starts with a softly name-normalized class baseline and adds a guarded exact-label residual correction when enough matching label samples are nearby. Class rows are normalized by name with exponent `0.25`, so the heavily sampled `alpha` cannot dominate the class merely through collection frequency. Raw geometric weights are also multiplied by the sample-provenance factor (`known: 1.00`, recorded `estimated-*`: `0.90`) before interpolation. A separately capped, quality-adjusted effective sample size controls the residual blend, so neither an isolated sample nor low-confidence support can activate the maximum correction. Based on global evidence, `alpha` currently receives model strength `1` and can reach own-label blend `0.97`; `beta` and `gamma` remain partially pooled at maximum `0.85`. The app calls `calibratedAngleMarkerFromRays()` with `coordinateSystem: 'svg'` and explicit `angleMode: 'minor'`, which normalizes SVG ray endpoints to the smaller calibrated mathematical counterclockwise opening, computes thin/reference-line angle-label values, and then analytically adjusts the rendered arc radius and label position for the triangle side and angle-arc stroke widths. Positive label offset is always mathematical counterclockwise; the helper performs the required SVG sign conversion. The SVG renderer uses the `arcPath` returned by that same marker so the arc and label cannot diverge in ray order or angle mode. The general helper default is `angleMode: 'directed'`, which preserves ray order and includes reflex angles; this triangle app intentionally overrides that default.
 
-The angle labels also obey the helper's calibration render profile `mathjax-3.2.2-chtml-tex-scale1-css-px-v1`. The app independently declares this id and verifies it with `assertAngleLabelRenderProfile()`. MathJax is pinned to `3.2.2`, uses CommonHTML with `scale: 1` and `matchFontHeight: false`, and the selected label-size value is passed to the helper and assigned directly to every rendered angle and side label. The display settings offer exact `18px`, `22px`, and `26px` sizes for both label types, with `22px` as the default; side labels are placed `22px` outward from their side midpoint. The MathJax container inherits the exact selected pixel size and uses container font weight `900` for angle labels, line height `1`, and center anchoring. Do not replace calibrated angle-label sizing with `rem`, `em`, `clamp()`, or viewport-relative units. A renderer, version, scale, font-metric, or label-box CSS change requires a new render profile and visual regression validation.
+The helper's calibration source uses render profile `mathjax-3.2.2-chtml-tex-scale1-css-px-v1`. The app independently declares this id and verifies it with `assertAngleLabelRenderProfile()` so the source of the reused positions cannot drift silently. MathJax is pinned to `3.2.2`, uses CommonHTML with `scale: 1` and `matchFontHeight: false`, and explicitly loads the `boldsymbol` extension. The selected label-size value is passed to the helper and assigned directly to every rendered angle and side label. The display settings offer exact `18px`, `22px`, and `26px` sizes for both label types, with `22px` as the default; side labels are placed `22px` outward from their side midpoint.
+
+The four comparison variants do not satisfy the helper's original render profile because their containers are held at weight `400` and their regular/bold face is selected explicitly through TeX. Angle-label DOM nodes therefore expose the source id only as `data-angle-label-placement-profile`; they must not claim `data-angle-label-render-profile`. This is deliberate for an apples-to-apples visual comparison at identical coordinates. Choosing one variant for production requires a new render profile plus visual regression validation for that renderer and face. Do not replace exact geometry-label sizing with `rem`, `em`, `clamp()`, or viewport-relative units.
 
 The app independently pins helper `0.4.28`, calibration `angle-label-tuning-v35`, and data cloud `angle-label-data-cloud-v24` in `EXPECTED_ANGLE_LAYOUT_CONTRACT`. `assertAngleLabelCalibrationContract()` runs before quiz generation, so a stale vendored helper fails explicitly rather than silently using a different model. All exported helper calibration structures are deeply frozen, including nested sample labels, class members, and compact calibration pairs; application code must copy them before attempting local edits. The helper clamps only data-based label-style lookup to 10–350 degrees; rendered stroke correction always uses the actual ray opening. Explicit label font sizes must be positive finite numbers, and discrete arc step counts must be positive integers. The quiz itself currently generates acute angles from 24 to 66 degrees.
 
-GitHub Pages runs the recursive JavaScript syntax check, answer-checker regressions, ten-question task-flow tests, localization regressions, and `verify-angle-layout-consumer.js` before packaging the site. The localization check validates static German fallbacks, translated version-mismatch text, and language-state updates before a round starts. The consumer check compares the app expectation with the vendored helper; validates every static asset cache token and the versioned module-worker URL; and enforces the pinned MathJax CommonHTML URL, configuration, exact-pixel label sizing, transparent label CSS, font weight, line height, and center anchoring. Deployment is rejected on any drift.
+GitHub Pages runs the recursive JavaScript syntax check, answer-checker regressions, ten-question task-flow tests, localization regressions, and `verify-angle-layout-consumer.js` before packaging the site. The localization check validates static German fallbacks, translated version-mismatch text, and language-state updates before a round starts. The consumer check compares the app expectation with the vendored helper; validates every static asset cache token and the versioned module-worker URL; and enforces the pinned MathJax/KaTeX bundles, explicit `mathnormal`/`boldsymbol` selection, exact-pixel label sizing, transparent label CSS, normal container weight, line height, centering, and honest placement-profile metadata. Deployment is rejected on any drift.
 
 ## Cache And Version Safety
 
@@ -110,12 +114,13 @@ For browser checks, start a local static server and verify:
 - a round ends after 10 scored questions and shows the local result as points out of 10 plus elapsed time
 - the result screen offers both `Neues Quiz starten` and `Zur Startseite`
 - the language selector updates the affected UI consistently in German, English, and French
-- two vertically stacked, geometrically identical SVG triangles are visible
-- the first triangle has five MathJax labels and the second has five KaTeX labels
+- four vertically stacked, geometrically identical SVG triangles are visible in the order MathJax regular, KaTeX regular, MathJax bold, KaTeX bold
+- each triangle has exactly five labels from its stated renderer and font variant
 - the display settings offer `18px`, `22px`, and `26px` label sizes, default to `22px`, and update both angle and side labels together
-- MathJax angle labels contain `data-angle-label-render-profile="mathjax-3.2.2-chtml-tex-scale1-css-px-v1"`, use CommonHTML rather than nested SVG output, and have the exact selected CSS-pixel font size
-- KaTeX labels contain KaTeX HTML/MathML output, use the same exact selected CSS-pixel font size and positions, and do not claim the MathJax render profile
-- side labels in both panels have the same exact selected font size and remain clearly separated from their triangle sides at the configured `22px` center-line offset
+- regular labels use `\mathnormal{...}` and bold labels use `\boldsymbol{...}` in both renderers
+- MathJax labels use CommonHTML rather than nested SVG output; KaTeX labels contain KaTeX HTML/MathML output
+- all angle labels contain `data-angle-label-placement-profile="mathjax-3.2.2-chtml-tex-scale1-css-px-v1"` and none claims `data-angle-label-render-profile`
+- labels in all four panels use the same exact selected font size and coordinate positions; side labels remain clearly separated from their triangle sides at the configured `22px` center-line offset
 - both right-angle marker modes work
 - answer checking and the next-task flow work
 - `Zur Startseite` returns to the intro screen without clearing the current score, and reopening the right-triangle quiz resumes the same in-memory round

@@ -1,4 +1,4 @@
-const APP_VERSION = '20260727.1';
+const APP_VERSION = '20260727.2';
 const VERSION_MISMATCH_TEXT = {
   de: {
     title: 'Neue Version verfügbar',
@@ -63,11 +63,15 @@ const controls = {
   labelFontSize22: document.getElementById('labelFontSize22'),
   labelFontSize26: document.getElementById('labelFontSize26'),
   triangleStage: document.getElementById('triangleStage'),
-  renderTitle: document.getElementById('renderTitle'),
-  triangleRenderer: document.getElementById('triangleRenderer'),
-  kaTeXRenderTitle: document.getElementById('kaTeXRenderTitle'),
-  kaTeXRenderNote: document.getElementById('kaTeXRenderNote'),
-  kaTeXTriangleRenderer: document.getElementById('kaTeXTriangleRenderer'),
+  renderComparisonNote: document.getElementById('renderComparisonNote'),
+  mathJaxRegularRenderTitle: document.getElementById('mathJaxRegularRenderTitle'),
+  mathJaxRegularRenderer: document.getElementById('mathJaxRegularRenderer'),
+  kaTeXRegularRenderTitle: document.getElementById('kaTeXRegularRenderTitle'),
+  kaTeXRegularRenderer: document.getElementById('kaTeXRegularRenderer'),
+  mathJaxBoldRenderTitle: document.getElementById('mathJaxBoldRenderTitle'),
+  mathJaxBoldRenderer: document.getElementById('mathJaxBoldRenderer'),
+  kaTeXBoldRenderTitle: document.getElementById('kaTeXBoldRenderTitle'),
+  kaTeXBoldRenderer: document.getElementById('kaTeXBoldRenderer'),
   taskCounter: document.getElementById('taskCounter'),
   scoreCounter: document.getElementById('scoreCounter'),
   timeCounter: document.getElementById('timeCounter'),
@@ -124,9 +128,11 @@ const TEXT = {
       nextTaskTitle: 'Unbeantwortete Aufgabe überspringen und mit 0 Punkten werten.',
       showResult: 'Ergebnis anzeigen',
       showResultTitle: 'Runde beenden. Eine unbeantwortete Aufgabe wird mit 0 Punkten gewertet.',
-      renderTitle: '1. Inline-SVG + MathJax',
-      kaTeXRenderTitle: '2. Inline-SVG + KaTeX',
-      kaTeXRenderNote: 'Gleiche Geometrie und MathJax-kalibrierte Positionen',
+      renderComparisonNote: 'Identische Geometrie und MathJax-kalibrierte Positionen; regulär und fett werden explizit über TeX gewählt.',
+      mathJaxRegularRenderTitle: '1. Inline-SVG + MathJax — regulär',
+      kaTeXRegularRenderTitle: '2. Inline-SVG + KaTeX — regulär',
+      mathJaxBoldRenderTitle: '3. Inline-SVG + MathJax — fett',
+      kaTeXBoldRenderTitle: '4. Inline-SVG + KaTeX — fett',
       beginRound: 'Start',
       check: 'Prüfen',
       checking: 'Prüfe...',
@@ -143,9 +149,11 @@ const TEXT = {
       insertFunctionAria: function(functionName) { return `${functionName} einfügen`; },
       insertReciprocalAria: 'Kehrwert einfügen',
       insertAngleAria: function(angleName) { return `${angleName} einfügen`; },
-      triangleStageAria: 'Vergleich der Dreiecksdarstellung mit MathJax und KaTeX',
-      mathJaxSvgAria: 'Dreieck als SVG mit MathJax-Labels',
-      kaTeXSvgAria: 'Dreieck als SVG mit KaTeX-Labels'
+      triangleStageAria: 'Vergleich von MathJax und KaTeX in regulärer und fetter Schrift',
+      mathJaxRegularSvgAria: 'Dreieck als SVG mit regulären MathJax-Labels',
+      kaTeXRegularSvgAria: 'Dreieck als SVG mit regulären KaTeX-Labels',
+      mathJaxBoldSvgAria: 'Dreieck als SVG mit fetten MathJax-Labels',
+      kaTeXBoldSvgAria: 'Dreieck als SVG mit fetten KaTeX-Labels'
     },
     placeholder: {
       text: 'Der Zugang am Einheitskreis wird später ergänzt.',
@@ -189,9 +197,11 @@ const TEXT = {
       nextTaskTitle: 'Skip an unanswered question and score 0 points.',
       showResult: 'Show Result',
       showResultTitle: 'End the round. An unanswered question is scored as 0 points.',
-      renderTitle: '1. Inline SVG + MathJax',
-      kaTeXRenderTitle: '2. Inline SVG + KaTeX',
-      kaTeXRenderNote: 'Same geometry and MathJax-calibrated positions',
+      renderComparisonNote: 'Identical geometry and MathJax-calibrated positions; regular and bold are selected explicitly through TeX.',
+      mathJaxRegularRenderTitle: '1. Inline SVG + MathJax — regular',
+      kaTeXRegularRenderTitle: '2. Inline SVG + KaTeX — regular',
+      mathJaxBoldRenderTitle: '3. Inline SVG + MathJax — bold',
+      kaTeXBoldRenderTitle: '4. Inline SVG + KaTeX — bold',
       beginRound: 'Start',
       check: 'Check',
       checking: 'Checking...',
@@ -208,9 +218,11 @@ const TEXT = {
       insertFunctionAria: function(functionName) { return `Insert ${functionName}`; },
       insertReciprocalAria: 'Insert reciprocal',
       insertAngleAria: function(angleName) { return `Insert ${angleName}`; },
-      triangleStageAria: 'Comparison of the MathJax and KaTeX triangle diagrams',
-      mathJaxSvgAria: 'Triangle as SVG with MathJax labels',
-      kaTeXSvgAria: 'Triangle as SVG with KaTeX labels'
+      triangleStageAria: 'Comparison of MathJax and KaTeX with regular and bold labels',
+      mathJaxRegularSvgAria: 'Triangle as SVG with regular MathJax labels',
+      kaTeXRegularSvgAria: 'Triangle as SVG with regular KaTeX labels',
+      mathJaxBoldSvgAria: 'Triangle as SVG with bold MathJax labels',
+      kaTeXBoldSvgAria: 'Triangle as SVG with bold KaTeX labels'
     },
     placeholder: {
       text: 'The unit circle approach will be added later.',
@@ -254,9 +266,11 @@ const TEXT = {
       nextTaskTitle: 'Passer une question sans réponse et compter 0 point.',
       showResult: 'Afficher le résultat',
       showResultTitle: 'Terminer la manche. Une question sans réponse compte pour 0 point.',
-      renderTitle: '1. SVG intégré + MathJax',
-      kaTeXRenderTitle: '2. SVG intégré + KaTeX',
-      kaTeXRenderNote: 'Même géométrie et positions calibrées pour MathJax',
+      renderComparisonNote: 'Géométrie et positions calibrées pour MathJax identiques ; les variantes normale et grasse sont choisies explicitement via TeX.',
+      mathJaxRegularRenderTitle: '1. SVG intégré + MathJax — normal',
+      kaTeXRegularRenderTitle: '2. SVG intégré + KaTeX — normal',
+      mathJaxBoldRenderTitle: '3. SVG intégré + MathJax — gras',
+      kaTeXBoldRenderTitle: '4. SVG intégré + KaTeX — gras',
       beginRound: 'Démarrer',
       check: 'Vérifier',
       checking: 'Vérification...',
@@ -273,9 +287,11 @@ const TEXT = {
       insertFunctionAria: function(functionName) { return `Insérer ${functionName}`; },
       insertReciprocalAria: 'Insérer l’inverse',
       insertAngleAria: function(angleName) { return `Insérer ${angleName}`; },
-      triangleStageAria: 'Comparaison des triangles avec MathJax et KaTeX',
-      mathJaxSvgAria: 'Triangle en SVG avec étiquettes MathJax',
-      kaTeXSvgAria: 'Triangle en SVG avec étiquettes KaTeX'
+      triangleStageAria: 'Comparaison de MathJax et KaTeX avec des étiquettes normales et grasses',
+      mathJaxRegularSvgAria: 'Triangle en SVG avec étiquettes MathJax normales',
+      kaTeXRegularSvgAria: 'Triangle en SVG avec étiquettes KaTeX normales',
+      mathJaxBoldSvgAria: 'Triangle en SVG avec étiquettes MathJax grasses',
+      kaTeXBoldSvgAria: 'Triangle en SVG avec étiquettes KaTeX grasses'
     },
     placeholder: {
       text: 'L’approche par le cercle trigonométrique sera ajoutée plus tard.',
@@ -299,6 +315,10 @@ const TEXT = {
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const KATEX_VERSION = '0.17.0';
+const GEOMETRY_LABEL_COMMANDS = Object.freeze({
+  regular: 'mathnormal',
+  bold: 'boldsymbol'
+});
 const angleLayout = window.GGGeometryAngleLayout;
 if (!angleLayout) {
   throw new Error('GGGeometryAngleLayout must be loaded before js/app.js.');
@@ -493,9 +513,11 @@ function applyLanguage() {
 
   controls.backButton.textContent = texts.quiz.backButton;
   controls.backButton.title = texts.quiz.backTitle;
-  controls.renderTitle.textContent = texts.quiz.renderTitle;
-  controls.kaTeXRenderTitle.textContent = texts.quiz.kaTeXRenderTitle;
-  controls.kaTeXRenderNote.textContent = texts.quiz.kaTeXRenderNote;
+  controls.renderComparisonNote.textContent = texts.quiz.renderComparisonNote;
+  controls.mathJaxRegularRenderTitle.textContent = texts.quiz.mathJaxRegularRenderTitle;
+  controls.kaTeXRegularRenderTitle.textContent = texts.quiz.kaTeXRegularRenderTitle;
+  controls.mathJaxBoldRenderTitle.textContent = texts.quiz.mathJaxBoldRenderTitle;
+  controls.kaTeXBoldRenderTitle.textContent = texts.quiz.kaTeXBoldRenderTitle;
   controls.triangleStage.setAttribute('aria-label', texts.quiz.triangleStageAria);
   controls.beginRoundButton.textContent = texts.quiz.beginRound;
   controls.answerHelpers.setAttribute('aria-label', texts.quiz.helpersAria);
@@ -1482,7 +1504,7 @@ function getTriangleLabels(task, points, acuteAngleMarkers) {
       y: marker.label.y,
       color: '#57606a',
       fontSizePx: labelFontSizePx,
-      renderProfileId: marker.style.renderProfileId
+      placementProfileId: marker.style.renderProfileId
     });
   }
 
@@ -1497,9 +1519,15 @@ function createSvgElement(name, attributes = {}) {
   return element;
 }
 
-function createHtmlGeometryLabel(label, renderer) {
+function geometryLabelLatex(label, fontVariant) {
+  const command = GEOMETRY_LABEL_COMMANDS[fontVariant];
+  if (!command) throw new Error(`Unsupported geometry label font variant: ${fontVariant}`);
+  return `\\${command}{${label.latex}}`;
+}
+
+function createHtmlGeometryLabel(label, renderer, fontVariant) {
   const element = document.createElement('span');
-  element.className = `render-label render-label-${label.type} render-label-${renderer}`;
+  element.className = `render-label render-label-${label.type} render-label-${renderer} render-label-font-${fontVariant}`;
   element.style.left = `${label.x}px`;
   element.style.top = `${label.y}px`;
   element.style.color = label.color;
@@ -1507,24 +1535,25 @@ function createHtmlGeometryLabel(label, renderer) {
     element.style.fontSize = `${label.fontSizePx}px`;
   }
   element.dataset.labelRenderer = renderer;
+  element.dataset.labelFontVariant = fontVariant;
   return element;
 }
 
-function addHtmlMathJaxLabel(surface, label) {
-  const element = createHtmlGeometryLabel(label, 'mathjax');
-  if (label.renderProfileId) {
-    element.dataset.angleLabelRenderProfile = label.renderProfileId;
+function addHtmlMathJaxLabel(surface, label, fontVariant) {
+  const element = createHtmlGeometryLabel(label, 'mathjax', fontVariant);
+  if (label.placementProfileId) {
+    element.dataset.angleLabelPlacementProfile = label.placementProfileId;
   }
-  element.innerHTML = `\\(${label.latex}\\)`;
+  element.innerHTML = `\\(${geometryLabelLatex(label, fontVariant)}\\)`;
   surface.appendChild(element);
 }
 
-function addHtmlKaTeXLabel(surface, label) {
-  const element = createHtmlGeometryLabel(label, 'katex');
-  if (label.renderProfileId) {
-    element.dataset.angleLabelPlacementProfile = label.renderProfileId;
+function addHtmlKaTeXLabel(surface, label, fontVariant) {
+  const element = createHtmlGeometryLabel(label, 'katex', fontVariant);
+  if (label.placementProfileId) {
+    element.dataset.angleLabelPlacementProfile = label.placementProfileId;
   }
-  window.katex.render(label.latex, element, {
+  window.katex.render(geometryLabelLatex(label, fontVariant), element, {
     displayMode: false,
     output: 'htmlAndMathml',
     strict: 'error',
@@ -1594,7 +1623,7 @@ function drawSvgRightAngleMarker(svg, task, points) {
   }));
 }
 
-function renderSvgGeometryWithLabels(surface, task, addLabel, svgAria) {
+function renderSvgGeometryWithLabels(surface, task, addLabel, fontVariant, svgAria) {
   surface.innerHTML = '';
   const size = getSurfaceSize(surface);
   const points = transformPoints(task, size.width, size.height);
@@ -1610,33 +1639,58 @@ function renderSvgGeometryWithLabels(surface, task, addLabel, svgAria) {
   addSvgTrianglePrimitives(svg, task, points, acuteAngleMarkers);
   surface.appendChild(svg);
   labels.forEach(function(label) {
-    addLabel(surface, label);
+    addLabel(surface, label, fontVariant);
   });
 }
 
-function renderSvgWithMathJaxLabels(surface, task) {
+function renderSvgWithMathJaxLabels(surface, task, fontVariant, svgAria) {
   replaceMathContent(surface, function() {
     renderSvgGeometryWithLabels(
       surface,
       task,
       addHtmlMathJaxLabel,
-      getTextBundle().quiz.mathJaxSvgAria
+      fontVariant,
+      svgAria
     );
   });
 }
 
-function renderSvgWithKaTeXLabels(surface, task) {
+function renderSvgWithKaTeXLabels(surface, task, fontVariant, svgAria) {
   renderSvgGeometryWithLabels(
     surface,
     task,
     addHtmlKaTeXLabel,
-    getTextBundle().quiz.kaTeXSvgAria
+    fontVariant,
+    svgAria
   );
 }
 
 function renderTriangle(task) {
-  renderSvgWithMathJaxLabels(controls.triangleRenderer, task);
-  renderSvgWithKaTeXLabels(controls.kaTeXTriangleRenderer, task);
+  const texts = getTextBundle().quiz;
+  renderSvgWithMathJaxLabels(
+    controls.mathJaxRegularRenderer,
+    task,
+    'regular',
+    texts.mathJaxRegularSvgAria
+  );
+  renderSvgWithKaTeXLabels(
+    controls.kaTeXRegularRenderer,
+    task,
+    'regular',
+    texts.kaTeXRegularSvgAria
+  );
+  renderSvgWithMathJaxLabels(
+    controls.mathJaxBoldRenderer,
+    task,
+    'bold',
+    texts.mathJaxBoldSvgAria
+  );
+  renderSvgWithKaTeXLabels(
+    controls.kaTeXBoldRenderer,
+    task,
+    'bold',
+    texts.kaTeXBoldSvgAria
+  );
 }
 
 function showRoundResult() {

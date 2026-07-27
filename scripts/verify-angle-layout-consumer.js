@@ -78,6 +78,14 @@ assert.ok(mathJaxConfig, 'js/mathjax-config.js must assign window.MathJax.');
 assert.equal(mathJaxConfig.chtml.scale, renderProfile.outputScale);
 assert.equal(mathJaxConfig.chtml.matchFontHeight, renderProfile.matchFontHeight);
 assert.ok(mathJaxConfig.tex, 'The calibrated render profile requires the TeX input processor.');
+assert.ok(
+  mathJaxConfig.loader.load.includes('[tex]/boldsymbol'),
+  'The explicit bold comparison requires the pinned MathJax boldsymbol extension.'
+);
+assert.ok(
+  mathJaxConfig.tex.packages['[+]'].includes('boldsymbol'),
+  'The MathJax TeX input processor must enable the boldsymbol package.'
+);
 assert.equal(mathJaxConfig.svg, undefined, 'The calibrated consumer must not configure SVG output.');
 
 const appVersionMatch = appSource.match(/const APP_VERSION = '(\d{8}\.\d+)'/);
@@ -137,15 +145,18 @@ assert.equal(renderLabelRuleBodies.length, 1, 'Expected one shared render-label 
 assert.equal(renderProfile.horizontalAnchor, 'center');
 assert.equal(renderProfile.verticalAnchor, 'center');
 assert.match(renderLabelRuleBodies[0], /\btransform:\s*translate\(\s*-50%\s*,\s*-50%\s*\)/);
+assert.match(renderLabelRuleBodies[0], /\bfont-weight:\s*400\s*;/);
 assert.match(renderLabelRuleBodies[0], /\bline-height:\s*1(?:\.0+)?\s*;/);
 assert.match(renderLabelRuleBodies[0], /\bbackground:\s*transparent\s*;/);
 assert.doesNotMatch(renderLabelRuleBodies[0], /text-shadow|background-color/i);
 
 const angleLabelRuleBodies = getCssRuleBodies('.render-label-angle');
-assert.equal(angleLabelRuleBodies.length, 1, 'Expected one calibrated angle-label rule.');
-const angleLabelWeightMatch = angleLabelRuleBodies[0].match(/\bfont-weight:\s*(\d+)/);
-assert.ok(angleLabelWeightMatch, 'The calibrated angle-label font weight is missing.');
-assert.equal(Number(angleLabelWeightMatch[1]), renderProfile.containerFontWeight);
+assert.equal(angleLabelRuleBodies.length, 1, 'Expected one shared angle-label color rule.');
+assert.doesNotMatch(
+  angleLabelRuleBodies[0],
+  /\bfont-weight\s*:/,
+  'Geometry-label weight must be selected by explicit TeX commands, not the angle CSS.'
+);
 assert.doesNotMatch(angleLabelRuleBodies[0], /\bfont-size\s*:/);
 assert.doesNotMatch(angleLabelRuleBodies[0], /text-shadow|background(?:-color)?\s*:/i);
 
@@ -161,6 +172,7 @@ const mathJaxContainerRuleBodies = getCssRuleBodies('.render-label mjx-container
 assert.equal(mathJaxContainerRuleBodies.length, 1, 'Expected one MathJax geometry-label rule.');
 assert.match(mathJaxContainerRuleBodies[0], /\bbackground:\s*transparent\s*!important\s*;/);
 assert.match(mathJaxContainerRuleBodies[0], /\bfont-size:\s*inherit\s*!important\s*;/);
+assert.match(mathJaxContainerRuleBodies[0], /\bfont-weight:\s*400\s*!important\s*;/);
 assert.match(mathJaxContainerRuleBodies[0], /\bmargin:\s*0\s*!important\s*;/);
 assert.doesNotMatch(mathJaxContainerRuleBodies[0], /text-shadow|background-color/i);
 
@@ -168,7 +180,7 @@ const kaTeXContainerRuleBodies = getCssRuleBodies('.render-label-katex .katex');
 assert.equal(kaTeXContainerRuleBodies.length, 1, 'Expected one KaTeX geometry-label rule.');
 assert.match(kaTeXContainerRuleBodies[0], /\bbackground:\s*transparent\s*;/);
 assert.match(kaTeXContainerRuleBodies[0], /\bfont-size:\s*inherit\s*;/);
-assert.match(kaTeXContainerRuleBodies[0], /\bfont-weight:\s*inherit\s*;/);
+assert.match(kaTeXContainerRuleBodies[0], /\bfont-weight:\s*400\s*;/);
 assert.match(kaTeXContainerRuleBodies[0], /\bline-height:\s*1(?:\.0+)?\s*;/);
 assert.doesNotMatch(kaTeXContainerRuleBodies[0], /text-shadow|background-color/i);
 
@@ -288,11 +300,24 @@ assert.equal(
   2,
   'Angle and side labels must use the same selected pixel size.'
 );
-assert.match(triangleLabelsSource, /renderProfileId:\s*marker\.style\.renderProfileId/);
+assert.match(triangleLabelsSource, /placementProfileId:\s*marker\.style\.renderProfileId/);
+
+const geometryLabelCommandsBlock = appSource.match(
+  /const GEOMETRY_LABEL_COMMANDS = Object\.freeze\(\{([\s\S]*?)\}\);/
+);
+assert.ok(geometryLabelCommandsBlock, 'The explicit geometry-label font commands are missing.');
+assert.match(geometryLabelCommandsBlock[1], /regular:\s*'mathnormal'/);
+assert.match(geometryLabelCommandsBlock[1], /bold:\s*'boldsymbol'/);
+
+const geometryLabelLatexSource = getAppFunctionSource('geometryLabelLatex');
+assert.match(geometryLabelLatexSource, /GEOMETRY_LABEL_COMMANDS\[fontVariant\]/);
+assert.match(geometryLabelLatexSource, /return `\\\\\$\{command\}\{\$\{label\.latex\}\}`/);
 
 const geometryLabelSource = getAppFunctionSource('createHtmlGeometryLabel');
 assert.match(geometryLabelSource, /element\.style\.fontSize = `\$\{label\.fontSizePx\}px`/);
 assert.match(geometryLabelSource, /element\.dataset\.labelRenderer = renderer/);
+assert.match(geometryLabelSource, /element\.dataset\.labelFontVariant = fontVariant/);
+assert.match(geometryLabelSource, /render-label-font-\$\{fontVariant\}/);
 assert.doesNotMatch(
   geometryLabelSource,
   /style\.fontSize\s*=\s*(?:`[^`]*(?:rem|em|vw|vh)|clamp\()/
@@ -301,19 +326,32 @@ assert.doesNotMatch(
 const mathJaxLabelSource = getAppFunctionSource('addHtmlMathJaxLabel');
 assert.match(
   mathJaxLabelSource,
-  /element\.dataset\.angleLabelRenderProfile = label\.renderProfileId/
+  /element\.dataset\.angleLabelPlacementProfile = label\.placementProfileId/
 );
-assert.match(mathJaxLabelSource, /createHtmlGeometryLabel\(label, 'mathjax'\)/);
-assert.match(mathJaxLabelSource, /element\.innerHTML = `\\\\\(\$\{label\.latex\}\\\\\)`/);
+assert.doesNotMatch(mathJaxLabelSource, /angleLabelRenderProfile/);
+assert.match(
+  mathJaxLabelSource,
+  /createHtmlGeometryLabel\(label, 'mathjax', fontVariant\)/
+);
+assert.match(
+  mathJaxLabelSource,
+  /element\.innerHTML = `\\\\\(\$\{geometryLabelLatex\(label, fontVariant\)\}\\\\\)`/
+);
 
 const kaTeXLabelSource = getAppFunctionSource('addHtmlKaTeXLabel');
-assert.match(kaTeXLabelSource, /createHtmlGeometryLabel\(label, 'katex'\)/);
 assert.match(
   kaTeXLabelSource,
-  /element\.dataset\.angleLabelPlacementProfile = label\.renderProfileId/
+  /createHtmlGeometryLabel\(label, 'katex', fontVariant\)/
+);
+assert.match(
+  kaTeXLabelSource,
+  /element\.dataset\.angleLabelPlacementProfile = label\.placementProfileId/
 );
 assert.doesNotMatch(kaTeXLabelSource, /angleLabelRenderProfile/);
-assert.match(kaTeXLabelSource, /window\.katex\.render\(label\.latex, element,/);
+assert.match(
+  kaTeXLabelSource,
+  /window\.katex\.render\(geometryLabelLatex\(label, fontVariant\), element,/
+);
 assert.match(kaTeXLabelSource, /output:\s*'htmlAndMathml'/);
 assert.match(kaTeXLabelSource, /throwOnError:\s*true/);
 assert.doesNotMatch(
@@ -332,31 +370,51 @@ const renderSource = getAppFunctionSource('renderSvgGeometryWithLabels');
 assert.equal((renderSource.match(/getAcuteAngleMarkers\(/g) || []).length, 1);
 assert.match(renderSource, /getTriangleLabels\(task, points, acuteAngleMarkers\)/);
 assert.match(renderSource, /addSvgTrianglePrimitives\(svg, task, points, acuteAngleMarkers\)/);
-assert.match(renderSource, /addLabel\(surface, label\)/);
+assert.match(renderSource, /addLabel\(surface, label, fontVariant\)/);
 
 const mathJaxRenderSource = getAppFunctionSource('renderSvgWithMathJaxLabels');
 assert.match(mathJaxRenderSource, /replaceMathContent\(surface,/);
 assert.match(mathJaxRenderSource, /renderSvgGeometryWithLabels\(/);
 assert.match(mathJaxRenderSource, /addHtmlMathJaxLabel/);
-assert.match(mathJaxRenderSource, /quiz\.mathJaxSvgAria/);
+assert.match(mathJaxRenderSource, /fontVariant/);
+assert.match(mathJaxRenderSource, /svgAria/);
 
 const kaTeXRenderSource = getAppFunctionSource('renderSvgWithKaTeXLabels');
 assert.doesNotMatch(kaTeXRenderSource, /replaceMathContent|typesetMath|MathJax/);
 assert.match(kaTeXRenderSource, /renderSvgGeometryWithLabels\(/);
 assert.match(kaTeXRenderSource, /addHtmlKaTeXLabel/);
-assert.match(kaTeXRenderSource, /quiz\.kaTeXSvgAria/);
+assert.match(kaTeXRenderSource, /fontVariant/);
+assert.match(kaTeXRenderSource, /svgAria/);
 
 const triangleRenderSource = getAppFunctionSource('renderTriangle');
+assert.equal((triangleRenderSource.match(/renderSvgWithMathJaxLabels\(/g) || []).length, 2);
+assert.equal((triangleRenderSource.match(/renderSvgWithKaTeXLabels\(/g) || []).length, 2);
 assert.match(
   triangleRenderSource,
-  /renderSvgWithMathJaxLabels\(controls\.triangleRenderer, task\)/
+  /controls\.mathJaxRegularRenderer[\s\S]*?'regular'[\s\S]*?texts\.mathJaxRegularSvgAria/
 );
 assert.match(
   triangleRenderSource,
-  /renderSvgWithKaTeXLabels\(controls\.kaTeXTriangleRenderer, task\)/
+  /controls\.kaTeXRegularRenderer[\s\S]*?'regular'[\s\S]*?texts\.kaTeXRegularSvgAria/
 );
-assert.match(indexSource, /id="triangleRenderer" class="render-surface"/);
-assert.match(indexSource, /id="kaTeXTriangleRenderer" class="render-surface"/);
+assert.match(
+  triangleRenderSource,
+  /controls\.mathJaxBoldRenderer[\s\S]*?'bold'[\s\S]*?texts\.mathJaxBoldSvgAria/
+);
+assert.match(
+  triangleRenderSource,
+  /controls\.kaTeXBoldRenderer[\s\S]*?'bold'[\s\S]*?texts\.kaTeXBoldSvgAria/
+);
+const expectedRenderSurfaceIds = [
+  'mathJaxRegularRenderer',
+  'kaTeXRegularRenderer',
+  'mathJaxBoldRenderer',
+  'kaTeXBoldRenderer'
+];
+const renderSurfaceIds = [...indexSource.matchAll(
+  /id="([^"]+)" class="render-surface"/g
+)].map(match => match[1]);
+assert.deepEqual(renderSurfaceIds, expectedRenderSurfaceIds);
 
 const workerInitializerSource = getAppFunctionSource('initializeAnswerChecker');
 assert.equal(
