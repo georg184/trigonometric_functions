@@ -76,40 +76,41 @@ assert.match(
 );
 assert.match(
   indexSource,
-  /id="renderComparisonNote" class="render-comparison-note">Identische Geometrie und MathJax-kalibrierte Positionen; regulär und fett werden explizit über TeX gewählt\./
+  /id="renderComparisonNote" class="render-comparison-note hidden">Identische Geometrie und MathJax-kalibrierte Positionen; Renderer und Schriftvariante werden für jede aktive Darstellung explizit gewählt\./
 );
 assert.match(
   appSource,
-  /renderComparisonNote: 'Identical geometry and MathJax-calibrated positions; regular and bold are selected explicitly through TeX\.'/
+  /renderComparisonNote: 'Identical geometry and MathJax-calibrated positions; the renderer and font variant are selected explicitly for each active diagram\.'/
 );
 assert.match(
   appSource,
-  /renderComparisonNote: 'Géométrie et positions calibrées pour MathJax identiques ; les variantes normale et grasse sont choisies explicitement via TeX\.'/
+  /renderComparisonNote: 'Géométrie et positions calibrées pour MathJax identiques ; le moteur de rendu et la variante de police sont choisis explicitement pour chaque représentation active\.'/
 );
+assert.match(indexSource, /id="triangleStage" class="triangle-stage" aria-label="Dreiecksdarstellung"/);
+assert.match(appSource, /triangleStageSingleAria: 'Dreiecksdarstellung'/);
+assert.match(appSource, /triangleStageComparisonAria: 'Vergleich der aktivierten Dreiecksdarstellungen'/);
+assert.match(appSource, /triangleStageSingleAria: 'Triangle diagram'/);
+assert.match(appSource, /triangleStageComparisonAria: 'Comparison of the enabled triangle diagrams'/);
+assert.match(appSource, /triangleStageSingleAria: 'Représentation du triangle'/);
+assert.match(appSource, /triangleStageComparisonAria: 'Comparaison des représentations du triangle activées'/);
 const applyLanguageSource = getFunctionSource('applyLanguage');
 assert.match(
   applyLanguageSource,
-  /controls\.renderComparisonNote\.textContent = texts\.quiz\.renderComparisonNote/
+  /updateGeometryRenderVariantUi\(texts\.quiz\)/
+);
+
+const rendererUiSource = getFunctionSource('updateGeometryRenderVariantUi');
+assert.match(
+  rendererUiSource,
+  /controls\.renderComparisonNote\.textContent = texts\.renderComparisonNote/
 );
 assert.match(
-  applyLanguageSource,
-  /controls\.mathJaxRegularRenderTitle\.textContent = texts\.quiz\.mathJaxRegularRenderTitle/
+  rendererUiSource,
+  /variant\.title\.textContent = texts\[variant\.titleTextKey\]/
 );
 assert.match(
-  applyLanguageSource,
-  /controls\.kaTeXRegularRenderTitle\.textContent = texts\.quiz\.kaTeXRegularRenderTitle/
-);
-assert.match(
-  applyLanguageSource,
-  /controls\.mathJaxBoldRenderTitle\.textContent = texts\.quiz\.mathJaxBoldRenderTitle/
-);
-assert.match(
-  applyLanguageSource,
-  /controls\.kaTeXBoldRenderTitle\.textContent = texts\.quiz\.kaTeXBoldRenderTitle/
-);
-assert.match(
-  applyLanguageSource,
-  /controls\.triangleStage\.setAttribute\('aria-label', texts\.quiz\.triangleStageAria\)/
+  rendererUiSource,
+  /showComparison \? texts\.triangleStageComparisonAria : texts\.triangleStageSingleAria/
 );
 
 let inputModeUpdateCount = 0;

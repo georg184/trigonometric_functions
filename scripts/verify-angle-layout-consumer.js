@@ -111,6 +111,62 @@ assert.ok(versionParts, `Invalid APP_VERSION: ${appVersion}`);
 const visibleVersion = `v${versionParts[1]}.${versionParts[2]}.${versionParts[3]}.${versionParts[4]}`;
 assert.ok(indexSource.includes(visibleVersion), `Missing visible version ${visibleVersion}.`);
 
+const rendererDefaultsBlock = appSource.match(
+  /const DEFAULT_ENABLED_GEOMETRY_RENDER_VARIANTS = Object\.freeze\(\{([\s\S]*?)\}\);/
+);
+assert.ok(rendererDefaultsBlock, 'The centralized geometry-renderer switches are missing.');
+const rendererDefaults = Object.fromEntries(
+  [...rendererDefaultsBlock[1].matchAll(/(\w+):\s*(true|false)/g)]
+    .map(match => [match[1], match[2] === 'true'])
+);
+assert.deepEqual(rendererDefaults, {
+  mathJaxRegular: true,
+  kaTeXRegular: false,
+  mathJaxBold: false,
+  kaTeXBold: false
+});
+
+const rendererDefinitionsBlock = appSource.match(
+  /const GEOMETRY_RENDER_VARIANT_DEFINITIONS = Object\.freeze\(\[([\s\S]*?)\n\]\);/
+);
+assert.ok(rendererDefinitionsBlock, 'The shared geometry-renderer registry is missing.');
+const rendererDefinitions = [...rendererDefinitionsBlock[1].matchAll(
+  /Object\.freeze\(\{([\s\S]*?)\}\)/g
+)].map(match => Object.fromEntries(
+  [...match[1].matchAll(/(\w+):\s*'([^']+)'/g)]
+    .map(propertyMatch => [propertyMatch[1], propertyMatch[2]])
+));
+assert.deepEqual(rendererDefinitions, [
+  {
+    key: 'mathJaxRegular', renderer: 'mathjax', fontVariant: 'regular',
+    panelId: 'mathJaxRegularPanel', titleId: 'mathJaxRegularRenderTitle',
+    surfaceId: 'mathJaxRegularRenderer', titleTextKey: 'mathJaxRegularRenderTitle',
+    svgAriaTextKey: 'mathJaxRegularSvgAria'
+  },
+  {
+    key: 'kaTeXRegular', renderer: 'katex', fontVariant: 'regular',
+    panelId: 'kaTeXRegularPanel', titleId: 'kaTeXRegularRenderTitle',
+    surfaceId: 'kaTeXRegularRenderer', titleTextKey: 'kaTeXRegularRenderTitle',
+    svgAriaTextKey: 'kaTeXRegularSvgAria'
+  },
+  {
+    key: 'mathJaxBold', renderer: 'mathjax', fontVariant: 'bold',
+    panelId: 'mathJaxBoldPanel', titleId: 'mathJaxBoldRenderTitle',
+    surfaceId: 'mathJaxBoldRenderer', titleTextKey: 'mathJaxBoldRenderTitle',
+    svgAriaTextKey: 'mathJaxBoldSvgAria'
+  },
+  {
+    key: 'kaTeXBold', renderer: 'katex', fontVariant: 'bold',
+    panelId: 'kaTeXBoldPanel', titleId: 'kaTeXBoldRenderTitle',
+    surfaceId: 'kaTeXBoldRenderer', titleTextKey: 'kaTeXBoldRenderTitle',
+    svgAriaTextKey: 'kaTeXBoldSvgAria'
+  }
+]);
+assert.match(
+  appSource,
+  /GEOMETRY_RENDER_VARIANT_DEFINITIONS\s*\n\s*\.filter\([\s\S]*?DEFAULT_ENABLED_GEOMETRY_RENDER_VARIANTS\[definition\.key\]/
+);
+
 const surfaceSizeFunction = appSource.match(
   /function getSurfaceSize\(surface\) \{([\s\S]*?)\n\}/
 );
@@ -386,25 +442,36 @@ assert.match(kaTeXRenderSource, /addHtmlKaTeXLabel/);
 assert.match(kaTeXRenderSource, /fontVariant/);
 assert.match(kaTeXRenderSource, /svgAria/);
 
+const enabledRenderersSource = getAppFunctionSource('getEnabledGeometryRenderVariants');
+assert.match(enabledRenderersSource, /geometryRenderVariants\.filter/);
+assert.match(enabledRenderersSource, /enabledGeometryRenderVariantKeys\.has\(variant\.key\)/);
+
+const rendererUiSource = getAppFunctionSource('updateGeometryRenderVariantUi');
+assert.match(rendererUiSource, /const showComparison = enabledVariants\.length > 1/);
+assert.match(rendererUiSource, /controls\.renderComparisonNote\.classList\.toggle\('hidden', !showComparison\)/);
+assert.match(rendererUiSource, /variant\.panel\.classList\.toggle/);
+assert.match(rendererUiSource, /variant\.title\.textContent = texts\[variant\.titleTextKey\]/);
+assert.match(rendererUiSource, /texts\.triangleStageComparisonAria : texts\.triangleStageSingleAria/);
+
+const rendererSetterSource = getAppFunctionSource('setEnabledGeometryRenderVariants');
+assert.match(rendererSetterSource, /Array\.isArray\(variantKeys\)/);
+assert.match(rendererSetterSource, /requestedVariantKeys\.size === 0/);
+assert.match(rendererSetterSource, /Unknown geometry renderer/);
+assert.match(rendererSetterSource, /clearMathContentNow\(variant\.surface\)/);
+assert.match(rendererSetterSource, /enabledGeometryRenderVariantKeys = requestedVariantKeys/);
+assert.match(rendererSetterSource, /updateGeometryRenderVariantUi\(getTextBundle\(\)\.quiz\)/);
+assert.match(appSource, /window\.setEnabledGeometryRenderVariants = setEnabledGeometryRenderVariants/);
+
 const triangleRenderSource = getAppFunctionSource('renderTriangle');
-assert.equal((triangleRenderSource.match(/renderSvgWithMathJaxLabels\(/g) || []).length, 2);
-assert.equal((triangleRenderSource.match(/renderSvgWithKaTeXLabels\(/g) || []).length, 2);
-assert.match(
-  triangleRenderSource,
-  /controls\.mathJaxRegularRenderer[\s\S]*?'regular'[\s\S]*?texts\.mathJaxRegularSvgAria/
-);
-assert.match(
-  triangleRenderSource,
-  /controls\.kaTeXRegularRenderer[\s\S]*?'regular'[\s\S]*?texts\.kaTeXRegularSvgAria/
-);
-assert.match(
-  triangleRenderSource,
-  /controls\.mathJaxBoldRenderer[\s\S]*?'bold'[\s\S]*?texts\.mathJaxBoldSvgAria/
-);
-assert.match(
-  triangleRenderSource,
-  /controls\.kaTeXBoldRenderer[\s\S]*?'bold'[\s\S]*?texts\.kaTeXBoldSvgAria/
-);
+assert.equal((triangleRenderSource.match(/renderSvgWithMathJaxLabels\(/g) || []).length, 1);
+assert.equal((triangleRenderSource.match(/renderSvgWithKaTeXLabels\(/g) || []).length, 1);
+assert.match(triangleRenderSource, /getEnabledGeometryRenderVariants\(\)\.forEach/);
+assert.match(triangleRenderSource, /texts\[variant\.svgAriaTextKey\]/);
+assert.match(triangleRenderSource, /variant\.renderer === 'mathjax'/);
+assert.match(triangleRenderSource, /variant\.renderer === 'katex'/);
+assert.match(triangleRenderSource, /variant\.surface/);
+assert.match(triangleRenderSource, /variant\.fontVariant/);
+assert.doesNotMatch(triangleRenderSource, /controls\.(?:mathJax|kaTeX).*Renderer/);
 const expectedRenderSurfaceIds = [
   'mathJaxRegularRenderer',
   'kaTeXRegularRenderer',
@@ -415,6 +482,21 @@ const renderSurfaceIds = [...indexSource.matchAll(
   /id="([^"]+)" class="render-surface"/g
 )].map(match => match[1]);
 assert.deepEqual(renderSurfaceIds, expectedRenderSurfaceIds);
+const expectedRenderPanelIds = [
+  'mathJaxRegularPanel',
+  'kaTeXRegularPanel',
+  'mathJaxBoldPanel',
+  'kaTeXBoldPanel'
+];
+const initiallyHiddenPanelIds = [...indexSource.matchAll(
+  /id="([^"]+)" class="render-panel hidden"/g
+)].map(match => match[1]);
+assert.deepEqual(
+  initiallyHiddenPanelIds,
+  expectedRenderPanelIds,
+  'All panels must start hidden until the centralized JavaScript switches are applied.'
+);
+assert.match(indexSource, /id="renderComparisonNote" class="render-comparison-note hidden"/);
 
 const workerInitializerSource = getAppFunctionSource('initializeAnswerChecker');
 assert.equal(

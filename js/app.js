@@ -1,4 +1,4 @@
-const APP_VERSION = '20260727.2';
+const APP_VERSION = '20260811.1';
 const VERSION_MISMATCH_TEXT = {
   de: {
     title: 'Neue Version verfügbar',
@@ -24,6 +24,56 @@ if (window.GG_APP_VERSION !== APP_VERSION) {
   ].join('');
   throw new Error(`Version mismatch: index ${window.GG_APP_VERSION || 'missing'}, app ${APP_VERSION}`);
 }
+
+// Change only these booleans to choose which geometry renderers are shown.
+const DEFAULT_ENABLED_GEOMETRY_RENDER_VARIANTS = Object.freeze({
+  mathJaxRegular: true,
+  kaTeXRegular: false,
+  mathJaxBold: false,
+  kaTeXBold: false
+});
+const GEOMETRY_RENDER_VARIANT_DEFINITIONS = Object.freeze([
+  Object.freeze({
+    key: 'mathJaxRegular',
+    renderer: 'mathjax',
+    fontVariant: 'regular',
+    panelId: 'mathJaxRegularPanel',
+    titleId: 'mathJaxRegularRenderTitle',
+    surfaceId: 'mathJaxRegularRenderer',
+    titleTextKey: 'mathJaxRegularRenderTitle',
+    svgAriaTextKey: 'mathJaxRegularSvgAria'
+  }),
+  Object.freeze({
+    key: 'kaTeXRegular',
+    renderer: 'katex',
+    fontVariant: 'regular',
+    panelId: 'kaTeXRegularPanel',
+    titleId: 'kaTeXRegularRenderTitle',
+    surfaceId: 'kaTeXRegularRenderer',
+    titleTextKey: 'kaTeXRegularRenderTitle',
+    svgAriaTextKey: 'kaTeXRegularSvgAria'
+  }),
+  Object.freeze({
+    key: 'mathJaxBold',
+    renderer: 'mathjax',
+    fontVariant: 'bold',
+    panelId: 'mathJaxBoldPanel',
+    titleId: 'mathJaxBoldRenderTitle',
+    surfaceId: 'mathJaxBoldRenderer',
+    titleTextKey: 'mathJaxBoldRenderTitle',
+    svgAriaTextKey: 'mathJaxBoldSvgAria'
+  }),
+  Object.freeze({
+    key: 'kaTeXBold',
+    renderer: 'katex',
+    fontVariant: 'bold',
+    panelId: 'kaTeXBoldPanel',
+    titleId: 'kaTeXBoldRenderTitle',
+    surfaceId: 'kaTeXBoldRenderer',
+    titleTextKey: 'kaTeXBoldRenderTitle',
+    svgAriaTextKey: 'kaTeXBoldSvgAria'
+  })
+]);
 
 const screens = {
   intro: document.getElementById('introScreen'),
@@ -64,14 +114,6 @@ const controls = {
   labelFontSize26: document.getElementById('labelFontSize26'),
   triangleStage: document.getElementById('triangleStage'),
   renderComparisonNote: document.getElementById('renderComparisonNote'),
-  mathJaxRegularRenderTitle: document.getElementById('mathJaxRegularRenderTitle'),
-  mathJaxRegularRenderer: document.getElementById('mathJaxRegularRenderer'),
-  kaTeXRegularRenderTitle: document.getElementById('kaTeXRegularRenderTitle'),
-  kaTeXRegularRenderer: document.getElementById('kaTeXRegularRenderer'),
-  mathJaxBoldRenderTitle: document.getElementById('mathJaxBoldRenderTitle'),
-  mathJaxBoldRenderer: document.getElementById('mathJaxBoldRenderer'),
-  kaTeXBoldRenderTitle: document.getElementById('kaTeXBoldRenderTitle'),
-  kaTeXBoldRenderer: document.getElementById('kaTeXBoldRenderer'),
   taskCounter: document.getElementById('taskCounter'),
   scoreCounter: document.getElementById('scoreCounter'),
   timeCounter: document.getElementById('timeCounter'),
@@ -90,7 +132,31 @@ const controls = {
   resultTime: document.getElementById('resultTime')
 };
 
+const geometryRenderVariants = Object.freeze(
+  GEOMETRY_RENDER_VARIANT_DEFINITIONS.map(function(definition) {
+    const panel = document.getElementById(definition.panelId);
+    const title = document.getElementById(definition.titleId);
+    const surface = document.getElementById(definition.surfaceId);
+    if (!panel || !title || !surface) {
+      throw new Error(`Missing DOM elements for geometry renderer ${definition.key}.`);
+    }
+    return Object.freeze(Object.assign({}, definition, { panel, title, surface }));
+  })
+);
+
 let currentLanguage = 'de';
+let enabledGeometryRenderVariantKeys = new Set(
+  GEOMETRY_RENDER_VARIANT_DEFINITIONS
+    .filter(function(definition) {
+      return DEFAULT_ENABLED_GEOMETRY_RENDER_VARIANTS[definition.key];
+    })
+    .map(function(definition) {
+      return definition.key;
+    })
+);
+if (enabledGeometryRenderVariantKeys.size === 0) {
+  throw new Error('At least one geometry renderer must be enabled.');
+}
 const SUPPORTED_LANGUAGES = ['de', 'en', 'fr'];
 const LANGUAGE_STORAGE_KEY = 'trigonometric-functions-language';
 const LANGUAGE_BUTTONS = {
@@ -128,7 +194,7 @@ const TEXT = {
       nextTaskTitle: 'Unbeantwortete Aufgabe überspringen und mit 0 Punkten werten.',
       showResult: 'Ergebnis anzeigen',
       showResultTitle: 'Runde beenden. Eine unbeantwortete Aufgabe wird mit 0 Punkten gewertet.',
-      renderComparisonNote: 'Identische Geometrie und MathJax-kalibrierte Positionen; regulär und fett werden explizit über TeX gewählt.',
+      renderComparisonNote: 'Identische Geometrie und MathJax-kalibrierte Positionen; Renderer und Schriftvariante werden für jede aktive Darstellung explizit gewählt.',
       mathJaxRegularRenderTitle: '1. Inline-SVG + MathJax — regulär',
       kaTeXRegularRenderTitle: '2. Inline-SVG + KaTeX — regulär',
       mathJaxBoldRenderTitle: '3. Inline-SVG + MathJax — fett',
@@ -149,7 +215,8 @@ const TEXT = {
       insertFunctionAria: function(functionName) { return `${functionName} einfügen`; },
       insertReciprocalAria: 'Kehrwert einfügen',
       insertAngleAria: function(angleName) { return `${angleName} einfügen`; },
-      triangleStageAria: 'Vergleich von MathJax und KaTeX in regulärer und fetter Schrift',
+      triangleStageSingleAria: 'Dreiecksdarstellung',
+      triangleStageComparisonAria: 'Vergleich der aktivierten Dreiecksdarstellungen',
       mathJaxRegularSvgAria: 'Dreieck als SVG mit regulären MathJax-Labels',
       kaTeXRegularSvgAria: 'Dreieck als SVG mit regulären KaTeX-Labels',
       mathJaxBoldSvgAria: 'Dreieck als SVG mit fetten MathJax-Labels',
@@ -197,7 +264,7 @@ const TEXT = {
       nextTaskTitle: 'Skip an unanswered question and score 0 points.',
       showResult: 'Show Result',
       showResultTitle: 'End the round. An unanswered question is scored as 0 points.',
-      renderComparisonNote: 'Identical geometry and MathJax-calibrated positions; regular and bold are selected explicitly through TeX.',
+      renderComparisonNote: 'Identical geometry and MathJax-calibrated positions; the renderer and font variant are selected explicitly for each active diagram.',
       mathJaxRegularRenderTitle: '1. Inline SVG + MathJax — regular',
       kaTeXRegularRenderTitle: '2. Inline SVG + KaTeX — regular',
       mathJaxBoldRenderTitle: '3. Inline SVG + MathJax — bold',
@@ -218,7 +285,8 @@ const TEXT = {
       insertFunctionAria: function(functionName) { return `Insert ${functionName}`; },
       insertReciprocalAria: 'Insert reciprocal',
       insertAngleAria: function(angleName) { return `Insert ${angleName}`; },
-      triangleStageAria: 'Comparison of MathJax and KaTeX with regular and bold labels',
+      triangleStageSingleAria: 'Triangle diagram',
+      triangleStageComparisonAria: 'Comparison of the enabled triangle diagrams',
       mathJaxRegularSvgAria: 'Triangle as SVG with regular MathJax labels',
       kaTeXRegularSvgAria: 'Triangle as SVG with regular KaTeX labels',
       mathJaxBoldSvgAria: 'Triangle as SVG with bold MathJax labels',
@@ -266,7 +334,7 @@ const TEXT = {
       nextTaskTitle: 'Passer une question sans réponse et compter 0 point.',
       showResult: 'Afficher le résultat',
       showResultTitle: 'Terminer la manche. Une question sans réponse compte pour 0 point.',
-      renderComparisonNote: 'Géométrie et positions calibrées pour MathJax identiques ; les variantes normale et grasse sont choisies explicitement via TeX.',
+      renderComparisonNote: 'Géométrie et positions calibrées pour MathJax identiques ; le moteur de rendu et la variante de police sont choisis explicitement pour chaque représentation active.',
       mathJaxRegularRenderTitle: '1. SVG intégré + MathJax — normal',
       kaTeXRegularRenderTitle: '2. SVG intégré + KaTeX — normal',
       mathJaxBoldRenderTitle: '3. SVG intégré + MathJax — gras',
@@ -287,7 +355,8 @@ const TEXT = {
       insertFunctionAria: function(functionName) { return `Insérer ${functionName}`; },
       insertReciprocalAria: 'Insérer l’inverse',
       insertAngleAria: function(angleName) { return `Insérer ${angleName}`; },
-      triangleStageAria: 'Comparaison de MathJax et KaTeX avec des étiquettes normales et grasses',
+      triangleStageSingleAria: 'Représentation du triangle',
+      triangleStageComparisonAria: 'Comparaison des représentations du triangle activées',
       mathJaxRegularSvgAria: 'Triangle en SVG avec étiquettes MathJax normales',
       kaTeXRegularSvgAria: 'Triangle en SVG avec étiquettes KaTeX normales',
       mathJaxBoldSvgAria: 'Triangle en SVG avec étiquettes MathJax grasses',
@@ -411,6 +480,63 @@ function getTextBundle() {
   return TEXT[currentLanguage] || TEXT.de;
 }
 
+function getEnabledGeometryRenderVariants() {
+  return geometryRenderVariants.filter(function(variant) {
+    return enabledGeometryRenderVariantKeys.has(variant.key);
+  });
+}
+
+function updateGeometryRenderVariantUi(texts) {
+  const enabledVariants = getEnabledGeometryRenderVariants();
+  const showComparison = enabledVariants.length > 1;
+  controls.renderComparisonNote.textContent = texts.renderComparisonNote;
+  controls.renderComparisonNote.classList.toggle('hidden', !showComparison);
+  geometryRenderVariants.forEach(function(variant) {
+    variant.panel.classList.toggle(
+      'hidden',
+      !enabledGeometryRenderVariantKeys.has(variant.key)
+    );
+    variant.title.textContent = texts[variant.titleTextKey];
+  });
+  controls.triangleStage.setAttribute(
+    'aria-label',
+    showComparison ? texts.triangleStageComparisonAria : texts.triangleStageSingleAria
+  );
+}
+
+function setEnabledGeometryRenderVariants(variantKeys) {
+  if (!Array.isArray(variantKeys)) {
+    throw new TypeError('Geometry renderer keys must be provided as an array.');
+  }
+  const requestedVariantKeys = new Set(variantKeys);
+  if (requestedVariantKeys.size === 0) {
+    throw new RangeError('At least one geometry renderer must remain enabled.');
+  }
+  const knownVariantKeys = new Set(geometryRenderVariants.map(function(variant) {
+    return variant.key;
+  }));
+  requestedVariantKeys.forEach(function(variantKey) {
+    if (!knownVariantKeys.has(variantKey)) {
+      throw new RangeError(`Unknown geometry renderer: ${variantKey}`);
+    }
+  });
+  geometryRenderVariants.forEach(function(variant) {
+    if (
+      enabledGeometryRenderVariantKeys.has(variant.key)
+      && !requestedVariantKeys.has(variant.key)
+    ) {
+      clearMathContentNow(variant.surface);
+    }
+  });
+  enabledGeometryRenderVariantKeys = requestedVariantKeys;
+  updateGeometryRenderVariantUi(getTextBundle().quiz);
+  if (currentTask) {
+    renderTriangle(currentTask);
+  }
+}
+
+window.setEnabledGeometryRenderVariants = setEnabledGeometryRenderVariants;
+
 function isSupportedLanguage(language) {
   return SUPPORTED_LANGUAGES.includes(language);
 }
@@ -513,12 +639,7 @@ function applyLanguage() {
 
   controls.backButton.textContent = texts.quiz.backButton;
   controls.backButton.title = texts.quiz.backTitle;
-  controls.renderComparisonNote.textContent = texts.quiz.renderComparisonNote;
-  controls.mathJaxRegularRenderTitle.textContent = texts.quiz.mathJaxRegularRenderTitle;
-  controls.kaTeXRegularRenderTitle.textContent = texts.quiz.kaTeXRegularRenderTitle;
-  controls.mathJaxBoldRenderTitle.textContent = texts.quiz.mathJaxBoldRenderTitle;
-  controls.kaTeXBoldRenderTitle.textContent = texts.quiz.kaTeXBoldRenderTitle;
-  controls.triangleStage.setAttribute('aria-label', texts.quiz.triangleStageAria);
+  updateGeometryRenderVariantUi(texts.quiz);
   controls.beginRoundButton.textContent = texts.quiz.beginRound;
   controls.answerHelpers.setAttribute('aria-label', texts.quiz.helpersAria);
   controls.placeholderText.textContent = texts.placeholder.text;
@@ -1667,30 +1788,28 @@ function renderSvgWithKaTeXLabels(surface, task, fontVariant, svgAria) {
 
 function renderTriangle(task) {
   const texts = getTextBundle().quiz;
-  renderSvgWithMathJaxLabels(
-    controls.mathJaxRegularRenderer,
-    task,
-    'regular',
-    texts.mathJaxRegularSvgAria
-  );
-  renderSvgWithKaTeXLabels(
-    controls.kaTeXRegularRenderer,
-    task,
-    'regular',
-    texts.kaTeXRegularSvgAria
-  );
-  renderSvgWithMathJaxLabels(
-    controls.mathJaxBoldRenderer,
-    task,
-    'bold',
-    texts.mathJaxBoldSvgAria
-  );
-  renderSvgWithKaTeXLabels(
-    controls.kaTeXBoldRenderer,
-    task,
-    'bold',
-    texts.kaTeXBoldSvgAria
-  );
+  getEnabledGeometryRenderVariants().forEach(function(variant) {
+    const svgAria = texts[variant.svgAriaTextKey];
+    if (variant.renderer === 'mathjax') {
+      renderSvgWithMathJaxLabels(
+        variant.surface,
+        task,
+        variant.fontVariant,
+        svgAria
+      );
+      return;
+    }
+    if (variant.renderer === 'katex') {
+      renderSvgWithKaTeXLabels(
+        variant.surface,
+        task,
+        variant.fontVariant,
+        svgAria
+      );
+      return;
+    }
+    throw new Error(`Unsupported geometry renderer: ${variant.renderer}`);
+  });
 }
 
 function showRoundResult() {
