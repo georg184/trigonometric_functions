@@ -1,4 +1,4 @@
-const APP_VERSION = '20260818.3';
+const APP_VERSION = '20260818.4';
 const VERSION_MISMATCH_TEXT = {
   de: {
     title: 'Neue Version verfügbar',
@@ -231,6 +231,12 @@ const TEXT = {
       unitCircleExactSvgAria: function(angleName, degrees) {
         return `Einheitskreis mit dem Winkel ${angleName} gleich ${degrees} Grad`;
       },
+      unitCircleSolutionAxisSvgAria: function(angleName, degrees) {
+        return `Einheitskreis mit eingezeichneter Lösung: ${angleName} gleich ${degrees} Grad`;
+      },
+      unitCircleSolutionRangeSvgAria: function(angleName, lowerBound, upperBound) {
+        return `Einheitskreis mit eingezeichnetem Lösungsbereich: ${lowerBound} Grad kleiner ${angleName} kleiner ${upperBound} Grad`;
+      },
       unitCircleSignsToRegionGiven: 'Von einem Winkel sind gegeben:',
       unitCircleAngleToSignsGiven: 'Von einem Winkel ist gegeben:',
       unitCircleSignsToRegionQuestion: function(angleLatex) {
@@ -323,6 +329,12 @@ const TEXT = {
       unitCircleExactSvgAria: function(angleName, degrees) {
         return `Unit circle with angle ${angleName} equal to ${degrees} degrees`;
       },
+      unitCircleSolutionAxisSvgAria: function(angleName, degrees) {
+        return `Unit circle with the drawn solution: ${angleName} equals ${degrees} degrees`;
+      },
+      unitCircleSolutionRangeSvgAria: function(angleName, lowerBound, upperBound) {
+        return `Unit circle with the drawn solution region: ${lowerBound} degrees less than ${angleName} less than ${upperBound} degrees`;
+      },
       unitCircleSignsToRegionGiven: 'For an angle, the following are given:',
       unitCircleAngleToSignsGiven: 'The following information about an angle is given:',
       unitCircleSignsToRegionQuestion: function(angleLatex) {
@@ -414,6 +426,12 @@ const TEXT = {
       unitCircleBlankSvgAria: 'Cercle trigonométrique avec un axe horizontal et un axe vertical',
       unitCircleExactSvgAria: function(angleName, degrees) {
         return `Cercle trigonométrique avec l’angle ${angleName} égal à ${degrees} degrés`;
+      },
+      unitCircleSolutionAxisSvgAria: function(angleName, degrees) {
+        return `Cercle trigonométrique avec la solution tracée : ${angleName} égal à ${degrees} degrés`;
+      },
+      unitCircleSolutionRangeSvgAria: function(angleName, lowerBound, upperBound) {
+        return `Cercle trigonométrique avec l’intervalle solution tracé : ${angleName} strictement compris entre ${lowerBound} et ${upperBound} degrés`;
       },
       unitCircleSignsToRegionGiven: 'Pour un angle, on connaît les informations suivantes :',
       unitCircleAngleToSignsGiven: 'Pour un angle, on connaît l’information suivante :',
@@ -1400,6 +1418,9 @@ function scoreCurrentTask(isCorrect) {
 function setSolvedState(isCorrect) {
   answerCheckInProgress = false;
   scoreCurrentTask(isCorrect);
+  if (isUnitCircleTask(currentTask)) {
+    renderCurrentTaskVisualization(true);
+  }
   controls.feedback.classList.remove('hidden', 'correct', 'incorrect');
   controls.feedback.classList.add(isCorrect ? 'correct' : 'incorrect');
   controls.feedback.textContent = isCorrect ? getTextBundle().quiz.correct : getTextBundle().quiz.incorrect;
@@ -2163,6 +2184,55 @@ function unitCirclePoint(center, radius, degrees) {
   };
 }
 
+function addUnitCircleSolutionSector(svg, center, radius, region) {
+  const start = unitCirclePoint(center, radius, region.lowerBound);
+  const end = unitCirclePoint(center, radius, region.upperBound);
+  const arcPoints = angleLayout.arcPoints(center, start, end, radius, 32, {
+    coordinateSystem: 'svg',
+    angleMode: 'directed'
+  });
+  const path = [
+    `M ${center.x} ${center.y}`,
+    `L ${arcPoints[0].x} ${arcPoints[0].y}`
+  ];
+  arcPoints.slice(1).forEach(function(point) {
+    path.push(`L ${point.x} ${point.y}`);
+  });
+  path.push('Z');
+  svg.appendChild(createSvgElement('path', {
+    d: path.join(' '),
+    fill: 'rgba(26, 127, 55, 0.18)',
+    stroke: '#1a7f37',
+    'stroke-width': 2.5,
+    'stroke-linejoin': 'round',
+    'data-unit-circle-solution-region': region.id
+  }));
+}
+
+function addUnitCircleSolutionAxis(svg, center, radius, region) {
+  const anglePoint = unitCirclePoint(center, radius, region.exactAngle);
+  const group = createSvgElement('g', {
+    'data-unit-circle-solution-region': region.id
+  });
+  group.appendChild(createSvgElement('line', {
+    x1: center.x,
+    y1: center.y,
+    x2: anglePoint.x,
+    y2: anglePoint.y,
+    stroke: '#1a7f37',
+    'stroke-opacity': 0.48,
+    'stroke-width': 7,
+    'stroke-linecap': 'round'
+  }));
+  group.appendChild(createSvgElement('circle', {
+    cx: anglePoint.x,
+    cy: anglePoint.y,
+    r: 7,
+    fill: '#1a7f37'
+  }));
+  svg.appendChild(group);
+}
+
 function addUnitCircleAxes(svg, center, radius) {
   const extension = radius + 25;
   svg.appendChild(createSvgElement('line', {
@@ -2246,26 +2316,43 @@ function addUnitCircleExactAngle(svg, task, center, radius) {
   }
 }
 
-function renderUnitCircle(task, revealTask) {
+function renderUnitCircle(task, revealTask, showSolution) {
   const texts = getTextBundle().quiz;
   clearMathContentNow(controls.unitCircleSurface);
   const size = getSurfaceSize(controls.unitCircleSurface);
   const center = { x: size.width * 0.5, y: size.height * 0.52 };
   const radius = Math.max(70, Math.min(size.width, size.height) * 0.34);
+  const region = unitCircleQuiz.regionForId(task.regionId);
   const showExactAngle = Boolean(
     revealTask
     && task.questionKind === QUESTION_KINDS.angleToSigns
     && task.presentation === unitCircleQuiz.PRESENTATIONS.exactAngle
   );
-  const svgAria = showExactAngle
+  const showSolutionRegion = Boolean(revealTask && showSolution);
+  let svgAria = showExactAngle
     ? texts.unitCircleExactSvgAria(task.angleLabel.name, task.angleDegrees)
     : texts.unitCircleBlankSvgAria;
+  if (showSolutionRegion && region.kind === 'axis') {
+    svgAria = texts.unitCircleSolutionAxisSvgAria(
+      task.angleLabel.name,
+      region.exactAngle
+    );
+  } else if (showSolutionRegion) {
+    svgAria = texts.unitCircleSolutionRangeSvgAria(
+      task.angleLabel.name,
+      region.lowerBound,
+      region.upperBound
+    );
+  }
   const svg = createSvgElement('svg', {
     class: 'geometry-svg unit-circle-svg',
     viewBox: `0 0 ${size.width} ${size.height}`,
     role: 'img',
     'aria-label': svgAria
   });
+  if (showSolutionRegion && region.kind === 'quadrant') {
+    addUnitCircleSolutionSector(svg, center, radius, region);
+  }
   addUnitCircleAxes(svg, center, radius);
   svg.appendChild(createSvgElement('circle', {
     cx: center.x,
@@ -2281,6 +2368,9 @@ function renderUnitCircle(task, revealTask) {
     r: 3.5,
     fill: '#1f2328'
   }));
+  if (showSolutionRegion && region.kind === 'axis') {
+    addUnitCircleSolutionAxis(svg, center, radius, region);
+  }
   if (showExactAngle) {
     addUnitCircleExactAngle(svg, task, center, radius);
   }
@@ -2293,7 +2383,7 @@ function renderCurrentTaskVisualization(revealTask) {
     return;
   }
   if (isUnitCircleTask(currentTask)) {
-    renderUnitCircle(currentTask, revealTask);
+    renderUnitCircle(currentTask, revealTask, currentTaskScored);
     return;
   }
   renderTriangle(currentTask);

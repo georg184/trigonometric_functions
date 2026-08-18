@@ -100,6 +100,7 @@ async function main() {
     getSolutionLatex: function(task) { return `solution-${task.id}`; },
     getTaskInstruction: function() { return ''; },
     getTaskRequestLatex: function() { return ''; },
+    isUnitCircleTask: function() { return false; },
     getTextBundle: function() {
       return {
         quiz: {

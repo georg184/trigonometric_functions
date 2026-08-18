@@ -162,7 +162,7 @@ assert.ok(
   'Non-cardinal integer angles are not distributed uniformly enough.'
 );
 
-assert.match(indexSource, /src="js\/unit-circle-quiz\.js\?v=20260818\.3"/);
+assert.match(indexSource, /src="js\/unit-circle-quiz\.js\?v=20260818\.4"/);
 assert.match(indexSource, /id="unitCircleStage" class="unit-circle-stage hidden"/);
 assert.match(indexSource, /id="unitCircleAnswerArea"/);
 assert.doesNotMatch(indexSource, /placeholderScreen|placeholderText|placeholderBackButton/);
@@ -171,7 +171,11 @@ assert.match(appSource, /return unitCircleQuiz\.createTask\(\)/);
 assert.match(appSource, /correct: unitCircleQuiz\.checkAnswer\(rawValue, task\)/);
 assert.match(appSource, /controls\.startUnitCircleButton\.addEventListener\('click', startUnitCircleQuiz\)/);
 assert.match(appSource, /angleLayout\.calibratedAngleMarkerFromRays\([\s\S]*?angleMode: 'directed'/);
-assert.doesNotMatch(appSource, /addUnitCircleSector|data-unit-circle-region/);
+assert.match(appSource, /function addUnitCircleSolutionSector\([\s\S]*?angleLayout\.arcPoints\([\s\S]*?angleMode: 'directed'/);
+assert.match(appSource, /data-unit-circle-solution-region/);
+assert.match(appSource, /renderUnitCircle\(currentTask, revealTask, currentTaskScored\)/);
+assert.match(appSource, /if \(isUnitCircleTask\(currentTask\)\) \{\s+renderCurrentTaskVisualization\(true\)/);
+assert.doesNotMatch(appSource, /['"]data-unit-circle-region['"]/);
 assert.doesNotMatch(appSource, /addUnitCircleAxisLabel|unit-circle-axis-label/);
 assert.match(appSource, /renderCurrentTaskVisualization\(true\)/);
 

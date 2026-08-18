@@ -73,6 +73,10 @@ assert.match(appSource, /unitCircleBlankSvgAria: 'Einheitskreis mit waagrechter 
 assert.match(appSource, /unitCircleBlankSvgAria: 'Unit circle with horizontal and vertical axes'/);
 assert.match(appSource, /unitCircleBlankSvgAria: 'Cercle trigonométrique avec un axe horizontal et un axe vertical'/);
 assert.doesNotMatch(appSource, /Kosinusachse|cosine axis|axe horizontal du cosinus/);
+assert.match(appSource, /unitCircleSolutionRangeSvgAria: function\(angleName, lowerBound, upperBound\)/);
+assert.match(appSource, /Einheitskreis mit eingezeichnetem Lösungsbereich/);
+assert.match(appSource, /Unit circle with the drawn solution region/);
+assert.match(appSource, /Cercle trigonométrique avec l’intervalle solution tracé/);
 assert.match(appSource, /unitCircleSignsToRegionGiven: 'Von einem Winkel sind gegeben:'/);
 assert.match(appSource, /unitCircleAngleToSignsGiven: 'Von einem Winkel ist gegeben:'/);
 assert.match(appSource, /unitCircleSignsToRegionGiven: 'For an angle, the following are given:'/);
