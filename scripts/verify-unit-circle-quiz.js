@@ -162,7 +162,7 @@ assert.ok(
   'Non-cardinal integer angles are not distributed uniformly enough.'
 );
 
-assert.match(indexSource, /src="js\/unit-circle-quiz\.js\?v=20260818\.4"/);
+assert.match(indexSource, /src="js\/unit-circle-quiz\.js\?v=20260818\.5"/);
 assert.match(indexSource, /id="unitCircleStage" class="unit-circle-stage hidden"/);
 assert.match(indexSource, /id="unitCircleAnswerArea"/);
 assert.doesNotMatch(indexSource, /placeholderScreen|placeholderText|placeholderBackButton/);
@@ -173,6 +173,12 @@ assert.match(appSource, /controls\.startUnitCircleButton\.addEventListener\('cli
 assert.match(appSource, /angleLayout\.calibratedAngleMarkerFromRays\([\s\S]*?angleMode: 'directed'/);
 assert.match(appSource, /function addUnitCircleSolutionSector\([\s\S]*?angleLayout\.arcPoints\([\s\S]*?angleMode: 'directed'/);
 assert.match(appSource, /data-unit-circle-solution-region/);
+assert.match(appSource, /data-unit-circle-axis-coordinate': 'x'/);
+assert.match(appSource, /data-unit-circle-axis-coordinate': 'y'/);
+assert.match(appSource, /data-unit-circle-coordinate-signs/);
+assert.match(appSource, /function unitCircleSolutionAngleDegrees\([\s\S]*?\(region\.lowerBound \+ region\.upperBound\) \/ 2/);
+assert.match(appSource, /x\$\{unitCircleQuiz\.signComparisonLatex\(task\.cosSign\)\}/);
+assert.match(appSource, /y\$\{unitCircleQuiz\.signComparisonLatex\(task\.sinSign\)\}/);
 assert.match(appSource, /renderUnitCircle\(currentTask, revealTask, currentTaskScored\)/);
 assert.match(appSource, /if \(isUnitCircleTask\(currentTask\)\) \{\s+renderCurrentTaskVisualization\(true\)/);
 assert.doesNotMatch(appSource, /['"]data-unit-circle-region['"]/);

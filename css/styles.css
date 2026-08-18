@@ -269,6 +269,29 @@ p {
   height: 460px;
 }
 
+.unit-circle-overlay-label {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  color: var(--muted);
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1;
+  white-space: nowrap;
+  background: transparent;
+  pointer-events: none;
+}
+
+.unit-circle-overlay-label mjx-container {
+  margin: 0 !important;
+  background: transparent !important;
+}
+
+.unit-circle-coordinate-signs {
+  color: #1a7f37;
+  font-weight: 650;
+}
+
 .geometry-svg {
   display: block;
   width: 100%;

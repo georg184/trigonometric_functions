@@ -77,6 +77,9 @@ assert.match(appSource, /unitCircleSolutionRangeSvgAria: function\(angleName, lo
 assert.match(appSource, /Einheitskreis mit eingezeichnetem Lösungsbereich/);
 assert.match(appSource, /Unit circle with the drawn solution region/);
 assert.match(appSource, /Cercle trigonométrique avec l’intervalle solution tracé/);
+assert.match(appSource, /return `x-Koordinate \$\{xSign\}, y-Koordinate \$\{ySign\}`/);
+assert.match(appSource, /return `x-coordinate \$\{xSign\}, y-coordinate \$\{ySign\}`/);
+assert.match(appSource, /return `coordonnée x \$\{xSign\}, coordonnée y \$\{ySign\}`/);
 assert.match(appSource, /unitCircleSignsToRegionGiven: 'Von einem Winkel sind gegeben:'/);
 assert.match(appSource, /unitCircleAngleToSignsGiven: 'Von einem Winkel ist gegeben:'/);
 assert.match(appSource, /unitCircleSignsToRegionGiven: 'For an angle, the following are given:'/);
