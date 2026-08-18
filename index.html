@@ -4,13 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Trigonometrische Funktionen</title>
-  <script>window.GG_APP_VERSION = '20260811.1';</script>
+  <script>window.GG_APP_VERSION = '20260818.1';</script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.17.0/dist/katex.min.css" integrity="sha384-vlBdW0r3AcZO/HboRPznQNowvexd3fY8qHOWkBi5q7KGgqJ+F48+DceybYmrVbmB" crossorigin="anonymous" />
-  <link rel="stylesheet" href="css/styles.css?v=20260811.1" />
-  <script src="js/mathjax-config.js?v=20260811.1"></script>
+  <link rel="stylesheet" href="css/styles.css?v=20260818.1" />
+  <script src="js/mathjax-config.js?v=20260818.1"></script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.17.0/dist/katex.min.js" integrity="sha384-AtrdNsnxl/75rvBneBVH7DtOvCxSVahR2zWqle1coBKd8DEmLoviqNeJSx64gNAs" crossorigin="anonymous"></script>
-  <script src="js/vendor/geometry-angle-layout.js?v=20260811.1"></script>
+  <script src="js/unit-circle-quiz.js?v=20260818.1"></script>
+  <script src="js/vendor/geometry-angle-layout.js?v=20260818.1"></script>
 </head>
 <body>
   <div class="language-switcher" role="group" aria-label="Sprachauswahl">
@@ -48,12 +49,12 @@
 
           <button id="startUnitCircleButton" class="intro-choice" type="button">
             <span id="startUnitCircleTitle" class="intro-choice-title">am Einheitskreis</span>
-            <span id="startUnitCircleDescription" class="intro-choice-description">Dieser Zugang wird als nächstes ergänzt.</span>
+            <span id="startUnitCircleDescription" class="intro-choice-description">Quiz zu Vorzeichen und Winkelbereichen von Sinus und Kosinus</span>
           </button>
         </div>
 
         <div class="intro-config">
-          <div id="introDisplayTitle" class="intro-field-title">Darstellung</div>
+          <div id="introDisplayTitle" class="intro-field-title">Dreiecksdarstellung</div>
           <fieldset class="config-fieldset">
             <legend id="rightAngleLegend">Rechter Winkel</legend>
             <label class="config-option" for="rightAngleArcDot">
@@ -111,6 +112,13 @@
           </div>
         </div>
 
+        <div id="unitCircleStage" class="unit-circle-stage hidden" aria-label="Einheitskreisdarstellung">
+          <div class="render-panel">
+            <div id="unitCircleRenderTitle" class="render-title">Einheitskreis</div>
+            <div id="unitCircleSurface" class="render-surface unit-circle-surface"></div>
+          </div>
+        </div>
+
         <div class="panel task-panel">
           <div class="task-status-row">
             <div id="taskCounter" class="task-counter"></div>
@@ -124,8 +132,14 @@
 
           <form id="answerForm" class="answer-form">
             <div class="answer-row">
-              <label id="taskQuestion" class="task-question mathjax-display" for="answerInput"></label>
-              <input id="answerInput" type="text" maxlength="160" autocomplete="off" spellcheck="false" aria-label="Antwort als Seitenverhältnis" placeholder="z. B. a/c" />
+              <div class="task-prompt">
+                <div id="taskInstruction" class="task-instruction"></div>
+                <div id="taskQuestion" class="task-question mathjax-display"></div>
+              </div>
+              <div id="triangleAnswerArea" class="triangle-answer-area">
+                <input id="answerInput" type="text" maxlength="160" autocomplete="off" spellcheck="false" aria-label="Antwort als Seitenverhältnis" placeholder="z. B. a/c" />
+              </div>
+              <div id="unitCircleAnswerArea" class="unit-circle-answer-area mathjax-display hidden"></div>
               <button id="checkButton" type="submit">Prüfen</button>
             </div>
           </form>
@@ -135,13 +149,6 @@
           <div id="feedback" class="feedback hidden" role="status" aria-live="polite"></div>
           <div id="solution" class="solution mathjax-display hidden"></div>
         </div>
-      </div>
-    </section>
-
-    <section id="placeholderScreen" class="screen intro-screen hidden">
-      <div class="panel">
-        <p id="placeholderText">Der Zugang am Einheitskreis wird später ergänzt.</p>
-        <button id="placeholderBackButton" class="secondary-button" type="button">Zurück</button>
       </div>
     </section>
 
@@ -159,8 +166,8 @@
     </section>
   </main>
 
-  <div class="version-badge" aria-label="Version">v2026.08.11.1</div>
+  <div class="version-badge" aria-label="Version">v2026.08.18.1</div>
 
-  <script src="js/app.js?v=20260811.1"></script>
+  <script src="js/app.js?v=20260818.1"></script>
 </body>
 </html>

@@ -127,8 +127,10 @@ async function verifyWorkerLifecycle() {
     getAngleDefinitions: function() { return []; },
     getCheckerMode: function() { return 'side-ratio'; },
     getExpectedAnswer: function() { return 'a/c'; },
+    isUnitCircleTask: function() { return false; },
     pendingAnswerChecks: new Map(),
     ratioToInput: function() { return 'a/c'; },
+    unitCircleQuiz: { checkAnswer: function() { return false; } },
     window: {
       Worker: FakeWorker,
       clearTimeout: function(id) { timers.delete(id); },

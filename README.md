@@ -1,6 +1,6 @@
 # trigonometric_functions
 
-Interactive HTML quiz for practicing sine, cosine, and tangent on right triangles. The triangle path generates random labeled right triangles, asks both function-to-side-ratio and side-ratio-to-function questions, and supports configurable right-angle markers. Four regular/bold MathJax/KaTeX renderer variants remain available for visual comparisons, while the default presentation shows only the first variant: inline SVG with regular MathJax labels.
+Interactive HTML quiz for practicing trigonometric functions through two complete approaches. The right-triangle mode generates labeled triangles and asks both function-to-side-ratio and side-ratio-to-function questions. The unit-circle mode asks for angle regions from the signs of sine and cosine and reverses that relationship by asking for both signs from an exact angle or open quadrant interval. Four regular/bold MathJax/KaTeX triangle-renderer variants remain available for visual comparisons, while the default presentation shows only the first variant: inline SVG with regular MathJax labels.
 
 ## Live Version
 
@@ -13,12 +13,14 @@ The public version is intended to be available through GitHub Pages:
 - `index.html`: the main document structure and external file references
 - `css/styles.css`: the app styling
 - `js/mathjax-config.js`: MathJax configuration
+- `js/unit-circle-quiz.js`: pure unit-circle region model, task generator, answer checker, and MathJax formula builders
 - `js/vendor/geometry-angle-layout.js`: vendored copy of `ggprojects/shared/geometry-angle-layout.js` for public GitHub Pages use
 - `js/sympy-worker.js`: module web worker that loads Pyodide/SymPy from a pinned CDN URL and checks answers in the browser
 - `js/app.js`: the quiz logic, random task generation, answer checking, and the shared SVG geometry pipeline with MathJax/KaTeX label adapters
 - `scripts/verify-answer-checker.js`: regression tests for SymPy checking and the conservative infrastructure fallback
 - `scripts/verify-task-flow.js`: regression tests for answer scoring and the complete ten-question round workflow
 - `scripts/verify-localization.js`: static fallback and pre-start language-state regression tests
+- `scripts/verify-unit-circle-quiz.js`: exhaustive sign-region, generation-distribution, integration, and shared-angle-helper contract checks
 - `scripts/verify-angle-layout-consumer.js`: static consumer, cache, MathJax/KaTeX font-variant, and calibrated placement-profile contract checks
 - `scripts/verify-javascript-syntax.js`: recursive syntax checking for every local JavaScript file
 - `SUPABASE_VARIANTS.md`: deferred architecture notes for optional login, registration, and online highscores
@@ -38,6 +40,8 @@ The app intentionally uses one shared geometry pipeline with four centrally conf
 - questions, solutions, formulas, and explanations continue to use MathJax
 
 Older comparison renderers using JSXGraph, D3, and GeoGebra remain removed. Do not reintroduce those dependencies unless the app explicitly needs another rendering comparison mode. For the current quiz workflow, MathJax, KaTeX, and the pinned Pyodide/SymPy worker load are the external runtime dependencies; local app assets remain cache-busted with `GG_APP_VERSION`.
+
+The unit-circle mode uses a separate inline-SVG surface. It always shows the circle, cosine axis, and sine axis. Exact-angle prompts add a radius, point, and directed counterclockwise angle arc; interval prompts shade the selected open quadrant. Signs-to-region prompts keep the circle unmarked so the diagram does not reveal the answer. Exact-angle arcs use `calibratedAngleMarkerFromRays()` with `coordinateSystem: 'svg'` and explicit `angleMode: 'directed'`; shaded interval sectors obtain their directed arc points from the shared geometry helper as well.
 
 ## Renderer Variant Switches
 
@@ -73,11 +77,11 @@ Answer checking is client-side. `js/app.js` starts `js/sympy-worker.js` as a mod
 
 The triangle quiz currently generates side-ratio-to-function questions with 50% probability. For those questions, 20% use a ratio that is the reciprocal of one of the generated `sin`, `cos`, or `tan` expressions. The app shows the two acute angle names and insertion buttons for trig-expression answers; keep that helper tied to side-ratio-to-function tasks so ordinary side-ratio answers stay uncluttered.
 
-The triangle quiz runs in fixed rounds of 10 questions. A new round first shows the first triangle and a visible `Zeit: 00:00` counter, but the question and answer input stay hidden until the user presses `Start`. The timer starts only at that point and stops on the result screen. Each task is a one-score workflow. `Nächste Aufgabe` is available immediately after `Start`. If the current task has not been checked yet, moving on scores that task as incorrect and advances to the next task. While an answer check is running, `Nächste Aufgabe` is temporarily disabled to avoid racing the in-flight worker result. After question 10, the app shows a local round result with points and elapsed time and offers either `Neues Quiz starten` or `Zur Startseite`. No round results are persisted yet.
+Both quiz modes run in fixed rounds of 10 questions. A new round first shows its neutral diagram and a visible `Zeit: 00:00` counter, but the question and answer controls stay hidden until the user presses `Start`. The timer starts only at that point and stops on the result screen. Each task is a one-score workflow. `Nächste Aufgabe` is available immediately after `Start`. If the current task has not been checked yet, moving on scores that task as incorrect and advances to the next task. While an answer check is running, `Nächste Aufgabe` is temporarily disabled to avoid racing the in-flight result. After question 10, the app shows a local round result with points and elapsed time and offers either `Neues Quiz starten` or `Zur Startseite`. No round results are persisted yet.
 
-The quiz can be left through `Zur Startseite` without resetting the current task or score. Returning to `am rechtwinkligen Dreieck` resumes the in-memory quiz state; a full page reload starts fresh.
+Unit-circle tasks choose the two question directions with equal probability. In angle-to-sign questions, exact angles and open quadrant intervals are also equally likely. An exact angle first selects uniformly from the four axes and four open quadrants. Axis selections produce `0°`, `90°`, `180°`, or `270°`; quadrant selections produce a uniformly distributed integer strictly inside that quadrant. Consequently, every cardinal angle is generated regularly and substantially more often than any individual non-cardinal angle, while all 356 non-cardinal integer angles are equally likely. Interval questions select the four open quadrants uniformly. Every task independently chooses one of twelve Greek angle names.
 
-The `am Einheitskreis` entry is currently a placeholder by design. Do not add partial unit-circle behavior unless that path is implemented as a complete workflow.
+The current quiz can be left through `Zur Startseite` without resetting its task or score. Returning through the same approach resumes that in-memory round. Selecting the other approach starts a fresh round in the newly selected mode and discards the previous mode's unfinished in-memory round. A full page reload always starts fresh.
 
 ## Language Maintenance
 
@@ -103,7 +107,7 @@ The four available variants, including the default active MathJax-regular varian
 
 The app independently pins helper `0.4.28`, calibration `angle-label-tuning-v35`, and data cloud `angle-label-data-cloud-v24` in `EXPECTED_ANGLE_LAYOUT_CONTRACT`. `assertAngleLabelCalibrationContract()` runs before quiz generation, so a stale vendored helper fails explicitly rather than silently using a different model. All exported helper calibration structures are deeply frozen, including nested sample labels, class members, and compact calibration pairs; application code must copy them before attempting local edits. The helper clamps only data-based label-style lookup to 10–350 degrees; rendered stroke correction always uses the actual ray opening. Explicit label font sizes must be positive finite numbers, and discrete arc step counts must be positive integers. The quiz itself currently generates acute angles from 24 to 66 degrees.
 
-GitHub Pages runs the recursive JavaScript syntax check, answer-checker regressions, ten-question task-flow tests, localization regressions, and `verify-angle-layout-consumer.js` before packaging the site. The localization check validates static German fallbacks, translated version-mismatch text, centralized panel titles and visibility, and language-state updates before a round starts. The consumer check compares the app expectation with the vendored helper; validates every static asset cache token and the versioned module-worker URL; enforces the default one-panel configuration and shared renderer registry; and checks the pinned MathJax/KaTeX bundles, explicit `mathnormal`/`boldsymbol` selection, exact-pixel label sizing, transparent label CSS, normal container weight, line height, centering, and honest placement-profile metadata. Deployment is rejected on any drift.
+GitHub Pages runs the recursive JavaScript syntax check, answer-checker regressions, ten-question task-flow tests, localization regressions, unit-circle model/distribution tests, and `verify-angle-layout-consumer.js` before packaging the site. The localization check validates static German fallbacks, translated unit-circle UI, translated version-mismatch text, centralized panel titles and visibility, and language-state updates before a round starts. The unit-circle check exhaustively validates all eight physical sign regions, both answer directions, the configured random distribution, the twelve angle names, and use of the shared angle helper. The consumer check compares the app expectation with the vendored helper; validates every static asset cache token and the versioned module-worker URL; enforces the default one-panel configuration and shared renderer registry; and checks the pinned MathJax/KaTeX bundles, explicit `mathnormal`/`boldsymbol` selection, exact-pixel label sizing, transparent label CSS, normal container weight, line height, centering, and honest placement-profile metadata. Deployment is rejected on any drift.
 
 ## Cache And Version Safety
 
@@ -113,7 +117,7 @@ The page uses a shared app version in three places:
 - `?v=...` query strings on every local CSS/JS/vendor asset
 - `APP_VERSION` at the top of `js/app.js`
 
-Whenever `index.html`, local CSS, local JavaScript, `js/mathjax-config.js`, `js/sympy-worker.js`, or `js/vendor/geometry-angle-layout.js` changes, update all three places together and keep the visible version badge current. This prevents GitHub Pages or browser caches from mixing old JavaScript with new HTML. The worker is not loaded from `index.html`, but `js/app.js` must create it with the same `?v=${APP_VERSION}` token.
+Whenever `index.html`, local CSS, local JavaScript, `js/mathjax-config.js`, `js/unit-circle-quiz.js`, `js/sympy-worker.js`, or `js/vendor/geometry-angle-layout.js` changes, update all three places together and keep the visible version badge current. This prevents GitHub Pages or browser caches from mixing old JavaScript with new HTML. The worker is not loaded from `index.html`, but `js/app.js` must create it with the same `?v=${APP_VERSION}` token.
 
 ## Verification
 
@@ -124,6 +128,7 @@ node scripts/verify-javascript-syntax.js
 node scripts/verify-answer-checker.js
 node scripts/verify-task-flow.js
 node scripts/verify-localization.js
+node scripts/verify-unit-circle-quiz.js
 node scripts/verify-angle-layout-consumer.js
 ```
 
@@ -135,12 +140,18 @@ For browser checks, start a local static server and verify:
 
 - the intro screen opens
 - the right-triangle quiz starts
+- the unit-circle quiz starts directly rather than opening a placeholder
 - before pressing `Start`, the first triangle and timer are visible, but the question and answer input are hidden
 - pressing `Start` reveals the first question and starts the visible timer
 - `Nächste Aufgabe` is available before an answer, and skipping an unanswered task adds one answered question with no point
 - a round ends after 10 scored questions and shows the local result as points out of 10 plus elapsed time
 - the result screen offers both `Neues Quiz starten` and `Zur Startseite`
 - the language selector updates the affected UI consistently in German, English, and French
+- unit-circle signs-to-region questions show one of the eight valid sine/cosine sign pairs and exactly eight region choices in circular order
+- unit-circle angle-to-sign questions alternate between exact integer angles and open quadrant intervals and require separate sine and cosine sign choices
+- exact unit-circle angles show a radius, point, and helper-generated directed arc; open intervals shade only their corresponding quadrant; signs-to-region questions leave the circle neutral
+- axis angles use exactly one zero sign, quadrant angles use no zero signs, and completed answers show a matching MathJax solution
+- the Greek angle name varies across unit-circle tasks
 - by default, exactly one SVG triangle with regular MathJax labels is visible; the comparison note and variants two through four stay hidden and unrendered
 - temporarily enabling all four variants through `setEnabledGeometryRenderVariants(...)` shows four vertically stacked, geometrically identical SVG triangles in the order MathJax regular, KaTeX regular, MathJax bold, KaTeX bold
 - each enabled triangle has exactly five labels from its stated renderer and font variant

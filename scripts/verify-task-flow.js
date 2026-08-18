@@ -42,6 +42,8 @@ function createControl(...classes) {
     textContent: '',
     title: '',
     value: '',
+    querySelector: function() { return null; },
+    querySelectorAll: function() { return []; },
     focus: function() {
       this.focusCount += 1;
     }
@@ -68,7 +70,9 @@ async function main() {
     roundStartPanel: createControl(),
     scoreCounter: createControl(),
     solution: createControl('hidden'),
-    taskQuestion: createControl()
+    taskInstruction: createControl(),
+    taskQuestion: createControl(),
+    unitCircleAnswerArea: createControl()
   };
 
   const context = {
@@ -83,8 +87,10 @@ async function main() {
     clearMathContentNow: function() {},
     controls,
     focusActiveQuizControl: function() {},
+    focusCurrentAnswerControl: function() {},
     getQuestionLatex: function(task) { return `question-${task.id}`; },
     getSolutionLatex: function(task) { return `solution-${task.id}`; },
+    getTaskInstruction: function() { return ''; },
     getTextBundle: function() {
       return {
         quiz: {
@@ -101,13 +107,16 @@ async function main() {
     performance: { now: function() { return now; } },
     readLabelFontSizeSetting: function() { return 22; },
     readRightAngleMarkerSetting: function() { return 'arcDot'; },
+    readCurrentAnswer: function() { return controls.answerInput.value; },
     renderAnswerHelpers: function() {},
+    renderCurrentTaskVisualization: function() { renderCount += 1; },
     renderMath: function(element, latex) { element.renderedLatex = latex; },
-    renderTriangle: function() { renderCount += 1; },
+    setAnswerControlsDisabled: function(disabled) { controls.answerInput.disabled = disabled; },
     setAnswerInputMode: function() {},
     showScreen: function(name) { shownScreen = name; },
     updateCheckButtonText: function() {},
     updateResultText: function() { resultUpdateCount += 1; },
+    updateQuizModeUi: function() {},
     updateTaskCounter: function() {},
     updateTimeCounter: function() {},
     window: {
@@ -145,6 +154,7 @@ async function main() {
     'showRoundResult',
     'beginRound',
     'startNewRound',
+    'startQuiz',
     'startTriangleQuiz'
   ];
 
@@ -152,7 +162,9 @@ async function main() {
     const QUESTIONS_PER_ROUND = 10;
     const TIMER_UPDATE_INTERVAL_MS = 250;
     const RIGHT_ANGLE_MARKERS = { arcDot: 'arcDot', square: 'square' };
+    const QUIZ_MODES = { triangle: 'triangle', unitCircle: 'unit-circle' };
     let currentTask = null;
+    let activeQuizMode = QUIZ_MODES.triangle;
     let currentTaskScored = false;
     let taskNumber = 0;
     let correctAnswers = 0;
@@ -165,6 +177,7 @@ async function main() {
     let rightAngleMarker = RIGHT_ANGLE_MARKERS.arcDot;
     let labelFontSizePx = 18;
     let answerCheckInProgress = false;
+    let mathRenderQueue = Promise.resolve();
 
     ${functionNames.map(getFunctionSource).join('\n\n')}
 

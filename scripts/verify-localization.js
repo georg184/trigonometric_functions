@@ -30,6 +30,13 @@ class FakeClassList {
     values.forEach(value => this.values.delete(value));
   }
 
+  toggle(value, force) {
+    const shouldAdd = typeof force === 'boolean' ? force : !this.values.has(value);
+    if (shouldAdd) this.values.add(value);
+    else this.values.delete(value);
+    return shouldAdd;
+  }
+
   contains(value) {
     return this.values.has(value);
   }
@@ -47,6 +54,12 @@ assert.match(
   /<div class="language-switcher" role="group" aria-label="Sprachauswahl">/
 );
 assert.match(indexSource, /<legend id="labelFontSizeLegend">Beschriftungsgröße<\/legend>/);
+assert.match(indexSource, /id="introDisplayTitle" class="intro-field-title">Dreiecksdarstellung<\/div>/);
+assert.match(
+  indexSource,
+  /id="startUnitCircleDescription" class="intro-choice-description">Quiz zu Vorzeichen und Winkelbereichen von Sinus und Kosinus/
+);
+assert.doesNotMatch(indexSource, /placeholderScreen|placeholderText|placeholderBackButton/);
 assert.match(
   indexSource,
   /id="labelFontSize22" type="radio" name="labelFontSize" value="22" checked/
@@ -54,6 +67,11 @@ assert.match(
 assert.match(appSource, /labelFontSizeLegend: 'Beschriftungsgröße'/);
 assert.match(appSource, /labelFontSizeLegend: 'Label size'/);
 assert.match(appSource, /labelFontSizeLegend: 'Taille des étiquettes'/);
+assert.match(appSource, /unitCircleDescription: 'Quiz about signs and angle regions for sine and cosine'/);
+assert.match(appSource, /unitCircleDescription: 'Quiz sur les signes et les intervalles angulaires du sinus et du cosinus'/);
+assert.match(appSource, /unitCircleSignsToRegionInstruction: 'Bestimme den Bereich des Winkels\.'/);
+assert.match(appSource, /unitCircleAngleToSignsInstruction: 'Determine the signs of sine and cosine\.'/);
+assert.match(appSource, /unitCircleAngleToSignsInstruction: 'Détermine les signes du sinus et du cosinus\.'/);
 assert.match(
   getFunctionSource('applyLanguage'),
   /controls\.labelFontSizeLegend\.textContent = texts\.intro\.labelFontSizeLegend/
@@ -98,6 +116,10 @@ assert.match(
   applyLanguageSource,
   /updateGeometryRenderVariantUi\(texts\.quiz\)/
 );
+assert.match(
+  applyLanguageSource,
+  /controls\.unitCircleRenderTitle\.textContent = texts\.quiz\.unitCircleRenderTitle/
+);
 
 const rendererUiSource = getFunctionSource('updateGeometryRenderVariantUi');
 assert.match(
@@ -133,6 +155,17 @@ const controls = {
       }
     }
   },
+  taskInstruction: {
+    textContent: ''
+  },
+  triangleAnswerArea: {
+    classList: new FakeClassList()
+  },
+  unitCircleAnswerArea: {
+    classList: new FakeClassList('hidden'),
+    querySelector: function() { return null; },
+    querySelectorAll: function() { return []; }
+  },
   solution: {
     classList: new FakeClassList('hidden')
   },
@@ -147,6 +180,11 @@ const context = {
     element.innerHTML = '';
   },
   controls,
+  isUnitCircleTask: function() { return false; },
+  readCurrentAnswer: function() { return ''; },
+  renderUnitCircleAnswerControls: function() {},
+  setAnswerControlsDisabled: function() {},
+  getTaskInstruction: function() { return 'instruction-fr'; },
   getQuestionLatex: function() { return 'question-fr'; },
   getSolutionLatex: function() { return 'solution-fr'; },
   getTextBundle: function() {
@@ -175,6 +213,8 @@ vm.runInContext(`
   };
   let currentTask = { questionKind: QUESTION_KINDS.ratioToFunction };
   let roundStarted = false;
+  let currentTaskScored = false;
+  let answerCheckInProgress = false;
 
   ${getFunctionSource('setAnswerInputMode')}
   ${getFunctionSource('refreshCurrentMathAfterLanguageChange')}
@@ -187,12 +227,9 @@ vm.runInContext(`
 `, context);
 
 context.localization.refreshCurrentMathAfterLanguageChange();
-assert.equal(inputModeUpdateCount, 1);
-assert.equal(controls.answerInput.placeholder, 'p. ex. sin(alpha)');
-assert.equal(
-  answerInputAttributes['aria-label'],
-  'Réponse sous forme d’expression trigonométrique'
-);
+assert.equal(inputModeUpdateCount, 0);
+assert.equal(controls.answerInput.placeholder, '');
+assert.equal(answerInputAttributes['aria-label'], undefined);
 assert.equal(controls.answerHelpers.classList.contains('hidden'), true);
 assert.equal(controls.answerHelpers.innerHTML, '');
 assert.equal(helperClearCount, 1);
@@ -201,16 +238,23 @@ assert.equal(renderedMath.length, 0, 'Pre-start language refresh rendered a hidd
 
 context.localization.setRoundStarted(true);
 context.localization.refreshCurrentMathAfterLanguageChange();
-assert.equal(inputModeUpdateCount, 2);
-assert.equal(helperClearCount, 1);
+assert.equal(inputModeUpdateCount, 1);
+assert.equal(controls.answerInput.placeholder, 'p. ex. sin(alpha)');
+assert.equal(
+  answerInputAttributes['aria-label'],
+  'Réponse sous forme d’expression trigonométrique'
+);
+assert.equal(helperClearCount, 2);
 assert.equal(helperRenderCount, 1);
+assert.equal(controls.taskInstruction.textContent, 'instruction-fr');
 assert.equal(renderedMath.length, 1);
 assert.equal(renderedMath[0].element, controls.taskQuestion);
 assert.equal(renderedMath[0].latex, 'question-fr');
 
 controls.solution.classList.remove('hidden');
 context.localization.refreshCurrentMathAfterLanguageChange();
-assert.equal(inputModeUpdateCount, 3);
+assert.equal(inputModeUpdateCount, 2);
+assert.equal(helperClearCount, 3);
 assert.equal(helperRenderCount, 2);
 assert.equal(renderedMath.length, 3);
 assert.equal(renderedMath[2].element, controls.solution);
@@ -218,7 +262,7 @@ assert.equal(renderedMath[2].latex, 'solution-fr');
 
 context.localization.setCurrentTask(null);
 context.localization.refreshCurrentMathAfterLanguageChange();
-assert.equal(inputModeUpdateCount, 3);
+assert.equal(inputModeUpdateCount, 2);
 assert.equal(helperRenderCount, 2);
 assert.equal(renderedMath.length, 3);
 

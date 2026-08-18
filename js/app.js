@@ -1,4 +1,4 @@
-const APP_VERSION = '20260811.1';
+const APP_VERSION = '20260818.1';
 const VERSION_MISMATCH_TEXT = {
   de: {
     title: 'Neue Version verfügbar',
@@ -78,8 +78,7 @@ const GEOMETRY_RENDER_VARIANT_DEFINITIONS = Object.freeze([
 const screens = {
   intro: document.getElementById('introScreen'),
   quiz: document.getElementById('quizScreen'),
-  result: document.getElementById('resultScreen'),
-  placeholder: document.getElementById('placeholderScreen')
+  result: document.getElementById('resultScreen')
 };
 
 const controls = {
@@ -101,8 +100,6 @@ const controls = {
   rightAngleArcDotLabel: document.getElementById('rightAngleArcDotLabel'),
   rightAngleSquareLabel: document.getElementById('rightAngleSquareLabel'),
   labelFontSizeLegend: document.getElementById('labelFontSizeLegend'),
-  placeholderBackButton: document.getElementById('placeholderBackButton'),
-  placeholderText: document.getElementById('placeholderText'),
   resultHomeButton: document.getElementById('resultHomeButton'),
   newRoundButton: document.getElementById('newRoundButton'),
   backButton: document.getElementById('backButton'),
@@ -113,14 +110,20 @@ const controls = {
   labelFontSize22: document.getElementById('labelFontSize22'),
   labelFontSize26: document.getElementById('labelFontSize26'),
   triangleStage: document.getElementById('triangleStage'),
+  unitCircleStage: document.getElementById('unitCircleStage'),
+  unitCircleRenderTitle: document.getElementById('unitCircleRenderTitle'),
+  unitCircleSurface: document.getElementById('unitCircleSurface'),
   renderComparisonNote: document.getElementById('renderComparisonNote'),
   taskCounter: document.getElementById('taskCounter'),
   scoreCounter: document.getElementById('scoreCounter'),
   timeCounter: document.getElementById('timeCounter'),
   roundStartPanel: document.getElementById('roundStartPanel'),
   beginRoundButton: document.getElementById('beginRoundButton'),
+  taskInstruction: document.getElementById('taskInstruction'),
   taskQuestion: document.getElementById('taskQuestion'),
   answerForm: document.getElementById('answerForm'),
+  triangleAnswerArea: document.getElementById('triangleAnswerArea'),
+  unitCircleAnswerArea: document.getElementById('unitCircleAnswerArea'),
   answerInput: document.getElementById('answerInput'),
   answerHelpers: document.getElementById('answerHelpers'),
   checkButton: document.getElementById('checkButton'),
@@ -180,8 +183,8 @@ const TEXT = {
       triangleTitle: 'am rechtwinkligen Dreieck',
       triangleDescription: 'Quiz über die Seitenverhältnisse bei Sinus, Kosinus und Tangens',
       unitCircleTitle: 'am Einheitskreis',
-      unitCircleDescription: 'Dieser Zugang wird als nächstes ergänzt.',
-      displayTitle: 'Darstellung',
+      unitCircleDescription: 'Quiz zu Vorzeichen und Winkelbereichen von Sinus und Kosinus',
+      displayTitle: 'Dreiecksdarstellung',
       rightAngleLegend: 'Rechter Winkel',
       rightAngleArcDot: 'Viertelkreis mit Punkt',
       rightAngleSquare: 'Quadrat',
@@ -220,11 +223,30 @@ const TEXT = {
       mathJaxRegularSvgAria: 'Dreieck als SVG mit regulären MathJax-Labels',
       kaTeXRegularSvgAria: 'Dreieck als SVG mit regulären KaTeX-Labels',
       mathJaxBoldSvgAria: 'Dreieck als SVG mit fetten MathJax-Labels',
-      kaTeXBoldSvgAria: 'Dreieck als SVG mit fetten KaTeX-Labels'
-    },
-    placeholder: {
-      text: 'Der Zugang am Einheitskreis wird später ergänzt.',
-      backButton: 'Zurück'
+      kaTeXBoldSvgAria: 'Dreieck als SVG mit fetten KaTeX-Labels',
+      unitCircleRenderTitle: 'Einheitskreis',
+      unitCircleStageAria: 'Einheitskreisdarstellung',
+      unitCircleBlankSvgAria: 'Einheitskreis mit waagrechter Kosinusachse und senkrechter Sinusachse',
+      unitCircleExactSvgAria: function(angleName, degrees) {
+        return `Einheitskreis mit dem Winkel ${angleName} gleich ${degrees} Grad`;
+      },
+      unitCircleRangeSvgAria: function(angleName, lowerBound, upperBound) {
+        return `Einheitskreis mit markiertem Bereich ${lowerBound} Grad kleiner ${angleName} kleiner ${upperBound} Grad`;
+      },
+      unitCircleSignsToRegionInstruction: 'Bestimme den Bereich des Winkels.',
+      unitCircleAngleToSignsInstruction: 'Bestimme die Vorzeichen von Sinus und Kosinus.',
+      unitCircleRegionLegend: 'Wähle den passenden Winkelbereich.',
+      unitCircleSignOf: 'Vorzeichen von',
+      unitCircleAnswerAreaAria: 'Antwortmöglichkeiten zum Einheitskreis',
+      unitCircleAxisRegionAria: function(angleName, degrees) {
+        return `${angleName} gleich ${degrees} Grad`;
+      },
+      unitCircleIntervalRegionAria: function(angleName, lowerBound, upperBound) {
+        return `${lowerBound} Grad kleiner ${angleName} kleiner ${upperBound} Grad`;
+      },
+      unitCircleSignNegative: 'negativ',
+      unitCircleSignZero: 'null',
+      unitCircleSignPositive: 'positiv'
     },
     result: {
       title: 'Runde abgeschlossen',
@@ -250,8 +272,8 @@ const TEXT = {
       triangleTitle: 'at the right triangle',
       triangleDescription: 'Quiz about side ratios for sine, cosine, and tangent',
       unitCircleTitle: 'at the unit circle',
-      unitCircleDescription: 'This approach will be added next.',
-      displayTitle: 'Display',
+      unitCircleDescription: 'Quiz about signs and angle regions for sine and cosine',
+      displayTitle: 'Triangle display',
       rightAngleLegend: 'Right angle',
       rightAngleArcDot: 'Quarter circle with dot',
       rightAngleSquare: 'Square',
@@ -290,11 +312,30 @@ const TEXT = {
       mathJaxRegularSvgAria: 'Triangle as SVG with regular MathJax labels',
       kaTeXRegularSvgAria: 'Triangle as SVG with regular KaTeX labels',
       mathJaxBoldSvgAria: 'Triangle as SVG with bold MathJax labels',
-      kaTeXBoldSvgAria: 'Triangle as SVG with bold KaTeX labels'
-    },
-    placeholder: {
-      text: 'The unit circle approach will be added later.',
-      backButton: 'Back'
+      kaTeXBoldSvgAria: 'Triangle as SVG with bold KaTeX labels',
+      unitCircleRenderTitle: 'Unit circle',
+      unitCircleStageAria: 'Unit-circle diagram',
+      unitCircleBlankSvgAria: 'Unit circle with a horizontal cosine axis and vertical sine axis',
+      unitCircleExactSvgAria: function(angleName, degrees) {
+        return `Unit circle with angle ${angleName} equal to ${degrees} degrees`;
+      },
+      unitCircleRangeSvgAria: function(angleName, lowerBound, upperBound) {
+        return `Unit circle with the highlighted region ${lowerBound} degrees less than ${angleName} less than ${upperBound} degrees`;
+      },
+      unitCircleSignsToRegionInstruction: 'Determine the region containing the angle.',
+      unitCircleAngleToSignsInstruction: 'Determine the signs of sine and cosine.',
+      unitCircleRegionLegend: 'Choose the matching angle region.',
+      unitCircleSignOf: 'Sign of',
+      unitCircleAnswerAreaAria: 'Unit-circle answer choices',
+      unitCircleAxisRegionAria: function(angleName, degrees) {
+        return `${angleName} equals ${degrees} degrees`;
+      },
+      unitCircleIntervalRegionAria: function(angleName, lowerBound, upperBound) {
+        return `${lowerBound} degrees less than ${angleName} less than ${upperBound} degrees`;
+      },
+      unitCircleSignNegative: 'negative',
+      unitCircleSignZero: 'zero',
+      unitCircleSignPositive: 'positive'
     },
     result: {
       title: 'Round Complete',
@@ -320,8 +361,8 @@ const TEXT = {
       triangleTitle: 'dans le triangle rectangle',
       triangleDescription: 'Quiz sur les rapports de côtés pour sinus, cosinus et tangente',
       unitCircleTitle: 'sur le cercle trigonométrique',
-      unitCircleDescription: 'Cette approche sera ajoutée ensuite.',
-      displayTitle: 'Affichage',
+      unitCircleDescription: 'Quiz sur les signes et les intervalles angulaires du sinus et du cosinus',
+      displayTitle: 'Affichage du triangle',
       rightAngleLegend: 'Angle droit',
       rightAngleArcDot: 'Quart de cercle avec point',
       rightAngleSquare: 'Carré',
@@ -360,11 +401,30 @@ const TEXT = {
       mathJaxRegularSvgAria: 'Triangle en SVG avec étiquettes MathJax normales',
       kaTeXRegularSvgAria: 'Triangle en SVG avec étiquettes KaTeX normales',
       mathJaxBoldSvgAria: 'Triangle en SVG avec étiquettes MathJax grasses',
-      kaTeXBoldSvgAria: 'Triangle en SVG avec étiquettes KaTeX grasses'
-    },
-    placeholder: {
-      text: 'L’approche par le cercle trigonométrique sera ajoutée plus tard.',
-      backButton: 'Retour'
+      kaTeXBoldSvgAria: 'Triangle en SVG avec étiquettes KaTeX grasses',
+      unitCircleRenderTitle: 'Cercle trigonométrique',
+      unitCircleStageAria: 'Représentation du cercle trigonométrique',
+      unitCircleBlankSvgAria: 'Cercle trigonométrique avec axe horizontal du cosinus et axe vertical du sinus',
+      unitCircleExactSvgAria: function(angleName, degrees) {
+        return `Cercle trigonométrique avec l’angle ${angleName} égal à ${degrees} degrés`;
+      },
+      unitCircleRangeSvgAria: function(angleName, lowerBound, upperBound) {
+        return `Cercle trigonométrique avec la zone où l’angle ${angleName} est strictement compris entre ${lowerBound} et ${upperBound} degrés`;
+      },
+      unitCircleSignsToRegionInstruction: 'Détermine l’intervalle contenant l’angle.',
+      unitCircleAngleToSignsInstruction: 'Détermine les signes du sinus et du cosinus.',
+      unitCircleRegionLegend: 'Choisis l’intervalle angulaire correspondant.',
+      unitCircleSignOf: 'Signe de',
+      unitCircleAnswerAreaAria: 'Choix de réponse pour le cercle trigonométrique',
+      unitCircleAxisRegionAria: function(angleName, degrees) {
+        return `${angleName} égal à ${degrees} degrés`;
+      },
+      unitCircleIntervalRegionAria: function(angleName, lowerBound, upperBound) {
+        return `Angle ${angleName} strictement compris entre ${lowerBound} et ${upperBound} degrés`;
+      },
+      unitCircleSignNegative: 'négatif',
+      unitCircleSignZero: 'nul',
+      unitCircleSignPositive: 'positif'
     },
     result: {
       title: 'Manche terminée',
@@ -388,6 +448,16 @@ const GEOMETRY_LABEL_COMMANDS = Object.freeze({
   regular: 'mathnormal',
   bold: 'boldsymbol'
 });
+const unitCircleQuiz = window.GGUnitCircleQuiz;
+if (!unitCircleQuiz) {
+  throw new Error('GGUnitCircleQuiz must be loaded before js/app.js.');
+}
+const EXPECTED_UNIT_CIRCLE_QUIZ_VERSION = '1.0.0';
+if (unitCircleQuiz.VERSION !== EXPECTED_UNIT_CIRCLE_QUIZ_VERSION) {
+  throw new Error(
+    `Incompatible unit-circle quiz: expected ${EXPECTED_UNIT_CIRCLE_QUIZ_VERSION}, got ${unitCircleQuiz.VERSION}.`
+  );
+}
 const angleLayout = window.GGGeometryAngleLayout;
 if (!angleLayout) {
   throw new Error('GGGeometryAngleLayout must be loaded before js/app.js.');
@@ -405,9 +475,15 @@ const EXPECTED_ANGLE_LABEL_RENDER_PROFILE_ID = 'mathjax-3.2.2-chtml-tex-scale1-c
 angleLayout.assertAngleLabelRenderProfile(EXPECTED_ANGLE_LABEL_RENDER_PROFILE_ID);
 const DEGREE = Math.PI / 180;
 const TASK_TYPES = ['sin', 'cos', 'tan'];
+const QUIZ_MODES = Object.freeze({
+  triangle: 'triangle',
+  unitCircle: unitCircleQuiz.QUIZ_MODE
+});
 const QUESTION_KINDS = {
   functionToRatio: 'function-to-ratio',
-  ratioToFunction: 'ratio-to-function'
+  ratioToFunction: 'ratio-to-function',
+  signsToRegion: unitCircleQuiz.QUESTION_KINDS.signsToRegion,
+  angleToSigns: unitCircleQuiz.QUESTION_KINDS.angleToSigns
 };
 const RATIO_TO_FUNCTION_TASK_PROBABILITY = 0.5;
 const RECIPROCAL_RATIO_TASK_PROBABILITY = 0.2;
@@ -451,6 +527,7 @@ const ANGLE_SETS = [
 ];
 
 let currentTask = null;
+let activeQuizMode = QUIZ_MODES.triangle;
 let currentTaskScored = false;
 let taskNumber = 0;
 let correctAnswers = 0;
@@ -484,6 +561,16 @@ function getEnabledGeometryRenderVariants() {
   return geometryRenderVariants.filter(function(variant) {
     return enabledGeometryRenderVariantKeys.has(variant.key);
   });
+}
+
+function isUnitCircleTask(task) {
+  return Boolean(task && task.quizMode === QUIZ_MODES.unitCircle);
+}
+
+function updateQuizModeUi() {
+  const showTriangle = activeQuizMode === QUIZ_MODES.triangle;
+  controls.triangleStage.classList.toggle('hidden', !showTriangle);
+  controls.unitCircleStage.classList.toggle('hidden', showTriangle);
 }
 
 function updateGeometryRenderVariantUi(texts) {
@@ -530,7 +617,7 @@ function setEnabledGeometryRenderVariants(variantKeys) {
   });
   enabledGeometryRenderVariantKeys = requestedVariantKeys;
   updateGeometryRenderVariantUi(getTextBundle().quiz);
-  if (currentTask) {
+  if (currentTask && !isUnitCircleTask(currentTask)) {
     renderTriangle(currentTask);
   }
 }
@@ -603,17 +690,21 @@ function refreshCurrentMathAfterLanguageChange() {
   if (!currentTask) {
     return;
   }
-  setAnswerInputMode(currentTask);
   if (!roundStarted) {
+    controls.taskInstruction.textContent = '';
     controls.answerHelpers.classList.add('hidden');
     clearMathContent(controls.answerHelpers);
     return;
   }
+  const answer = readCurrentAnswer(currentTask);
+  controls.taskInstruction.textContent = getTaskInstruction(currentTask);
+  setAnswerInputMode(currentTask, answer);
   renderMath(controls.taskQuestion, getQuestionLatex(currentTask));
   renderAnswerHelpers(currentTask);
   if (!controls.solution.classList.contains('hidden')) {
     renderMath(controls.solution, getSolutionLatex(currentTask));
   }
+  setAnswerControlsDisabled(currentTaskScored || answerCheckInProgress);
 }
 
 function applyLanguage() {
@@ -640,10 +731,12 @@ function applyLanguage() {
   controls.backButton.textContent = texts.quiz.backButton;
   controls.backButton.title = texts.quiz.backTitle;
   updateGeometryRenderVariantUi(texts.quiz);
+  controls.unitCircleRenderTitle.textContent = texts.quiz.unitCircleRenderTitle;
+  controls.unitCircleStage.setAttribute('aria-label', texts.quiz.unitCircleStageAria);
+  controls.unitCircleAnswerArea.setAttribute('aria-label', texts.quiz.unitCircleAnswerAreaAria);
+  updateQuizModeUi();
   controls.beginRoundButton.textContent = texts.quiz.beginRound;
   controls.answerHelpers.setAttribute('aria-label', texts.quiz.helpersAria);
-  controls.placeholderText.textContent = texts.placeholder.text;
-  controls.placeholderBackButton.textContent = texts.placeholder.backButton;
   controls.resultTitle.textContent = texts.result.title;
   controls.newRoundButton.textContent = texts.result.newRound;
   controls.resultHomeButton.textContent = texts.result.home;
@@ -657,10 +750,13 @@ function applyLanguage() {
   updateFeedbackText();
 
   if (currentTask) {
-    renderTriangle(currentTask);
+    renderCurrentTaskVisualization(roundStarted);
     refreshCurrentMathAfterLanguageChange();
   } else {
-    setAnswerInputMode({ questionKind: QUESTION_KINDS.functionToRatio });
+    setAnswerInputMode({
+      quizMode: QUIZ_MODES.triangle,
+      questionKind: QUESTION_KINDS.functionToRatio
+    });
   }
   if (!screens.result.classList.contains('hidden')) {
     updateResultText();
@@ -983,6 +1079,12 @@ function initializeAnswerChecker() {
 }
 
 function checkAnswer(rawValue, task) {
+  if (isUnitCircleTask(task)) {
+    return Promise.resolve({
+      correct: unitCircleQuiz.checkAnswer(rawValue, task),
+      checker: 'unit-circle-local'
+    });
+  }
   if (String(rawValue).length > ANSWER_MAX_LENGTH) {
     return Promise.resolve(invalidInputResult('client-input-limit'));
   }
@@ -1063,7 +1165,7 @@ function readLabelFontSizeSetting() {
     : DEFAULT_LABEL_FONT_SIZE_PX;
 }
 
-function buildTask() {
+function buildTriangleTask() {
   const vertexLabels = randomChoice(VERTEX_SETS);
   const angleLabels = shuffle(randomChoice(getCompatibleAngleSets(vertexLabels)));
   const rightIndex = randomInt(0, 2);
@@ -1080,6 +1182,7 @@ function buildTask() {
   const targetIndex = randomChoice(acuteIndices);
   const taskType = randomChoice(TASK_TYPES);
   const task = {
+    quizMode: QUIZ_MODES.triangle,
     vertexLabels,
     angleLabels,
     rightIndex,
@@ -1124,6 +1227,13 @@ function buildTask() {
   });
 }
 
+function buildTask() {
+  if (activeQuizMode === QUIZ_MODES.unitCircle) {
+    return unitCircleQuiz.createTask();
+  }
+  return buildTriangleTask();
+}
+
 function makeLocalTriangle(angleDegrees, acuteIndices, rightIndex) {
   const targetLocal = randomInt(0, 1);
   const points = [null, null, null];
@@ -1148,6 +1258,9 @@ function trigFunctionLatex(taskType) {
 }
 
 function getQuestionLatex(task) {
+  if (isUnitCircleTask(task)) {
+    return unitCircleQuiz.questionLatex(task);
+  }
   if (task.questionKind === QUESTION_KINDS.ratioToFunction) {
     return `\\(\\frac{${task.targetRatio.numerator}}{${task.targetRatio.denominator}}=\\)`;
   }
@@ -1156,7 +1269,20 @@ function getQuestionLatex(task) {
   return `\\(${functionName}\\!\\left(${angle}\\right)=\\)`;
 }
 
+function getTaskInstruction(task) {
+  if (!isUnitCircleTask(task)) {
+    return '';
+  }
+  const texts = getTextBundle().quiz;
+  return task.questionKind === QUESTION_KINDS.signsToRegion
+    ? texts.unitCircleSignsToRegionInstruction
+    : texts.unitCircleAngleToSignsInstruction;
+}
+
 function getSolutionLatex(task) {
+  if (isUnitCircleTask(task)) {
+    return unitCircleQuiz.solutionLatex(task);
+  }
   const angle = task.angleLabels[task.targetIndex].latex;
   const functionName = trigFunctionLatex(task.taskType);
   const numerator = task.targetRatio.numerator;
@@ -1246,7 +1372,7 @@ function setSolvedState(isCorrect) {
   controls.feedback.classList.add(isCorrect ? 'correct' : 'incorrect');
   controls.feedback.textContent = isCorrect ? getTextBundle().quiz.correct : getTextBundle().quiz.incorrect;
   controls.solution.classList.remove('hidden');
-  controls.answerInput.disabled = true;
+  setAnswerControlsDisabled(true);
   controls.checkButton.disabled = true;
   updateCheckButtonText();
   controls.nextButton.disabled = false;
@@ -1260,10 +1386,13 @@ function clearSolvedState() {
   controls.feedback.textContent = '';
   controls.solution.classList.add('hidden');
   clearMathContent(controls.solution);
-  controls.answerInput.disabled = false;
+  setAnswerControlsDisabled(false);
   controls.checkButton.disabled = false;
   updateCheckButtonText();
   controls.answerInput.value = '';
+  controls.unitCircleAnswerArea.querySelectorAll('input[type="radio"]').forEach(function(input) {
+    input.checked = false;
+  });
 }
 
 function updateScoreCounter() {
@@ -1324,8 +1453,162 @@ function updateNextButtonForTask() {
   controls.nextButton.title = texts.quiz.nextTaskTitle;
 }
 
-function setAnswerInputMode(task) {
+function setAnswerControlsDisabled(disabled) {
+  controls.answerInput.disabled = disabled;
+  controls.unitCircleAnswerArea.querySelectorAll('input').forEach(function(input) {
+    input.disabled = disabled;
+  });
+}
+
+function selectedRadioValue(name) {
+  const selected = controls.unitCircleAnswerArea.querySelector(`input[name="${name}"]:checked`);
+  return selected ? selected.value : null;
+}
+
+function readCurrentAnswer(task) {
+  if (!isUnitCircleTask(task)) {
+    return controls.answerInput.value;
+  }
+  if (task.questionKind === QUESTION_KINDS.signsToRegion) {
+    return { regionId: selectedRadioValue('unitCircleRegion') };
+  }
+  return {
+    sinSign: selectedRadioValue('unitCircleSinSign'),
+    cosSign: selectedRadioValue('unitCircleCosSign')
+  };
+}
+
+function unitCircleRegionAria(region, angleLabel, texts) {
+  if (region.kind === 'axis') {
+    return texts.unitCircleAxisRegionAria(angleLabel.name, region.exactAngle);
+  }
+  return texts.unitCircleIntervalRegionAria(
+    angleLabel.name,
+    region.lowerBound,
+    region.upperBound
+  );
+}
+
+function createUnitCircleRadioOption(options) {
+  const label = document.createElement('label');
+  label.className = 'unit-circle-answer-option';
+  const input = document.createElement('input');
+  input.type = 'radio';
+  input.name = options.name;
+  input.value = options.value;
+  input.checked = options.checked;
+  input.setAttribute('aria-label', options.ariaLabel);
+  label.appendChild(input);
+
+  const formula = document.createElement('span');
+  formula.innerHTML = `\\(${options.latex}\\)`;
+  label.appendChild(formula);
+  if (options.word) {
+    const word = document.createElement('span');
+    word.className = 'unit-circle-sign-word';
+    word.textContent = options.word;
+    label.appendChild(word);
+  }
+  return label;
+}
+
+function renderUnitCircleRegionAnswers(container, task, answer, texts) {
+  const fieldset = document.createElement('fieldset');
+  fieldset.className = 'unit-circle-answer-fieldset';
+  const legend = document.createElement('legend');
+  legend.textContent = texts.unitCircleRegionLegend;
+  fieldset.appendChild(legend);
+  const options = document.createElement('div');
+  options.className = 'unit-circle-region-options';
+  unitCircleQuiz.REGIONS.forEach(function(region) {
+    options.appendChild(createUnitCircleRadioOption({
+      name: 'unitCircleRegion',
+      value: region.id,
+      checked: Boolean(answer && answer.regionId === region.id),
+      ariaLabel: unitCircleRegionAria(region, task.angleLabel, texts),
+      latex: unitCircleQuiz.regionLatex(region.id, task.angleLabel)
+    }));
+  });
+  fieldset.appendChild(options);
+  container.appendChild(fieldset);
+}
+
+function unitCircleSignWord(sign, texts) {
+  if (sign === unitCircleQuiz.SIGNS.negative) return texts.unitCircleSignNegative;
+  if (sign === unitCircleQuiz.SIGNS.zero) return texts.unitCircleSignZero;
+  return texts.unitCircleSignPositive;
+}
+
+function renderUnitCircleSignGroup(container, task, functionName, answerKey, inputName, answer, texts) {
+  const fieldset = document.createElement('fieldset');
+  fieldset.className = 'unit-circle-answer-fieldset';
+  const legend = document.createElement('legend');
+  legend.innerHTML = `${texts.unitCircleSignOf} \\(\\${functionName}\\!\\left(${task.angleLabel.latex}\\right)\\)`;
+  fieldset.appendChild(legend);
+  const options = document.createElement('div');
+  options.className = 'unit-circle-sign-options';
+  [
+    unitCircleQuiz.SIGNS.negative,
+    unitCircleQuiz.SIGNS.zero,
+    unitCircleQuiz.SIGNS.positive
+  ].forEach(function(sign) {
+    const word = unitCircleSignWord(sign, texts);
+    options.appendChild(createUnitCircleRadioOption({
+      name: inputName,
+      value: sign,
+      checked: Boolean(answer && answer[answerKey] === sign),
+      ariaLabel: `${functionName}(${task.angleLabel.name}): ${word}`,
+      latex: unitCircleQuiz.signComparisonLatex(sign),
+      word
+    }));
+  });
+  fieldset.appendChild(options);
+  container.appendChild(fieldset);
+}
+
+function renderUnitCircleAnswerControls(task, answer) {
+  const texts = getTextBundle().quiz;
+  replaceMathContent(controls.unitCircleAnswerArea, function() {
+    controls.unitCircleAnswerArea.innerHTML = '';
+    if (task.questionKind === QUESTION_KINDS.signsToRegion) {
+      renderUnitCircleRegionAnswers(controls.unitCircleAnswerArea, task, answer, texts);
+    } else {
+      const grid = document.createElement('div');
+      grid.className = 'unit-circle-sign-grid';
+      renderUnitCircleSignGroup(
+        grid,
+        task,
+        'sin',
+        'sinSign',
+        'unitCircleSinSign',
+        answer,
+        texts
+      );
+      renderUnitCircleSignGroup(
+        grid,
+        task,
+        'cos',
+        'cosSign',
+        'unitCircleCosSign',
+        answer,
+        texts
+      );
+      controls.unitCircleAnswerArea.appendChild(grid);
+    }
+    setAnswerControlsDisabled(currentTaskScored || answerCheckInProgress);
+  });
+}
+
+function setAnswerInputMode(task, answer) {
   const texts = getTextBundle();
+  const unitCircleTask = isUnitCircleTask(task);
+  controls.triangleAnswerArea.classList.toggle('hidden', unitCircleTask);
+  controls.unitCircleAnswerArea.classList.toggle('hidden', !unitCircleTask);
+  if (unitCircleTask) {
+    renderUnitCircleAnswerControls(task, answer);
+    return;
+  }
+  clearMathContent(controls.unitCircleAnswerArea);
   if (task.questionKind === QUESTION_KINDS.ratioToFunction) {
     controls.answerInput.placeholder = texts.quiz.answerTrigPlaceholder;
     controls.answerInput.setAttribute('aria-label', texts.quiz.answerTrigAria);
@@ -1423,6 +1706,7 @@ function hideQuestionUntilRoundStart() {
   controls.roundStartPanel.classList.remove('hidden');
   controls.answerForm.classList.add('hidden');
   controls.answerHelpers.classList.add('hidden');
+  controls.taskInstruction.textContent = '';
   controls.nextButton.disabled = true;
   clearMathContentNow(controls.taskQuestion);
   window.setTimeout(function() {
@@ -1430,16 +1714,31 @@ function hideQuestionUntilRoundStart() {
   }, 0);
 }
 
+function focusCurrentAnswerControl(task) {
+  if (!isUnitCircleTask(task)) {
+    controls.answerInput.focus();
+    return;
+  }
+  const checked = controls.unitCircleAnswerArea.querySelector('input:checked');
+  const first = controls.unitCircleAnswerArea.querySelector('input');
+  (checked || first || controls.checkButton).focus();
+}
+
 function showCurrentQuestion() {
   controls.roundStartPanel.classList.add('hidden');
   controls.answerForm.classList.remove('hidden');
+  controls.taskInstruction.textContent = getTaskInstruction(currentTask);
   setAnswerInputMode(currentTask);
   renderMath(controls.taskQuestion, getQuestionLatex(currentTask));
   renderAnswerHelpers(currentTask);
+  renderCurrentTaskVisualization(true);
   controls.nextButton.disabled = false;
-  window.setTimeout(function() {
-    controls.answerInput.focus();
-  }, 0);
+  const task = currentTask;
+  mathRenderQueue.then(function() {
+    if (currentTask === task && roundStarted && !currentTaskScored) {
+      focusCurrentAnswerControl(task);
+    }
+  });
 }
 
 function newTask() {
@@ -1454,17 +1753,17 @@ function newTask() {
   controls.nextButton.disabled = false;
   updateTaskCounter();
   updateNextButtonForTask();
-  renderTriangle(currentTask);
   if (roundStarted) {
     showCurrentQuestion();
     return;
   }
+  renderCurrentTaskVisualization(false);
   hideQuestionUntilRoundStart();
 }
 
 function setCheckingState() {
   answerCheckInProgress = true;
-  controls.answerInput.disabled = true;
+  setAnswerControlsDisabled(true);
   controls.checkButton.disabled = true;
   updateCheckButtonText();
   controls.nextButton.disabled = true;
@@ -1472,11 +1771,11 @@ function setCheckingState() {
 
 async function submitAnswer(event) {
   event.preventDefault();
-  if (!roundStarted || !currentTask || controls.answerInput.disabled || controls.checkButton.disabled) {
+  if (!roundStarted || !currentTask || controls.checkButton.disabled) {
     return;
   }
   const task = currentTask;
-  const rawValue = controls.answerInput.value;
+  const rawValue = readCurrentAnswer(task);
   setCheckingState();
   const result = await checkAnswer(rawValue, task);
   answerCheckInProgress = false;
@@ -1812,6 +2111,208 @@ function renderTriangle(task) {
   });
 }
 
+function unitCirclePoint(center, radius, degrees) {
+  const radians = degrees * DEGREE;
+  return {
+    x: center.x + Math.cos(radians) * radius,
+    y: center.y - Math.sin(radians) * radius
+  };
+}
+
+function addUnitCircleSector(svg, center, radius, region) {
+  const start = unitCirclePoint(center, radius, region.lowerBound);
+  const end = unitCirclePoint(center, radius, region.upperBound);
+  const arcPoints = angleLayout.arcPoints(center, start, end, radius, 32, {
+    coordinateSystem: 'svg',
+    angleMode: 'directed'
+  });
+  const path = [
+    `M ${center.x} ${center.y}`,
+    `L ${arcPoints[0].x} ${arcPoints[0].y}`
+  ];
+  arcPoints.slice(1).forEach(function(point) {
+    path.push(`L ${point.x} ${point.y}`);
+  });
+  path.push('Z');
+  svg.appendChild(createSvgElement('path', {
+    d: path.join(' '),
+    fill: 'rgba(9, 105, 218, 0.16)',
+    stroke: 'rgba(9, 105, 218, 0.55)',
+    'stroke-width': 2,
+    'stroke-linejoin': 'round',
+    'data-unit-circle-region': region.id
+  }));
+}
+
+function addUnitCircleAxes(svg, center, radius) {
+  const extension = radius + 25;
+  svg.appendChild(createSvgElement('line', {
+    x1: center.x - extension,
+    y1: center.y,
+    x2: center.x + extension,
+    y2: center.y,
+    stroke: '#57606a',
+    'stroke-width': 1.8,
+    'stroke-linecap': 'round'
+  }));
+  svg.appendChild(createSvgElement('line', {
+    x1: center.x,
+    y1: center.y + extension,
+    x2: center.x,
+    y2: center.y - extension,
+    stroke: '#57606a',
+    'stroke-width': 1.8,
+    'stroke-linecap': 'round'
+  }));
+  svg.appendChild(createSvgElement('polygon', {
+    points: [
+      `${center.x + extension + 1},${center.y}`,
+      `${center.x + extension - 9},${center.y - 5}`,
+      `${center.x + extension - 9},${center.y + 5}`
+    ].join(' '),
+    fill: '#57606a'
+  }));
+  svg.appendChild(createSvgElement('polygon', {
+    points: [
+      `${center.x},${center.y - extension - 1}`,
+      `${center.x - 5},${center.y - extension + 9}`,
+      `${center.x + 5},${center.y - extension + 9}`
+    ].join(' '),
+    fill: '#57606a'
+  }));
+}
+
+function addUnitCircleExactAngle(svg, task, center, radius) {
+  const positiveRay = unitCirclePoint(center, radius, 0);
+  const anglePoint = unitCirclePoint(center, radius, task.angleDegrees);
+  svg.appendChild(createSvgElement('line', {
+    x1: center.x,
+    y1: center.y,
+    x2: anglePoint.x,
+    y2: anglePoint.y,
+    stroke: '#0969da',
+    'stroke-width': 3,
+    'stroke-linecap': 'round',
+    'data-unit-circle-angle-degrees': task.angleDegrees
+  }));
+  svg.appendChild(createSvgElement('circle', {
+    cx: anglePoint.x,
+    cy: anglePoint.y,
+    r: 5.5,
+    fill: '#0969da'
+  }));
+  if (task.angleDegrees > 0) {
+    const marker = angleLayout.calibratedAngleMarkerFromRays(
+      center,
+      positiveRay,
+      anglePoint,
+      task.angleLabel,
+      {
+        coordinateSystem: 'svg',
+        angleMode: 'directed',
+        fontSizePx: DEFAULT_LABEL_FONT_SIZE_PX,
+        arcRadius: Math.min(46, radius * 0.28),
+        rayStrokeWidthPx: 3,
+        arcStrokeWidthPx: 2
+      }
+    );
+    svg.appendChild(createSvgElement('path', {
+      d: marker.arcPath,
+      fill: 'none',
+      stroke: '#0969da',
+      'stroke-width': 2,
+      'stroke-linecap': 'round',
+      'data-angle-mode': 'directed'
+    }));
+  }
+}
+
+function addUnitCircleAxisLabel(surface, latex, x, y) {
+  const label = document.createElement('span');
+  label.className = 'unit-circle-axis-label mathjax-inline';
+  label.style.left = `${x}px`;
+  label.style.top = `${y}px`;
+  label.innerHTML = `\\(${latex}\\)`;
+  surface.appendChild(label);
+}
+
+function renderUnitCircle(task, revealTask) {
+  const texts = getTextBundle().quiz;
+  replaceMathContent(controls.unitCircleSurface, function() {
+    controls.unitCircleSurface.innerHTML = '';
+    const size = getSurfaceSize(controls.unitCircleSurface);
+    const center = { x: size.width * 0.5, y: size.height * 0.52 };
+    const radius = Math.max(70, Math.min(size.width, size.height) * 0.34);
+    const showTaskGeometry = Boolean(
+      revealTask
+      && task.questionKind === QUESTION_KINDS.angleToSigns
+    );
+    const region = unitCircleQuiz.regionForId(task.regionId);
+    let svgAria = texts.unitCircleBlankSvgAria;
+    if (showTaskGeometry && task.presentation === unitCircleQuiz.PRESENTATIONS.openInterval) {
+      svgAria = texts.unitCircleRangeSvgAria(
+        task.angleLabel.name,
+        region.lowerBound,
+        region.upperBound
+      );
+    } else if (showTaskGeometry) {
+      svgAria = texts.unitCircleExactSvgAria(task.angleLabel.name, task.angleDegrees);
+    }
+    const svg = createSvgElement('svg', {
+      class: 'geometry-svg unit-circle-svg',
+      viewBox: `0 0 ${size.width} ${size.height}`,
+      role: 'img',
+      'aria-label': svgAria
+    });
+    if (showTaskGeometry && task.presentation === unitCircleQuiz.PRESENTATIONS.openInterval) {
+      addUnitCircleSector(svg, center, radius, region);
+    }
+    addUnitCircleAxes(svg, center, radius);
+    svg.appendChild(createSvgElement('circle', {
+      cx: center.x,
+      cy: center.y,
+      r: radius,
+      fill: 'none',
+      stroke: '#1f2328',
+      'stroke-width': 2.5
+    }));
+    svg.appendChild(createSvgElement('circle', {
+      cx: center.x,
+      cy: center.y,
+      r: 3.5,
+      fill: '#1f2328'
+    }));
+    if (showTaskGeometry && task.presentation === unitCircleQuiz.PRESENTATIONS.exactAngle) {
+      addUnitCircleExactAngle(svg, task, center, radius);
+    }
+    controls.unitCircleSurface.appendChild(svg);
+    addUnitCircleAxisLabel(
+      controls.unitCircleSurface,
+      '\\cos',
+      center.x + radius + 24,
+      center.y + 24
+    );
+    addUnitCircleAxisLabel(
+      controls.unitCircleSurface,
+      '\\sin',
+      center.x + 24,
+      center.y - radius - 20
+    );
+  });
+}
+
+function renderCurrentTaskVisualization(revealTask) {
+  updateQuizModeUi();
+  if (!currentTask) {
+    return;
+  }
+  if (isUnitCircleTask(currentTask)) {
+    renderUnitCircle(currentTask, revealTask);
+    return;
+  }
+  renderTriangle(currentTask);
+}
+
 function showRoundResult() {
   stopRoundTimer();
   roundFinished = true;
@@ -1830,11 +2331,11 @@ function focusActiveQuizControl() {
       controls.beginRoundButton.focus();
       return;
     }
-    if (controls.answerInput.disabled) {
+    if (currentTaskScored || controls.checkButton.disabled) {
       controls.nextButton.focus();
       return;
     }
-    controls.answerInput.focus();
+    focusCurrentAnswerControl(currentTask);
   }, 0);
 }
 
@@ -1860,24 +2361,36 @@ function startNewRound() {
   roundElapsedMs = 0;
   rightAngleMarker = readRightAngleMarkerSetting();
   labelFontSizePx = readLabelFontSizeSetting();
+  updateQuizModeUi();
   showScreen('quiz');
   updateScoreCounter();
   updateTimeCounter();
   newTask();
 }
 
-function startTriangleQuiz() {
+function startQuiz(quizMode) {
+  const resumeCurrentRound = activeQuizMode === quizMode && currentTask && !roundFinished;
+  activeQuizMode = quizMode;
   rightAngleMarker = readRightAngleMarkerSetting();
   labelFontSizePx = readLabelFontSizeSetting();
+  updateQuizModeUi();
   showScreen('quiz');
-  if (currentTask && !roundFinished) {
+  if (resumeCurrentRound) {
     updateScoreCounter();
     updateTimeCounter();
-    renderTriangle(currentTask);
+    renderCurrentTaskVisualization(roundStarted);
     focusActiveQuizControl();
     return;
   }
   startNewRound();
+}
+
+function startTriangleQuiz() {
+  startQuiz(QUIZ_MODES.triangle);
+}
+
+function startUnitCircleQuiz() {
+  startQuiz(QUIZ_MODES.unitCircle);
 }
 
 controls.langDeButton.addEventListener('click', function() {
@@ -1893,15 +2406,8 @@ controls.langFrButton.addEventListener('click', function() {
 });
 
 controls.startTriangleButton.addEventListener('click', startTriangleQuiz);
+controls.startUnitCircleButton.addEventListener('click', startUnitCircleQuiz);
 controls.beginRoundButton.addEventListener('click', beginRound);
-
-controls.startUnitCircleButton.addEventListener('click', function() {
-  showScreen('placeholder');
-});
-
-controls.placeholderBackButton.addEventListener('click', function() {
-  showScreen('intro');
-});
 
 controls.resultHomeButton.addEventListener('click', function() {
   showScreen('intro');
@@ -1927,7 +2433,11 @@ controls.rightAngleSquare.addEventListener('change', function() {
 LABEL_FONT_SIZE_INPUTS.forEach(function(input) {
   input.addEventListener('change', function() {
     labelFontSizePx = readLabelFontSizeSetting();
-    if (currentTask && !screens.quiz.classList.contains('hidden')) {
+    if (
+      currentTask
+      && !isUnitCircleTask(currentTask)
+      && !screens.quiz.classList.contains('hidden')
+    ) {
       renderTriangle(currentTask);
     }
   });
@@ -1935,7 +2445,7 @@ LABEL_FONT_SIZE_INPUTS.forEach(function(input) {
 
 window.addEventListener('resize', function() {
   if (currentTask && !screens.quiz.classList.contains('hidden')) {
-    renderTriangle(currentTask);
+    renderCurrentTaskVisualization(roundStarted);
   }
 });
 

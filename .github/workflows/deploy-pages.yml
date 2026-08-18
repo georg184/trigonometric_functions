@@ -41,6 +41,7 @@ jobs:
           node scripts/verify-answer-checker.js
           node scripts/verify-task-flow.js
           node scripts/verify-localization.js
+          node scripts/verify-unit-circle-quiz.js
           node scripts/verify-angle-layout-consumer.js
 
       - name: Configure Pages
