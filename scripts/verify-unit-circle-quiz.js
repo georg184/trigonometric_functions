@@ -162,7 +162,7 @@ assert.ok(
   'Non-cardinal integer angles are not distributed uniformly enough.'
 );
 
-assert.match(indexSource, /src="js\/unit-circle-quiz\.js\?v=20260818\.1"/);
+assert.match(indexSource, /src="js\/unit-circle-quiz\.js\?v=20260818\.2"/);
 assert.match(indexSource, /id="unitCircleStage" class="unit-circle-stage hidden"/);
 assert.match(indexSource, /id="unitCircleAnswerArea"/);
 assert.doesNotMatch(indexSource, /placeholderScreen|placeholderText|placeholderBackButton/);

@@ -69,9 +69,17 @@ assert.match(appSource, /labelFontSizeLegend: 'Label size'/);
 assert.match(appSource, /labelFontSizeLegend: 'Taille des étiquettes'/);
 assert.match(appSource, /unitCircleDescription: 'Quiz about signs and angle regions for sine and cosine'/);
 assert.match(appSource, /unitCircleDescription: 'Quiz sur les signes et les intervalles angulaires du sinus et du cosinus'/);
-assert.match(appSource, /unitCircleSignsToRegionInstruction: 'Bestimme den Bereich des Winkels\.'/);
-assert.match(appSource, /unitCircleAngleToSignsInstruction: 'Determine the signs of sine and cosine\.'/);
-assert.match(appSource, /unitCircleAngleToSignsInstruction: 'Détermine les signes du sinus et du cosinus\.'/);
+assert.match(appSource, /unitCircleSignsToRegionGiven: 'Von einem Winkel sind gegeben:'/);
+assert.match(appSource, /unitCircleAngleToSignsGiven: 'Von einem Winkel ist gegeben:'/);
+assert.match(appSource, /unitCircleSignsToRegionGiven: 'For an angle, the following are given:'/);
+assert.match(appSource, /unitCircleAngleToSignsGiven: 'Pour un angle, on connaît l’information suivante :'/);
+assert.match(appSource, /In welchem Bereich befindet sich/);
+assert.match(appSource, /What are the signs of/);
+assert.match(appSource, /Quels sont les signes de/);
+assert.match(
+  indexSource,
+  /id="taskInstruction"[\s\S]*id="taskQuestion"[\s\S]*id="taskRequest"/
+);
 assert.match(
   getFunctionSource('applyLanguage'),
   /controls\.labelFontSizeLegend\.textContent = texts\.intro\.labelFontSizeLegend/
@@ -156,6 +164,7 @@ const controls = {
     }
   },
   taskInstruction: {
+    classList: new FakeClassList(),
     textContent: ''
   },
   triangleAnswerArea: {
@@ -171,6 +180,10 @@ const controls = {
   },
   taskQuestion: {
     innerHTML: ''
+  },
+  taskRequest: {
+    classList: new FakeClassList('hidden'),
+    innerHTML: ''
   }
 };
 
@@ -185,6 +198,7 @@ const context = {
   renderUnitCircleAnswerControls: function() {},
   setAnswerControlsDisabled: function() {},
   getTaskInstruction: function() { return 'instruction-fr'; },
+  getTaskRequestLatex: function() { return 'request-fr'; },
   getQuestionLatex: function() { return 'question-fr'; },
   getSolutionLatex: function() { return 'solution-fr'; },
   getTextBundle: function() {
@@ -232,7 +246,7 @@ assert.equal(controls.answerInput.placeholder, '');
 assert.equal(answerInputAttributes['aria-label'], undefined);
 assert.equal(controls.answerHelpers.classList.contains('hidden'), true);
 assert.equal(controls.answerHelpers.innerHTML, '');
-assert.equal(helperClearCount, 1);
+assert.equal(helperClearCount, 2);
 assert.equal(helperRenderCount, 0);
 assert.equal(renderedMath.length, 0, 'Pre-start language refresh rendered a hidden question.');
 
@@ -244,26 +258,28 @@ assert.equal(
   answerInputAttributes['aria-label'],
   'Réponse sous forme d’expression trigonométrique'
 );
-assert.equal(helperClearCount, 2);
+assert.equal(helperClearCount, 3);
 assert.equal(helperRenderCount, 1);
 assert.equal(controls.taskInstruction.textContent, 'instruction-fr');
-assert.equal(renderedMath.length, 1);
+assert.equal(renderedMath.length, 2);
 assert.equal(renderedMath[0].element, controls.taskQuestion);
 assert.equal(renderedMath[0].latex, 'question-fr');
+assert.equal(renderedMath[1].element, controls.taskRequest);
+assert.equal(renderedMath[1].latex, 'request-fr');
 
 controls.solution.classList.remove('hidden');
 context.localization.refreshCurrentMathAfterLanguageChange();
 assert.equal(inputModeUpdateCount, 2);
-assert.equal(helperClearCount, 3);
+assert.equal(helperClearCount, 4);
 assert.equal(helperRenderCount, 2);
-assert.equal(renderedMath.length, 3);
-assert.equal(renderedMath[2].element, controls.solution);
-assert.equal(renderedMath[2].latex, 'solution-fr');
+assert.equal(renderedMath.length, 5);
+assert.equal(renderedMath[4].element, controls.solution);
+assert.equal(renderedMath[4].latex, 'solution-fr');
 
 context.localization.setCurrentTask(null);
 context.localization.refreshCurrentMathAfterLanguageChange();
 assert.equal(inputModeUpdateCount, 2);
 assert.equal(helperRenderCount, 2);
-assert.equal(renderedMath.length, 3);
+assert.equal(renderedMath.length, 5);
 
 console.log('Localization and pre-start language-state tests passed');

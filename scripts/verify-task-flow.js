@@ -32,6 +32,13 @@ class FakeClassList {
   contains(value) {
     return this.values.has(value);
   }
+
+  toggle(value, force) {
+    const shouldAdd = typeof force === 'boolean' ? force : !this.values.has(value);
+    if (shouldAdd) this.values.add(value);
+    else this.values.delete(value);
+    return shouldAdd;
+  }
 }
 
 function createControl(...classes) {
@@ -72,6 +79,7 @@ async function main() {
     solution: createControl('hidden'),
     taskInstruction: createControl(),
     taskQuestion: createControl(),
+    taskRequest: createControl('hidden'),
     unitCircleAnswerArea: createControl()
   };
 
@@ -91,6 +99,7 @@ async function main() {
     getQuestionLatex: function(task) { return `question-${task.id}`; },
     getSolutionLatex: function(task) { return `solution-${task.id}`; },
     getTaskInstruction: function() { return ''; },
+    getTaskRequestLatex: function() { return ''; },
     getTextBundle: function() {
       return {
         quiz: {

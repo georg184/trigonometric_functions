@@ -148,6 +148,7 @@ For browser checks, start a local static server and verify:
 - the result screen offers both `Neues Quiz starten` and `Zur Startseite`
 - the language selector updates the affected UI consistently in German, English, and French
 - unit-circle signs-to-region questions show one of the eight valid sine/cosine sign pairs and exactly eight region choices in circular order
+- unit-circle prompts present the introductory given-information sentence, then the mathematical data, and only then the actual question
 - unit-circle angle-to-sign questions alternate between exact integer angles and open quadrant intervals and require separate sine and cosine sign choices
 - exact unit-circle angles show a radius, point, and helper-generated directed arc; open intervals shade only their corresponding quadrant; signs-to-region questions leave the circle neutral
 - axis angles use exactly one zero sign, quadrant angles use no zero signs, and completed answers show a matching MathJax solution

@@ -375,6 +375,16 @@ p {
   line-height: 1.4;
 }
 
+.task-request {
+  color: var(--text);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.task-request mjx-container {
+  margin: 0 !important;
+}
+
 .answer-form {
   display: grid;
   gap: 8px;

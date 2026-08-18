@@ -1,4 +1,4 @@
-const APP_VERSION = '20260818.1';
+const APP_VERSION = '20260818.2';
 const VERSION_MISMATCH_TEXT = {
   de: {
     title: 'Neue Version verfügbar',
@@ -121,6 +121,7 @@ const controls = {
   beginRoundButton: document.getElementById('beginRoundButton'),
   taskInstruction: document.getElementById('taskInstruction'),
   taskQuestion: document.getElementById('taskQuestion'),
+  taskRequest: document.getElementById('taskRequest'),
   answerForm: document.getElementById('answerForm'),
   triangleAnswerArea: document.getElementById('triangleAnswerArea'),
   unitCircleAnswerArea: document.getElementById('unitCircleAnswerArea'),
@@ -233,8 +234,14 @@ const TEXT = {
       unitCircleRangeSvgAria: function(angleName, lowerBound, upperBound) {
         return `Einheitskreis mit markiertem Bereich ${lowerBound} Grad kleiner ${angleName} kleiner ${upperBound} Grad`;
       },
-      unitCircleSignsToRegionInstruction: 'Bestimme den Bereich des Winkels.',
-      unitCircleAngleToSignsInstruction: 'Bestimme die Vorzeichen von Sinus und Kosinus.',
+      unitCircleSignsToRegionGiven: 'Von einem Winkel sind gegeben:',
+      unitCircleAngleToSignsGiven: 'Von einem Winkel ist gegeben:',
+      unitCircleSignsToRegionQuestion: function(angleLatex) {
+        return `In welchem Bereich befindet sich \\(${angleLatex}\\)?`;
+      },
+      unitCircleAngleToSignsQuestion: function(angleLatex) {
+        return `Welche Vorzeichen haben \\(\\sin\\!\\left(${angleLatex}\\right)\\) und \\(\\cos\\!\\left(${angleLatex}\\right)\\)?`;
+      },
       unitCircleRegionLegend: 'Wähle den passenden Winkelbereich.',
       unitCircleSignOf: 'Vorzeichen von',
       unitCircleAnswerAreaAria: 'Antwortmöglichkeiten zum Einheitskreis',
@@ -322,8 +329,14 @@ const TEXT = {
       unitCircleRangeSvgAria: function(angleName, lowerBound, upperBound) {
         return `Unit circle with the highlighted region ${lowerBound} degrees less than ${angleName} less than ${upperBound} degrees`;
       },
-      unitCircleSignsToRegionInstruction: 'Determine the region containing the angle.',
-      unitCircleAngleToSignsInstruction: 'Determine the signs of sine and cosine.',
+      unitCircleSignsToRegionGiven: 'For an angle, the following are given:',
+      unitCircleAngleToSignsGiven: 'The following information about an angle is given:',
+      unitCircleSignsToRegionQuestion: function(angleLatex) {
+        return `Which region contains \\(${angleLatex}\\)?`;
+      },
+      unitCircleAngleToSignsQuestion: function(angleLatex) {
+        return `What are the signs of \\(\\sin\\!\\left(${angleLatex}\\right)\\) and \\(\\cos\\!\\left(${angleLatex}\\right)\\)?`;
+      },
       unitCircleRegionLegend: 'Choose the matching angle region.',
       unitCircleSignOf: 'Sign of',
       unitCircleAnswerAreaAria: 'Unit-circle answer choices',
@@ -411,8 +424,14 @@ const TEXT = {
       unitCircleRangeSvgAria: function(angleName, lowerBound, upperBound) {
         return `Cercle trigonométrique avec la zone où l’angle ${angleName} est strictement compris entre ${lowerBound} et ${upperBound} degrés`;
       },
-      unitCircleSignsToRegionInstruction: 'Détermine l’intervalle contenant l’angle.',
-      unitCircleAngleToSignsInstruction: 'Détermine les signes du sinus et du cosinus.',
+      unitCircleSignsToRegionGiven: 'Pour un angle, on connaît les informations suivantes :',
+      unitCircleAngleToSignsGiven: 'Pour un angle, on connaît l’information suivante :',
+      unitCircleSignsToRegionQuestion: function(angleLatex) {
+        return `Dans quel intervalle se trouve \\(${angleLatex}\\) ?`;
+      },
+      unitCircleAngleToSignsQuestion: function(angleLatex) {
+        return `Quels sont les signes de \\(\\sin\\!\\left(${angleLatex}\\right)\\) et de \\(\\cos\\!\\left(${angleLatex}\\right)\\) ?`;
+      },
       unitCircleRegionLegend: 'Choisis l’intervalle angulaire correspondant.',
       unitCircleSignOf: 'Signe de',
       unitCircleAnswerAreaAria: 'Choix de réponse pour le cercle trigonométrique',
@@ -692,14 +711,26 @@ function refreshCurrentMathAfterLanguageChange() {
   }
   if (!roundStarted) {
     controls.taskInstruction.textContent = '';
+    controls.taskInstruction.classList.add('hidden');
+    controls.taskRequest.classList.add('hidden');
+    clearMathContent(controls.taskRequest);
     controls.answerHelpers.classList.add('hidden');
     clearMathContent(controls.answerHelpers);
     return;
   }
   const answer = readCurrentAnswer(currentTask);
-  controls.taskInstruction.textContent = getTaskInstruction(currentTask);
+  const taskInstruction = getTaskInstruction(currentTask);
+  const taskRequestLatex = getTaskRequestLatex(currentTask);
+  controls.taskInstruction.textContent = taskInstruction;
+  controls.taskInstruction.classList.toggle('hidden', !taskInstruction);
+  controls.taskRequest.classList.toggle('hidden', !taskRequestLatex);
   setAnswerInputMode(currentTask, answer);
   renderMath(controls.taskQuestion, getQuestionLatex(currentTask));
+  if (taskRequestLatex) {
+    renderMath(controls.taskRequest, taskRequestLatex);
+  } else {
+    clearMathContent(controls.taskRequest);
+  }
   renderAnswerHelpers(currentTask);
   if (!controls.solution.classList.contains('hidden')) {
     renderMath(controls.solution, getSolutionLatex(currentTask));
@@ -1275,8 +1306,18 @@ function getTaskInstruction(task) {
   }
   const texts = getTextBundle().quiz;
   return task.questionKind === QUESTION_KINDS.signsToRegion
-    ? texts.unitCircleSignsToRegionInstruction
-    : texts.unitCircleAngleToSignsInstruction;
+    ? texts.unitCircleSignsToRegionGiven
+    : texts.unitCircleAngleToSignsGiven;
+}
+
+function getTaskRequestLatex(task) {
+  if (!isUnitCircleTask(task)) {
+    return '';
+  }
+  const texts = getTextBundle().quiz;
+  return task.questionKind === QUESTION_KINDS.signsToRegion
+    ? texts.unitCircleSignsToRegionQuestion(task.angleLabel.latex)
+    : texts.unitCircleAngleToSignsQuestion(task.angleLabel.latex);
 }
 
 function getSolutionLatex(task) {
@@ -1707,8 +1748,11 @@ function hideQuestionUntilRoundStart() {
   controls.answerForm.classList.add('hidden');
   controls.answerHelpers.classList.add('hidden');
   controls.taskInstruction.textContent = '';
+  controls.taskInstruction.classList.add('hidden');
+  controls.taskRequest.classList.add('hidden');
   controls.nextButton.disabled = true;
   clearMathContentNow(controls.taskQuestion);
+  clearMathContentNow(controls.taskRequest);
   window.setTimeout(function() {
     controls.beginRoundButton.focus();
   }, 0);
@@ -1727,9 +1771,18 @@ function focusCurrentAnswerControl(task) {
 function showCurrentQuestion() {
   controls.roundStartPanel.classList.add('hidden');
   controls.answerForm.classList.remove('hidden');
-  controls.taskInstruction.textContent = getTaskInstruction(currentTask);
+  const taskInstruction = getTaskInstruction(currentTask);
+  const taskRequestLatex = getTaskRequestLatex(currentTask);
+  controls.taskInstruction.textContent = taskInstruction;
+  controls.taskInstruction.classList.toggle('hidden', !taskInstruction);
+  controls.taskRequest.classList.toggle('hidden', !taskRequestLatex);
   setAnswerInputMode(currentTask);
   renderMath(controls.taskQuestion, getQuestionLatex(currentTask));
+  if (taskRequestLatex) {
+    renderMath(controls.taskRequest, taskRequestLatex);
+  } else {
+    clearMathContent(controls.taskRequest);
+  }
   renderAnswerHelpers(currentTask);
   renderCurrentTaskVisualization(true);
   controls.nextButton.disabled = false;
