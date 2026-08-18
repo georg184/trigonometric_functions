@@ -1,4 +1,4 @@
-const APP_VERSION = '20260818.2';
+const APP_VERSION = '20260818.3';
 const VERSION_MISMATCH_TEXT = {
   de: {
     title: 'Neue Version verfügbar',
@@ -227,12 +227,9 @@ const TEXT = {
       kaTeXBoldSvgAria: 'Dreieck als SVG mit fetten KaTeX-Labels',
       unitCircleRenderTitle: 'Einheitskreis',
       unitCircleStageAria: 'Einheitskreisdarstellung',
-      unitCircleBlankSvgAria: 'Einheitskreis mit waagrechter Kosinusachse und senkrechter Sinusachse',
+      unitCircleBlankSvgAria: 'Einheitskreis mit waagrechter und senkrechter Achse',
       unitCircleExactSvgAria: function(angleName, degrees) {
         return `Einheitskreis mit dem Winkel ${angleName} gleich ${degrees} Grad`;
-      },
-      unitCircleRangeSvgAria: function(angleName, lowerBound, upperBound) {
-        return `Einheitskreis mit markiertem Bereich ${lowerBound} Grad kleiner ${angleName} kleiner ${upperBound} Grad`;
       },
       unitCircleSignsToRegionGiven: 'Von einem Winkel sind gegeben:',
       unitCircleAngleToSignsGiven: 'Von einem Winkel ist gegeben:',
@@ -322,12 +319,9 @@ const TEXT = {
       kaTeXBoldSvgAria: 'Triangle as SVG with bold KaTeX labels',
       unitCircleRenderTitle: 'Unit circle',
       unitCircleStageAria: 'Unit-circle diagram',
-      unitCircleBlankSvgAria: 'Unit circle with a horizontal cosine axis and vertical sine axis',
+      unitCircleBlankSvgAria: 'Unit circle with horizontal and vertical axes',
       unitCircleExactSvgAria: function(angleName, degrees) {
         return `Unit circle with angle ${angleName} equal to ${degrees} degrees`;
-      },
-      unitCircleRangeSvgAria: function(angleName, lowerBound, upperBound) {
-        return `Unit circle with the highlighted region ${lowerBound} degrees less than ${angleName} less than ${upperBound} degrees`;
       },
       unitCircleSignsToRegionGiven: 'For an angle, the following are given:',
       unitCircleAngleToSignsGiven: 'The following information about an angle is given:',
@@ -417,12 +411,9 @@ const TEXT = {
       kaTeXBoldSvgAria: 'Triangle en SVG avec étiquettes KaTeX grasses',
       unitCircleRenderTitle: 'Cercle trigonométrique',
       unitCircleStageAria: 'Représentation du cercle trigonométrique',
-      unitCircleBlankSvgAria: 'Cercle trigonométrique avec axe horizontal du cosinus et axe vertical du sinus',
+      unitCircleBlankSvgAria: 'Cercle trigonométrique avec un axe horizontal et un axe vertical',
       unitCircleExactSvgAria: function(angleName, degrees) {
         return `Cercle trigonométrique avec l’angle ${angleName} égal à ${degrees} degrés`;
-      },
-      unitCircleRangeSvgAria: function(angleName, lowerBound, upperBound) {
-        return `Cercle trigonométrique avec la zone où l’angle ${angleName} est strictement compris entre ${lowerBound} et ${upperBound} degrés`;
       },
       unitCircleSignsToRegionGiven: 'Pour un angle, on connaît les informations suivantes :',
       unitCircleAngleToSignsGiven: 'Pour un angle, on connaît l’information suivante :',
@@ -2172,31 +2163,6 @@ function unitCirclePoint(center, radius, degrees) {
   };
 }
 
-function addUnitCircleSector(svg, center, radius, region) {
-  const start = unitCirclePoint(center, radius, region.lowerBound);
-  const end = unitCirclePoint(center, radius, region.upperBound);
-  const arcPoints = angleLayout.arcPoints(center, start, end, radius, 32, {
-    coordinateSystem: 'svg',
-    angleMode: 'directed'
-  });
-  const path = [
-    `M ${center.x} ${center.y}`,
-    `L ${arcPoints[0].x} ${arcPoints[0].y}`
-  ];
-  arcPoints.slice(1).forEach(function(point) {
-    path.push(`L ${point.x} ${point.y}`);
-  });
-  path.push('Z');
-  svg.appendChild(createSvgElement('path', {
-    d: path.join(' '),
-    fill: 'rgba(9, 105, 218, 0.16)',
-    stroke: 'rgba(9, 105, 218, 0.55)',
-    'stroke-width': 2,
-    'stroke-linejoin': 'round',
-    'data-unit-circle-region': region.id
-  }));
-}
-
 function addUnitCircleAxes(svg, center, radius) {
   const extension = radius + 25;
   svg.appendChild(createSvgElement('line', {
@@ -2280,78 +2246,45 @@ function addUnitCircleExactAngle(svg, task, center, radius) {
   }
 }
 
-function addUnitCircleAxisLabel(surface, latex, x, y) {
-  const label = document.createElement('span');
-  label.className = 'unit-circle-axis-label mathjax-inline';
-  label.style.left = `${x}px`;
-  label.style.top = `${y}px`;
-  label.innerHTML = `\\(${latex}\\)`;
-  surface.appendChild(label);
-}
-
 function renderUnitCircle(task, revealTask) {
   const texts = getTextBundle().quiz;
-  replaceMathContent(controls.unitCircleSurface, function() {
-    controls.unitCircleSurface.innerHTML = '';
-    const size = getSurfaceSize(controls.unitCircleSurface);
-    const center = { x: size.width * 0.5, y: size.height * 0.52 };
-    const radius = Math.max(70, Math.min(size.width, size.height) * 0.34);
-    const showTaskGeometry = Boolean(
-      revealTask
-      && task.questionKind === QUESTION_KINDS.angleToSigns
-    );
-    const region = unitCircleQuiz.regionForId(task.regionId);
-    let svgAria = texts.unitCircleBlankSvgAria;
-    if (showTaskGeometry && task.presentation === unitCircleQuiz.PRESENTATIONS.openInterval) {
-      svgAria = texts.unitCircleRangeSvgAria(
-        task.angleLabel.name,
-        region.lowerBound,
-        region.upperBound
-      );
-    } else if (showTaskGeometry) {
-      svgAria = texts.unitCircleExactSvgAria(task.angleLabel.name, task.angleDegrees);
-    }
-    const svg = createSvgElement('svg', {
-      class: 'geometry-svg unit-circle-svg',
-      viewBox: `0 0 ${size.width} ${size.height}`,
-      role: 'img',
-      'aria-label': svgAria
-    });
-    if (showTaskGeometry && task.presentation === unitCircleQuiz.PRESENTATIONS.openInterval) {
-      addUnitCircleSector(svg, center, radius, region);
-    }
-    addUnitCircleAxes(svg, center, radius);
-    svg.appendChild(createSvgElement('circle', {
-      cx: center.x,
-      cy: center.y,
-      r: radius,
-      fill: 'none',
-      stroke: '#1f2328',
-      'stroke-width': 2.5
-    }));
-    svg.appendChild(createSvgElement('circle', {
-      cx: center.x,
-      cy: center.y,
-      r: 3.5,
-      fill: '#1f2328'
-    }));
-    if (showTaskGeometry && task.presentation === unitCircleQuiz.PRESENTATIONS.exactAngle) {
-      addUnitCircleExactAngle(svg, task, center, radius);
-    }
-    controls.unitCircleSurface.appendChild(svg);
-    addUnitCircleAxisLabel(
-      controls.unitCircleSurface,
-      '\\cos',
-      center.x + radius + 24,
-      center.y + 24
-    );
-    addUnitCircleAxisLabel(
-      controls.unitCircleSurface,
-      '\\sin',
-      center.x + 24,
-      center.y - radius - 20
-    );
+  clearMathContentNow(controls.unitCircleSurface);
+  const size = getSurfaceSize(controls.unitCircleSurface);
+  const center = { x: size.width * 0.5, y: size.height * 0.52 };
+  const radius = Math.max(70, Math.min(size.width, size.height) * 0.34);
+  const showExactAngle = Boolean(
+    revealTask
+    && task.questionKind === QUESTION_KINDS.angleToSigns
+    && task.presentation === unitCircleQuiz.PRESENTATIONS.exactAngle
+  );
+  const svgAria = showExactAngle
+    ? texts.unitCircleExactSvgAria(task.angleLabel.name, task.angleDegrees)
+    : texts.unitCircleBlankSvgAria;
+  const svg = createSvgElement('svg', {
+    class: 'geometry-svg unit-circle-svg',
+    viewBox: `0 0 ${size.width} ${size.height}`,
+    role: 'img',
+    'aria-label': svgAria
   });
+  addUnitCircleAxes(svg, center, radius);
+  svg.appendChild(createSvgElement('circle', {
+    cx: center.x,
+    cy: center.y,
+    r: radius,
+    fill: 'none',
+    stroke: '#1f2328',
+    'stroke-width': 2.5
+  }));
+  svg.appendChild(createSvgElement('circle', {
+    cx: center.x,
+    cy: center.y,
+    r: 3.5,
+    fill: '#1f2328'
+  }));
+  if (showExactAngle) {
+    addUnitCircleExactAngle(svg, task, center, radius);
+  }
+  controls.unitCircleSurface.appendChild(svg);
 }
 
 function renderCurrentTaskVisualization(revealTask) {

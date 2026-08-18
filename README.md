@@ -41,7 +41,7 @@ The app intentionally uses one shared geometry pipeline with four centrally conf
 
 Older comparison renderers using JSXGraph, D3, and GeoGebra remain removed. Do not reintroduce those dependencies unless the app explicitly needs another rendering comparison mode. For the current quiz workflow, MathJax, KaTeX, and the pinned Pyodide/SymPy worker load are the external runtime dependencies; local app assets remain cache-busted with `GG_APP_VERSION`.
 
-The unit-circle mode uses a separate inline-SVG surface. It always shows the circle, cosine axis, and sine axis. Exact-angle prompts add a radius, point, and directed counterclockwise angle arc; interval prompts shade the selected open quadrant. Signs-to-region prompts keep the circle unmarked so the diagram does not reveal the answer. Exact-angle arcs use `calibratedAngleMarkerFromRays()` with `coordinateSystem: 'svg'` and explicit `angleMode: 'directed'`; shaded interval sectors obtain their directed arc points from the shared geometry helper as well.
+The unit-circle mode uses a separate inline-SVG surface. It always shows the circle with unlabeled horizontal and vertical coordinate axes. Exact-angle prompts add a radius, point, and directed counterclockwise angle arc. Open-interval prompts and signs-to-region prompts leave the circle unmarked; the mathematical prompt alone supplies the given information. Exact-angle arcs use `calibratedAngleMarkerFromRays()` with `coordinateSystem: 'svg'` and explicit `angleMode: 'directed'`.
 
 ## Renderer Variant Switches
 
@@ -150,7 +150,7 @@ For browser checks, start a local static server and verify:
 - unit-circle signs-to-region questions show one of the eight valid sine/cosine sign pairs and exactly eight region choices in circular order
 - unit-circle prompts present the introductory given-information sentence, then the mathematical data, and only then the actual question
 - unit-circle angle-to-sign questions alternate between exact integer angles and open quadrant intervals and require separate sine and cosine sign choices
-- exact unit-circle angles show a radius, point, and helper-generated directed arc; open intervals shade only their corresponding quadrant; signs-to-region questions leave the circle neutral
+- the unit-circle axes have no sine or cosine labels; exact angles show a radius, point, and helper-generated directed arc, while open intervals and signs-to-region questions leave the circle neutral
 - axis angles use exactly one zero sign, quadrant angles use no zero signs, and completed answers show a matching MathJax solution
 - the Greek angle name varies across unit-circle tasks
 - by default, exactly one SVG triangle with regular MathJax labels is visible; the comparison note and variants two through four stay hidden and unrendered

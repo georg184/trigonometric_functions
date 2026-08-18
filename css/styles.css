@@ -269,23 +269,6 @@ p {
   height: 460px;
 }
 
-.unit-circle-axis-label {
-  position: absolute;
-  z-index: 2;
-  transform: translate(-50%, -50%);
-  color: var(--muted);
-  font-size: 1.05rem;
-  font-weight: 700;
-  line-height: 1;
-  background: transparent;
-  pointer-events: none;
-}
-
-.unit-circle-axis-label mjx-container {
-  margin: 0 !important;
-  background: transparent !important;
-}
-
 .geometry-svg {
   display: block;
   width: 100%;
