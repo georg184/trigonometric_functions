@@ -162,7 +162,7 @@ assert.ok(
   'Non-cardinal integer angles are not distributed uniformly enough.'
 );
 
-assert.match(indexSource, /src="js\/unit-circle-quiz\.js\?v=20260818\.5"/);
+assert.match(indexSource, /src="js\/unit-circle-quiz\.js\?v=20260818\.6"/);
 assert.match(indexSource, /id="unitCircleStage" class="unit-circle-stage hidden"/);
 assert.match(indexSource, /id="unitCircleAnswerArea"/);
 assert.doesNotMatch(indexSource, /placeholderScreen|placeholderText|placeholderBackButton/);
@@ -175,6 +175,11 @@ assert.match(appSource, /function addUnitCircleSolutionSector\([\s\S]*?angleLayo
 assert.match(appSource, /data-unit-circle-solution-region/);
 assert.match(appSource, /data-unit-circle-axis-coordinate': 'x'/);
 assert.match(appSource, /data-unit-circle-axis-coordinate': 'y'/);
+assert.match(
+  appSource,
+  /function unitCircleAxisLabelPositions[\s\S]*?x: center\.x \+ axisExtension \+ gapAfterArrow,[\s\S]*?y: center\.y[\s\S]*?x: center\.x,[\s\S]*?y: center\.y - axisExtension - gapAfterArrow/,
+  'Axis labels must align with the positive horizontal and vertical axis extensions.'
+);
 assert.match(appSource, /data-unit-circle-coordinate-signs/);
 assert.match(appSource, /function unitCircleSolutionAngleDegrees\([\s\S]*?\(region\.lowerBound \+ region\.upperBound\) \/ 2/);
 assert.match(appSource, /x\$\{unitCircleQuiz\.signComparisonLatex\(task\.cosSign\)\}/);

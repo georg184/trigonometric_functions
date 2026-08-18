@@ -1,4 +1,4 @@
-const APP_VERSION = '20260818.5';
+const APP_VERSION = '20260818.6';
 const VERSION_MISMATCH_TEXT = {
   de: {
     title: 'Neue Version verfügbar',
@@ -2293,6 +2293,20 @@ function addUnitCircleOverlayLabel(surface, latex, x, y, className, attributes) 
   surface.appendChild(label);
 }
 
+function unitCircleAxisLabelPositions(center, axisExtension) {
+  const gapAfterArrow = 16;
+  return {
+    x: {
+      x: center.x + axisExtension + gapAfterArrow,
+      y: center.y
+    },
+    y: {
+      x: center.x,
+      y: center.y - axisExtension - gapAfterArrow
+    }
+  };
+}
+
 function addUnitCircleAxes(svg, center, radius) {
   const extension = radius + 25;
   svg.appendChild(createSvgElement('line', {
@@ -2384,6 +2398,7 @@ function renderUnitCircle(task, revealTask, showSolution) {
     const center = { x: size.width * 0.5, y: size.height * 0.52 };
     const radius = Math.max(70, Math.min(size.width, size.height) * 0.34);
     const axisExtension = radius + 25;
+    const axisLabelPositions = unitCircleAxisLabelPositions(center, axisExtension);
     const region = unitCircleQuiz.regionForId(task.regionId);
     const showExactAngle = Boolean(
       revealTask
@@ -2449,16 +2464,16 @@ function renderUnitCircle(task, revealTask, showSolution) {
     addUnitCircleOverlayLabel(
       controls.unitCircleSurface,
       'x',
-      center.x + axisExtension + 18,
-      center.y + 23,
+      axisLabelPositions.x.x,
+      axisLabelPositions.x.y,
       '',
       { 'data-unit-circle-axis-coordinate': 'x' }
     );
     addUnitCircleOverlayLabel(
       controls.unitCircleSurface,
       'y',
-      center.x + 22,
-      center.y - axisExtension - 18,
+      axisLabelPositions.y.x,
+      axisLabelPositions.y.y,
       '',
       { 'data-unit-circle-axis-coordinate': 'y' }
     );
